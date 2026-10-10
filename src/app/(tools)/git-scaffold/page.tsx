@@ -1,16 +1,26 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Copy, Download, Loader2, RefreshCw } from "lucide-react";
-import { Badge } from "@/components/ui/feedback/Badge";
+import React, {
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { GitTreeNodeItem } from "@/components/tools/git-scaffold/GitTreeNodeItem";
 import { Button } from "@/components/ui/Button";
-import { ToggleSwitch } from "@/components/ui/interaction/ToggleSwitch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
+import { Badge } from "@/components/ui/feedback/Badge";
 import { Input } from "@/components/ui/form/Input";
 import { Label } from "@/components/ui/form/Label";
-import { GitTreeNodeItem } from "@/components/tools/git-scaffold/GitTreeNodeItem";
+import { ToggleSwitch } from "@/components/ui/interaction/ToggleSwitch";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
 import type { GitTreeResponse, TreeNode } from "@/lib/tools/git-scaffold/types";
 import {
   buildTree,
@@ -33,26 +43,27 @@ export default function GitScaffoldPage() {
   );
 }
 
-
 const TOKEN_STORAGE_KEY = "git_scaffold_token";
+const subscribeToNothing = () => () => {};
 
 function GitScaffoldTool() {
   const [repoInput, setRepoInput] = useState("");
-  const [tokenInput, setTokenInput] = useState("");
-  const [isPrivateRepo, setIsPrivateRepo] = useState(false);
+  // The saved token is read with useSyncExternalStore so the first client
+  // render matches the server's, then picks up localStorage without an effect.
+  const storedToken = useSyncExternalStore(
+    subscribeToNothing,
+    () => window.localStorage.getItem(TOKEN_STORAGE_KEY) ?? "",
+    () => "",
+  );
+  const [tokenDraft, setTokenInput] = useState<string | null>(null);
+  const [privateChoice, setIsPrivateRepo] = useState<boolean | null>(null);
+  const tokenInput = tokenDraft ?? storedToken;
+  const isPrivateRepo = privateChoice ?? storedToken !== "";
   const [treeRoot, setTreeRoot] = useState<TreeNode | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (token) {
-      setTokenInput(token);
-      setIsPrivateRepo(true);
-    }
-  }, []);
 
   const togglePath = useCallback((path: string) => {
     setCollapsed((prev) => {

@@ -1,24 +1,17 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { Download, File, ImageIcon, Loader2, Minimize2, X } from "lucide-react";
+import { PDFDocument } from "pdf-lib";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import React, { useState } from "react";
-import {
-  Download,
-  File,
-  ImageIcon,
-  Loader2,
-  Minimize2,
-  X,
-} from "lucide-react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Card } from "@/components/ui/layout/Card";
 import { Slider } from "@/components/ui/Slider";
-import { PDFDocument } from "pdf-lib";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import { getToolBySlug } from "@/config/tools";
 
 if (typeof window !== "undefined") {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -131,9 +124,7 @@ function PdfCompressorTool() {
   };
 
   const reduction =
-    file && outputSize
-      ? Math.round((1 - outputSize / file.size) * 100)
-      : null;
+    file && outputSize ? Math.round((1 - outputSize / file.size) * 100) : null;
 
   return (
     <div className="space-y-6">
@@ -183,7 +174,9 @@ function PdfCompressorTool() {
             <div className="flex items-start gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-amber-400">
               <ImageIcon className="size-4 mt-0.5 shrink-0" />
               <p className="text-xs leading-relaxed">
-                <strong>Note:</strong> Compression rasterizes pages into optimized JPEGs. Text will no longer be selectable in the output PDF.
+                <strong>Note:</strong> Compression rasterizes pages into
+                optimized JPEGs. Text will no longer be selectable in the output
+                PDF.
               </p>
             </div>
 

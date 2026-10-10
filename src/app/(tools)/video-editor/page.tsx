@@ -1,8 +1,5 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useRef, useState } from "react";
 import { fetchFile } from "@ffmpeg/util";
 import {
   AlertTriangle,
@@ -18,25 +15,36 @@ import {
   X,
   Zap,
 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
+import { Input } from "@/components/ui/form/Input";
+import { Select } from "@/components/ui/form/Select";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Card } from "@/components/ui/layout/Card";
-import { Select } from "@/components/ui/form/Select";
-import { Slider } from "@/components/ui/Slider";
-import { Input } from "@/components/ui/form/Input";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Slider } from "@/components/ui/Slider";
+import { getToolBySlug } from "@/config/tools";
 import {
   formatFileSize,
   getFFmpeg,
-  runFFmpeg,
-  videoContainerCodecArgs,
   getFileExtension,
+  runFFmpeg,
   uid,
+  videoContainerCodecArgs,
 } from "@/lib/ffmpeg/client";
-import type { VideoEditorState, VideoTabId, RotateAngle, VideoOutputFormat } from "@/lib/tools/video-editor/types";
-import { buildVideoFilterChain, buildAudioFilterChain } from "@/lib/tools/video-editor/filters";
+import {
+  buildAudioFilterChain,
+  buildVideoFilterChain,
+} from "@/lib/tools/video-editor/filters";
+import type {
+  RotateAngle,
+  VideoEditorState,
+  VideoOutputFormat,
+  VideoTabId,
+} from "@/lib/tools/video-editor/types";
 
 const tool = getToolBySlug("video-editor");
 
@@ -142,7 +150,14 @@ function VideoEditorTool() {
       if (state.outputUrl) URL.revokeObjectURL(state.outputUrl);
 
       const videoUrl = URL.createObjectURL(file);
-      patch({ file, videoUrl, status: "loading", error: null, outputUrl: null, outputSize: 0 });
+      patch({
+        file,
+        videoUrl,
+        status: "loading",
+        error: null,
+        outputUrl: null,
+        outputSize: 0,
+      });
 
       // Get duration from video element
       const video = document.createElement("video");
@@ -179,7 +194,8 @@ function VideoEditorTool() {
     const animate = () => {
       patch({
         progress: Math.min(
-          state.progress + Math.max(1, Math.round((targetProgress - state.progress) * 0.2)),
+          state.progress +
+            Math.max(1, Math.round((targetProgress - state.progress) * 0.2)),
           targetProgress,
         ),
       });
@@ -248,7 +264,10 @@ function VideoEditorTool() {
     a.click();
   };
 
-  const isReady = state.status === "ready" || state.status === "done" || state.status === "exporting";
+  const isReady =
+    state.status === "ready" ||
+    state.status === "done" ||
+    state.status === "exporting";
   const isBigFile = state.file && state.file.size > 50 * 1024 * 1024;
 
   return (
@@ -275,7 +294,8 @@ function VideoEditorTool() {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-3 text-amber-400">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <p className="text-xs leading-relaxed">
-            File is larger than 50 MB. ffmpeg.wasm runs in-browser and will be slow for large files.
+            File is larger than 50 MB. ffmpeg.wasm runs in-browser and will be
+            slow for large files.
           </p>
         </div>
       )}
@@ -324,7 +344,9 @@ function VideoEditorTool() {
 
           {/* Timeline (simple trim bar) */}
           <Card className="border-white/10 bg-white/[0.015] p-4">
-            <p className="mb-2 text-xs text-muted-foreground">Timeline (Trim)</p>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Timeline (Trim)
+            </p>
             <div className="relative h-8 w-full overflow-hidden rounded-lg bg-white/[0.06]">
               {/* Selected region */}
               <div
@@ -342,7 +364,10 @@ function VideoEditorTool() {
                 step={0.1}
                 value={state.trimStart}
                 onChange={(e) => {
-                  const val = Math.min(Number(e.target.value), state.trimEnd - 0.1);
+                  const val = Math.min(
+                    Number(e.target.value),
+                    state.trimEnd - 0.1,
+                  );
                   patch({ trimStart: parseFloat(val.toFixed(1)) });
                 }}
                 className="absolute inset-0 w-full cursor-pointer opacity-0"
@@ -363,7 +388,10 @@ function VideoEditorTool() {
                 onValueChange={(v) => patch({ activeTab: v as VideoTabId })}
                 className="max-w-full flex-wrap rounded-xl border bg-card/60 p-1"
                 optionClassName="rounded-lg px-3 py-1.5 text-xs whitespace-nowrap"
-                options={TAB_LABELS.map((t) => ({ label: t.label, value: t.id }))}
+                options={TAB_LABELS.map((t) => ({
+                  label: t.label,
+                  value: t.id,
+                }))}
               />
             </div>
 
@@ -384,7 +412,12 @@ function VideoEditorTool() {
                           size="icon"
                           className="size-8 border border-white/10"
                           onClick={() =>
-                            patch({ trimStart: Math.max(0, parseFloat((state.trimStart - 0.1).toFixed(1))) })
+                            patch({
+                              trimStart: Math.max(
+                                0,
+                                parseFloat((state.trimStart - 0.1).toFixed(1)),
+                              ),
+                            })
                           }
                         >
                           <Minus className="size-3.5" />
@@ -397,7 +430,12 @@ function VideoEditorTool() {
                           size="icon"
                           className="size-8 border border-white/10"
                           onClick={() =>
-                            patch({ trimStart: Math.min(state.trimEnd - 0.1, parseFloat((state.trimStart + 0.1).toFixed(1))) })
+                            patch({
+                              trimStart: Math.min(
+                                state.trimEnd - 0.1,
+                                parseFloat((state.trimStart + 0.1).toFixed(1)),
+                              ),
+                            })
                           }
                         >
                           <Plus className="size-3.5" />
@@ -412,7 +450,12 @@ function VideoEditorTool() {
                           size="icon"
                           className="size-8 border border-white/10"
                           onClick={() =>
-                            patch({ trimEnd: Math.max(state.trimStart + 0.1, parseFloat((state.trimEnd - 0.1).toFixed(1))) })
+                            patch({
+                              trimEnd: Math.max(
+                                state.trimStart + 0.1,
+                                parseFloat((state.trimEnd - 0.1).toFixed(1)),
+                              ),
+                            })
                           }
                         >
                           <Minus className="size-3.5" />
@@ -425,7 +468,12 @@ function VideoEditorTool() {
                           size="icon"
                           className="size-8 border border-white/10"
                           onClick={() =>
-                            patch({ trimEnd: Math.min(state.duration, parseFloat((state.trimEnd + 0.1).toFixed(1))) })
+                            patch({
+                              trimEnd: Math.min(
+                                state.duration,
+                                parseFloat((state.trimEnd + 0.1).toFixed(1)),
+                              ),
+                            })
                           }
                         >
                           <Plus className="size-3.5" />
@@ -444,7 +492,9 @@ function VideoEditorTool() {
                       variant="ghost"
                       size="sm"
                       className="ml-auto h-7 border border-white/10 text-xs text-muted-foreground"
-                      onClick={() => patch({ trimStart: 0, trimEnd: state.duration })}
+                      onClick={() =>
+                        patch({ trimStart: 0, trimEnd: state.duration })
+                      }
                     >
                       Reset
                     </Button>
@@ -452,9 +502,13 @@ function VideoEditorTool() {
 
                   {/* Trim range inputs */}
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Fine-tune trim range</p>
+                    <p className="text-xs text-muted-foreground">
+                      Fine-tune trim range
+                    </p>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-8 shrink-0">Start</span>
+                      <span className="text-xs text-muted-foreground w-8 shrink-0">
+                        Start
+                      </span>
                       <input
                         type="range"
                         min={0}
@@ -462,14 +516,19 @@ function VideoEditorTool() {
                         step={0.1}
                         value={state.trimStart}
                         onChange={(e) => {
-                          const v = Math.min(Number(e.target.value), state.trimEnd - 0.1);
+                          const v = Math.min(
+                            Number(e.target.value),
+                            state.trimEnd - 0.1,
+                          );
                           patch({ trimStart: parseFloat(v.toFixed(1)) });
                         }}
                         className="flex-1"
                       />
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground w-8 shrink-0">End</span>
+                      <span className="text-xs text-muted-foreground w-8 shrink-0">
+                        End
+                      </span>
                       <input
                         type="range"
                         min={0}
@@ -477,7 +536,10 @@ function VideoEditorTool() {
                         step={0.1}
                         value={state.trimEnd}
                         onChange={(e) => {
-                          const v = Math.max(Number(e.target.value), state.trimStart + 0.1);
+                          const v = Math.max(
+                            Number(e.target.value),
+                            state.trimStart + 0.1,
+                          );
                           patch({ trimEnd: parseFloat(v.toFixed(1)) });
                         }}
                         className="flex-1"
@@ -492,13 +554,16 @@ function VideoEditorTool() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <p className="text-sm text-muted-foreground flex-1">
-                      Set crop region in pixels (relative to original video dimensions).
+                      Set crop region in pixels (relative to original video
+                      dimensions).
                     </p>
                     <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                       <div
                         role="checkbox"
                         aria-checked={state.cropEnabled}
-                        onClick={() => patch({ cropEnabled: !state.cropEnabled })}
+                        onClick={() =>
+                          patch({ cropEnabled: !state.cropEnabled })
+                        }
                         className={`relative h-4 w-7 rounded-full transition-colors ${state.cropEnabled ? "bg-yellow-400" : "bg-white/15"}`}
                       >
                         <span
@@ -509,27 +574,32 @@ function VideoEditorTool() {
                     </label>
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {(["cropX", "cropY", "cropW", "cropH"] as const).map((key) => (
-                      <div key={key} className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                          {key.replace("crop", "")}
-                        </p>
-                        <Input
-                          type="number"
-                          min={0}
-                          value={state[key]}
-                          onChange={(e) =>
-                            patch({ [key]: parseInt(e.target.value, 10) || 0 } as Partial<VideoEditorState>)
-                          }
-                          disabled={!state.cropEnabled}
-                          className="h-9 border-white/10 bg-white/[0.04] text-sm font-mono"
-                        />
-                      </div>
-                    ))}
+                    {(["cropX", "cropY", "cropW", "cropH"] as const).map(
+                      (key) => (
+                        <div key={key} className="space-y-1.5">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                            {key.replace("crop", "")}
+                          </p>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={state[key]}
+                            onChange={(e) =>
+                              patch({
+                                [key]: parseInt(e.target.value, 10) || 0,
+                              } as Partial<VideoEditorState>)
+                            }
+                            disabled={!state.cropEnabled}
+                            className="h-9 border-white/10 bg-white/[0.04] text-sm font-mono"
+                          />
+                        </div>
+                      ),
+                    )}
                   </div>
                   {state.cropEnabled && state.cropW > 0 && state.cropH > 0 && (
                     <p className="text-xs text-muted-foreground font-mono">
-                      Region: {state.cropW}×{state.cropH} at ({state.cropX}, {state.cropY})
+                      Region: {state.cropW}×{state.cropH} at ({state.cropX},{" "}
+                      {state.cropY})
                     </p>
                   )}
                 </div>
@@ -545,7 +615,9 @@ function VideoEditorTool() {
                     {([0, 90, 180, 270] as RotateAngle[]).map((angle) => (
                       <Button
                         key={angle}
-                        variant={state.rotateAngle === angle ? "default" : "outline"}
+                        variant={
+                          state.rotateAngle === angle ? "default" : "outline"
+                        }
                         size="sm"
                         className={`h-10 gap-2 border-white/10 ${state.rotateAngle === angle ? "" : "bg-white/[0.04]"}`}
                         onClick={() => patch({ rotateAngle: angle })}
@@ -570,7 +642,10 @@ function VideoEditorTool() {
                       options={RESOLUTION_OPTIONS}
                       value={state.resolution}
                       onChange={(e) =>
-                        patch({ resolution: e.target.value as VideoEditorState["resolution"] })
+                        patch({
+                          resolution: e.target
+                            .value as VideoEditorState["resolution"],
+                        })
                       }
                       className="h-9 border-white/10 bg-white/[0.04] text-sm"
                     />
@@ -579,23 +654,35 @@ function VideoEditorTool() {
                   {state.resolution === "original" && (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground">Custom Width (px)</p>
+                        <p className="text-xs text-muted-foreground">
+                          Custom Width (px)
+                        </p>
                         <Input
                           type="number"
                           min={0}
                           value={state.customW || ""}
-                          onChange={(e) => patch({ customW: parseInt(e.target.value, 10) || 0 })}
+                          onChange={(e) =>
+                            patch({
+                              customW: parseInt(e.target.value, 10) || 0,
+                            })
+                          }
                           placeholder="e.g. 1920"
                           className="h-9 border-white/10 bg-white/[0.04] text-sm"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground">Custom Height (px)</p>
+                        <p className="text-xs text-muted-foreground">
+                          Custom Height (px)
+                        </p>
                         <Input
                           type="number"
                           min={0}
                           value={state.customH || ""}
-                          onChange={(e) => patch({ customH: parseInt(e.target.value, 10) || 0 })}
+                          onChange={(e) =>
+                            patch({
+                              customH: parseInt(e.target.value, 10) || 0,
+                            })
+                          }
                           placeholder="e.g. 1080"
                           className="h-9 border-white/10 bg-white/[0.04] text-sm"
                         />

@@ -1,15 +1,15 @@
- "use client";
+"use client";
 
 // ToolPageShell.tsx
 // Shared page wrapper for all tool routes with back button, title, and footer.
 
-import type { CSSProperties, ReactNode } from "react";
-import { useMemo } from "react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import type { CSSProperties, ReactNode } from "react";
+import { useMemo } from "react";
 import { RepositoryCorner } from "@/components/common/RepositoryCorner";
+import { Button } from "@/components/ui/Button";
 import { getToolBySlug, toolCategories } from "@/config/tools";
 
 interface ToolPageShellProps {
@@ -70,7 +70,10 @@ export function ToolPageShell({
   return (
     <div className="page-shell tool-accent-scope" style={scopeStyle}>
       <div className="page-grid-overlay" />
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 overflow-hidden z-0"
+      >
         <div
           className="absolute -top-28 -left-16 h-[420px] w-[420px] rounded-full blur-[110px]"
           style={{ backgroundColor: `rgb(${theme.primaryRgb} / 0.14)` }}
@@ -91,12 +94,7 @@ export function ToolPageShell({
 
       <main className="page-main relative z-10">
         <div className="mb-4 flex justify-start">
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="glass-button"
-          >
+          <Button asChild variant="outline" size="sm" className="glass-button">
             <Link href="/">
               <ArrowLeft className="size-4" />
               All tools
@@ -108,8 +106,7 @@ export function ToolPageShell({
           <h1
             className="text-7xl font-semibold tracking-tight sm:text-8xl"
             style={{
-              background:
-                `linear-gradient(135deg, rgb(${theme.primaryRgb} / 0.5) 0%, rgb(${theme.primaryRgb} / 1) 45%, rgb(${theme.primaryRgb} / 0.65) 100%)`,
+              background: `linear-gradient(135deg, rgb(${theme.primaryRgb} / 0.5) 0%, rgb(${theme.primaryRgb} / 1) 45%, rgb(${theme.primaryRgb} / 0.65) 100%)`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",

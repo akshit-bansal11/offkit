@@ -1,13 +1,5 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
 import { fetchFile } from "@ffmpeg/util";
 import JSZip from "jszip";
 import {
@@ -18,6 +10,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ToolInputCard,
   ToolInputCardBadge,
@@ -33,22 +26,29 @@ import {
   ToolInputCardText,
   ToolInputCardTitle,
 } from "@/components/common/ToolInputCard";
-import { Badge } from "@/components/ui/feedback/Badge";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
+import { Badge } from "@/components/ui/feedback/Badge";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import {
-  formatFileSize,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
+import {
   audioCodecArgs,
+  formatFileSize,
   getFFmpeg,
-  runFFmpeg,
   getFileExtension,
   getVideoAudioCodecsForFormat,
   getVideoCodecsForFormat,
+  runFFmpeg,
   stripExtension,
   uid,
-  type VideoOutputFormat,
   VIDEO_FORMAT_CODEC_MAP,
+  type VideoOutputFormat,
 } from "@/lib/ffmpeg/client";
 
 const tool = getToolBySlug("video-converter");
@@ -64,7 +64,6 @@ export default function VideoConverterPage() {
     </ToolPageShell>
   );
 }
-
 
 type ConversionStatus = "idle" | "converting" | "done" | "error";
 
@@ -220,7 +219,9 @@ function VideoConverterTool() {
         await runFFmpeg(ffmpeg, ffmpegArgs);
 
         const output = await ffmpeg.readFile(outputName);
-        const blob = new Blob([(output as Uint8Array).slice()], { type: `video/${item.targetFormat}` });
+        const blob = new Blob([(output as Uint8Array).slice()], {
+          type: `video/${item.targetFormat}`,
+        });
         const url = URL.createObjectURL(blob);
 
         if (item.outputUrl) {
@@ -427,7 +428,9 @@ function VideoConverterTool() {
                   <ToolInputCardInner className="space-y-4 p-4 pl-5">
                     <ToolInputCardHeader>
                       <div className="min-w-0 flex-1">
-                        <ToolInputCardTitle>{item.file.name}</ToolInputCardTitle>
+                        <ToolInputCardTitle>
+                          {item.file.name}
+                        </ToolInputCardTitle>
                         <ToolInputCardText className="mt-1 text-xs">
                           Source size: {formatFileSize(item.file.size)}
                           {outputSize ? ` -> Output size: ${outputSize}` : ""}
@@ -510,7 +513,9 @@ function VideoConverterTool() {
                       </ToolInputCardField>
 
                       <ToolInputCardField>
-                        <ToolInputCardLabel>Resolution & Quality</ToolInputCardLabel>
+                        <ToolInputCardLabel>
+                          Resolution & Quality
+                        </ToolInputCardLabel>
                         <div className="flex items-center gap-3">
                           <ToolInputCardSelect
                             className="flex-1"
@@ -535,7 +540,13 @@ function VideoConverterTool() {
                           <div className="flex-1 space-y-1.5 rounded-md border border-white/10 bg-black/20 p-2">
                             <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                               <span>CRF {item.quality}</span>
-                              <span>{item.quality < 20 ? "High Quality" : item.quality > 35 ? "Low Quality" : "Balanced"}</span>
+                              <span>
+                                {item.quality < 20
+                                  ? "High Quality"
+                                  : item.quality > 35
+                                    ? "Low Quality"
+                                    : "Balanced"}
+                              </span>
                             </div>
                             <input
                               type="range"
@@ -551,7 +562,10 @@ function VideoConverterTool() {
                                   error: undefined,
                                 })
                               }
-                              disabled={item.status === "converting" || item.videoCodec === "copy"}
+                              disabled={
+                                item.status === "converting" ||
+                                item.videoCodec === "copy"
+                              }
                               className="w-full accent-primary"
                             />
                           </div>
@@ -608,4 +622,3 @@ function VideoConverterTool() {
     </div>
   );
 }
-

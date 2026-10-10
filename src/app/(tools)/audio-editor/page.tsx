@@ -1,13 +1,5 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
 import { fetchFile } from "@ffmpeg/util";
 import {
   AudioWaveform,
@@ -20,27 +12,27 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
 import { Select } from "@/components/ui/form/Select";
-import { Slider } from "@/components/ui/interaction/Slider";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
-import { Card } from "@/components/ui/layout/Card";
+import { Slider } from "@/components/ui/interaction/Slider";
 import { WaveformCanvas } from "@/components/ui/interaction/WaveformCanvas";
+import { Card } from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
+import { decodeAudioFile, formatDuration } from "@/lib/audio/utils";
 import {
-  formatFileSize,
   audioCodecArgs,
+  formatFileSize,
   getFFmpeg,
-  runFFmpeg,
   getFileExtension,
+  runFFmpeg,
   stripExtension,
   uid,
 } from "@/lib/ffmpeg/client";
-import {
-  decodeAudioFile,
-  formatDuration,
-} from "@/lib/audio/utils";
 
 // ─── Page shell ──────────────────────────────────────────────────────────────
 
@@ -60,10 +52,10 @@ export default function AudioEditorPage() {
 const ACCEPTED_AUDIO = ".mp3,.wav,.flac,.aac,.m4a,.opus,.ogg";
 
 const OUTPUT_FORMATS = [
-  { label: "MP3",  value: "mp3"  },
-  { label: "WAV",  value: "wav"  },
+  { label: "MP3", value: "mp3" },
+  { label: "WAV", value: "wav" },
   { label: "FLAC", value: "flac" },
-  { label: "AAC",  value: "aac"  },
+  { label: "AAC", value: "aac" },
   { label: "OPUS", value: "opus" },
 ];
 
@@ -71,14 +63,20 @@ const SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const PITCH_PRESETS = [-12, -7, -5, 0, 5, 7, 12];
 
 const CODEC_FOR_FORMAT: Record<string, string> = {
-  mp3:  "libmp3lame",
-  wav:  "pcm_s16le",
+  mp3: "libmp3lame",
+  wav: "pcm_s16le",
   flac: "flac",
-  aac:  "aac",
+  aac: "aac",
   opus: "opus",
 };
 
-type EditorStatus = "idle" | "loading" | "ready" | "exporting" | "done" | "error";
+type EditorStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "exporting"
+  | "done"
+  | "error";
 
 // ─── Filter helpers ───────────────────────────────────────────────────────────
 
@@ -137,8 +135,8 @@ function buildFilterChain(params: {
     }
   }
 
-  if (Math.abs(bass) > 0.1)   filters.push(`bass=g=${bass}:f=100`);
-  if (Math.abs(mid) > 0.1)    filters.push(`equalizer=f=1000:t=q:w=2:g=${mid}`);
+  if (Math.abs(bass) > 0.1) filters.push(`bass=g=${bass}:f=100`);
+  if (Math.abs(mid) > 0.1) filters.push(`equalizer=f=1000:t=q:w=2:g=${mid}`);
   if (Math.abs(treble) > 0.1) filters.push(`treble=g=${treble}:f=8000`);
 
   return filters.length > 0 ? filters.join(",") : null;
@@ -275,7 +273,8 @@ function AudioEditorTool() {
       stopPlayback();
       if (outputUrl) URL.revokeObjectURL(outputUrl);
       if (inputUrlRef.current) URL.revokeObjectURL(inputUrlRef.current);
-      if (renderedPreviewUrlRef.current) URL.revokeObjectURL(renderedPreviewUrlRef.current);
+      if (renderedPreviewUrlRef.current)
+        URL.revokeObjectURL(renderedPreviewUrlRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -337,7 +336,9 @@ function AudioEditorTool() {
   const nudgeEnd = useCallback(
     (delta: number) =>
       setEndTime((p) =>
-        parseFloat(Math.max(startTime + 0.1, Math.min(duration, p + delta)).toFixed(2)),
+        parseFloat(
+          Math.max(startTime + 0.1, Math.min(duration, p + delta)).toFixed(2),
+        ),
       ),
     [startTime, duration],
   );
@@ -375,7 +376,8 @@ function AudioEditorTool() {
         setPlayhead(nextPlayhead);
 
         if (rendered) {
-          const renderedDuration = (endTime - startTime) / Math.max(speed, 0.01);
+          const renderedDuration =
+            (endTime - startTime) / Math.max(speed, 0.01);
           if (currentTime >= renderedDuration) {
             audio.pause();
             setIsPlaying(false);
@@ -421,7 +423,9 @@ function AudioEditorTool() {
       } else {
         audio.playbackRate = speed;
         if ("preservesPitch" in audio) {
-          (audio as HTMLAudioElement & { preservesPitch: boolean }).preservesPitch = true;
+          (
+            audio as HTMLAudioElement & { preservesPitch: boolean }
+          ).preservesPitch = true;
         }
         audio.currentTime = startTime;
       }
@@ -454,7 +458,14 @@ function AudioEditorTool() {
       sampleRate,
     });
 
-    const args = ["-i", inputName, "-ss", String(startTime), "-to", String(endTime)];
+    const args = [
+      "-i",
+      inputName,
+      "-ss",
+      String(startTime),
+      "-to",
+      String(endTime),
+    ];
     if (filterChain) {
       args.push("-filter:a", filterChain);
     }
@@ -496,7 +507,8 @@ function AudioEditorTool() {
         setIsPreparingPreview(true);
         try {
           const previewUrl =
-            renderedPreviewKeyRef.current === previewKey && renderedPreviewUrlRef.current
+            renderedPreviewKeyRef.current === previewKey &&
+            renderedPreviewUrlRef.current
               ? renderedPreviewUrlRef.current
               : await renderPreview();
           if (!previewUrl) return;
@@ -555,7 +567,10 @@ function AudioEditorTool() {
     let animRaf = 0;
     const animate = () => {
       setProgress((cur) =>
-        Math.min(cur + Math.max(1, Math.round((targetProgress - cur) * 0.25)), targetProgress),
+        Math.min(
+          cur + Math.max(1, Math.round((targetProgress - cur) * 0.25)),
+          targetProgress,
+        ),
       );
       animRaf = requestAnimationFrame(animate);
     };
@@ -567,7 +582,8 @@ function AudioEditorTool() {
       await ffmpeg.writeFile(inputName, await fetchFile(file));
 
       const sampleRate =
-        (await probeAudioSampleRate(ffmpeg, inputName)) ?? audioBuffer.sampleRate;
+        (await probeAudioSampleRate(ffmpeg, inputName)) ??
+        audioBuffer.sampleRate;
 
       const filterChain = buildFilterChain({
         speed,
@@ -578,13 +594,23 @@ function AudioEditorTool() {
         sampleRate,
       });
 
-      const args = ["-i", inputName, "-ss", String(startTime), "-to", String(endTime)];
+      const args = [
+        "-i",
+        inputName,
+        "-ss",
+        String(startTime),
+        "-to",
+        String(endTime),
+      ];
 
       if (filterChain) {
         args.push("-filter:a", filterChain);
       }
 
-      args.push(...audioCodecArgs(CODEC_FOR_FORMAT[outputFormat] ?? "libmp3lame"), outputName);
+      args.push(
+        ...audioCodecArgs(CODEC_FOR_FORMAT[outputFormat] ?? "libmp3lame"),
+        outputName,
+      );
 
       await runFFmpeg(ffmpeg, args);
 
@@ -604,7 +630,19 @@ function AudioEditorTool() {
       cancelAnimationFrame(animRaf);
       ffmpeg.off("progress", onProgress);
     }
-  }, [file, audioBuffer, startTime, endTime, speed, pitchSemitones, bass, mid, treble, outputFormat, outputUrl]);
+  }, [
+    file,
+    audioBuffer,
+    startTime,
+    endTime,
+    speed,
+    pitchSemitones,
+    bass,
+    mid,
+    treble,
+    outputFormat,
+    outputUrl,
+  ]);
 
   const downloadOutput = useCallback(() => {
     if (!outputUrl || !file) return;
@@ -635,7 +673,9 @@ function AudioEditorTool() {
     setOutputUrl(null);
   }, [outputUrl]);
 
-  const isActive = audioBuffer && file &&
+  const isActive =
+    audioBuffer &&
+    file &&
     (status === "ready" || status === "exporting" || status === "done");
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -668,14 +708,22 @@ function AudioEditorTool() {
             <div className="flex min-w-0 items-center gap-3">
               <AudioWaveform className="size-5 shrink-0 text-muted-foreground" />
               <p className="truncate text-sm font-medium">{file!.name}</p>
-              <Badge variant="outline" className="shrink-0 border-white/15 bg-white/[0.04] text-xs">
+              <Badge
+                variant="outline"
+                className="shrink-0 border-white/15 bg-white/[0.04] text-xs"
+              >
                 {getFileExtension(file!.name).toUpperCase()}
               </Badge>
               <span className="shrink-0 text-xs text-muted-foreground">
                 {formatFileSize(file!.size)}
               </span>
             </div>
-            <Button variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground" onClick={reset}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 text-muted-foreground"
+              onClick={reset}
+            >
               <X className="size-4" />
             </Button>
           </div>
@@ -692,7 +740,6 @@ function AudioEditorTool() {
 
           {/* Controls card */}
           <Card className="divide-y divide-white/[0.06] border-white/10 bg-white/[0.015]">
-
             {/* ── Playback row ── */}
             <div className="flex flex-wrap items-center gap-4 px-5 py-3">
               <Button
@@ -712,7 +759,8 @@ function AudioEditorTool() {
               </Button>
 
               <span className="shrink-0 font-mono text-sm tabular-nums text-muted-foreground">
-                {formatDuration(Math.min(playhead, endTime))} / {formatDuration(duration)}
+                {formatDuration(Math.min(playhead, endTime))} /{" "}
+                {formatDuration(duration)}
               </span>
 
               <div className="h-4 w-px bg-white/10" />
@@ -720,13 +768,25 @@ function AudioEditorTool() {
               {/* Start nudge */}
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Start</span>
-                <Button variant="ghost" size="icon" className="size-6 rounded text-muted-foreground"
-                  onClick={() => nudgeStart(-0.1)} disabled={status === "exporting"}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 rounded text-muted-foreground"
+                  onClick={() => nudgeStart(-0.1)}
+                  disabled={status === "exporting"}
+                >
                   <Minus className="size-3" />
                 </Button>
-                <span className="w-16 text-center font-mono text-xs tabular-nums">{formatDuration(startTime)}</span>
-                <Button variant="ghost" size="icon" className="size-6 rounded text-muted-foreground"
-                  onClick={() => nudgeStart(0.1)} disabled={status === "exporting"}>
+                <span className="w-16 text-center font-mono text-xs tabular-nums">
+                  {formatDuration(startTime)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 rounded text-muted-foreground"
+                  onClick={() => nudgeStart(0.1)}
+                  disabled={status === "exporting"}
+                >
                   <Plus className="size-3" />
                 </Button>
               </div>
@@ -734,13 +794,25 @@ function AudioEditorTool() {
               {/* End nudge */}
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">End</span>
-                <Button variant="ghost" size="icon" className="size-6 rounded text-muted-foreground"
-                  onClick={() => nudgeEnd(-0.1)} disabled={status === "exporting"}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 rounded text-muted-foreground"
+                  onClick={() => nudgeEnd(-0.1)}
+                  disabled={status === "exporting"}
+                >
                   <Minus className="size-3" />
                 </Button>
-                <span className="w-16 text-center font-mono text-xs tabular-nums">{formatDuration(endTime)}</span>
-                <Button variant="ghost" size="icon" className="size-6 rounded text-muted-foreground"
-                  onClick={() => nudgeEnd(0.1)} disabled={status === "exporting"}>
+                <span className="w-16 text-center font-mono text-xs tabular-nums">
+                  {formatDuration(endTime)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 rounded text-muted-foreground"
+                  onClick={() => nudgeEnd(0.1)}
+                  disabled={status === "exporting"}
+                >
                   <Plus className="size-3" />
                 </Button>
               </div>
@@ -790,7 +862,11 @@ function AudioEditorTool() {
                     min={-12}
                     max={12}
                     step={0.5}
-                    display={pitchSemitones === 0 ? "0 st" : `${pitchSemitones > 0 ? "+" : ""}${pitchSemitones} st`}
+                    display={
+                      pitchSemitones === 0
+                        ? "0 st"
+                        : `${pitchSemitones > 0 ? "+" : ""}${pitchSemitones} st`
+                    }
                     onChange={setPitchSemitones}
                     disabled={status === "exporting"}
                   />
@@ -804,7 +880,9 @@ function AudioEditorTool() {
                         onClick={() => setPitchSemitones(preset)}
                         disabled={status === "exporting"}
                       >
-                        {preset === 0 ? "0 st" : `${preset > 0 ? "+" : ""}${preset} st`}
+                        {preset === 0
+                          ? "0 st"
+                          : `${preset > 0 ? "+" : ""}${preset} st`}
                       </Button>
                     ))}
                   </div>
@@ -818,7 +896,11 @@ function AudioEditorTool() {
                 <SectionLabel>Equalizer</SectionLabel>
                 <button
                   className="text-[10px] font-medium text-muted-foreground/60 hover:text-muted-foreground"
-                  onClick={() => { setBass(0); setMid(0); setTreble(0); }}
+                  onClick={() => {
+                    setBass(0);
+                    setMid(0);
+                    setTreble(0);
+                  }}
                 >
                   Reset EQ
                 </button>
@@ -830,7 +912,9 @@ function AudioEditorTool() {
                   min={-12}
                   max={12}
                   step={0.5}
-                  display={bass === 0 ? "0 dB" : `${bass > 0 ? "+" : ""}${bass} dB`}
+                  display={
+                    bass === 0 ? "0 dB" : `${bass > 0 ? "+" : ""}${bass} dB`
+                  }
                   onChange={setBass}
                   disabled={status === "exporting"}
                 />
@@ -840,7 +924,9 @@ function AudioEditorTool() {
                   min={-12}
                   max={12}
                   step={0.5}
-                  display={mid === 0 ? "0 dB" : `${mid > 0 ? "+" : ""}${mid} dB`}
+                  display={
+                    mid === 0 ? "0 dB" : `${mid > 0 ? "+" : ""}${mid} dB`
+                  }
                   onChange={setMid}
                   disabled={status === "exporting"}
                 />
@@ -850,7 +936,11 @@ function AudioEditorTool() {
                   min={-12}
                   max={12}
                   step={0.5}
-                  display={treble === 0 ? "0 dB" : `${treble > 0 ? "+" : ""}${treble} dB`}
+                  display={
+                    treble === 0
+                      ? "0 dB"
+                      : `${treble > 0 ? "+" : ""}${treble} dB`
+                  }
                   onChange={setTreble}
                   disabled={status === "exporting"}
                 />
@@ -885,9 +975,11 @@ function AudioEditorTool() {
                 disabled={status === "exporting"}
                 onClick={() => void exportAudio()}
               >
-                {status === "exporting"
-                  ? <Loader2 className="size-3.5 animate-spin" />
-                  : <RotateCcw className="size-3.5" />}
+                {status === "exporting" ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="size-3.5" />
+                )}
                 {status === "exporting" ? "Exporting…" : "Export"}
               </Button>
 

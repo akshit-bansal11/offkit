@@ -3,15 +3,15 @@
 
 "use client";
 
-import * as React from "react";
 import { X } from "lucide-react";
+import * as React from "react";
+import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
 import { Input } from "@/components/ui/form/Input";
 import { Select } from "@/components/ui/form/Select";
-import { Button } from "@/components/ui/Button";
-import { Slider } from "@/components/ui/Slider";
 import { Card } from "@/components/ui/layout/Card";
+import { Slider } from "@/components/ui/Slider";
 import { cn } from "@/lib/utils";
 
 type ToolInputCardTone = "idle" | "converting" | "done" | "error";
@@ -40,16 +40,18 @@ function ToolInputCard({
         toneClassNames[tone],
         className,
       )}
-      style={{
-        "--bar-color":
-          tone === "converting"
-            ? "rgba(255,255,255,0.6)"
-            : tone === "done"
-              ? "rgba(255,255,255,0.8)"
-              : tone === "error"
-                ? "#f87171"
-                : "transparent",
-      } as React.CSSProperties}
+      style={
+        {
+          "--bar-color":
+            tone === "converting"
+              ? "rgba(255,255,255,0.6)"
+              : tone === "done"
+                ? "rgba(255,255,255,0.8)"
+                : tone === "error"
+                  ? "#f87171"
+                  : "transparent",
+        } as React.CSSProperties
+      }
       {...props}
     />
   );
@@ -83,21 +85,18 @@ function ToolInputCardTitle({
 }: React.ComponentProps<"h3">) {
   return (
     <h3
-      className={cn("truncate text-lg font-semibold text-foreground", className)}
+      className={cn(
+        "truncate text-lg font-semibold text-foreground",
+        className,
+      )}
       {...props}
     />
   );
 }
 
-function ToolInputCardText({
-  className,
-  ...props
-}: React.ComponentProps<"p">) {
+function ToolInputCardText({ className, ...props }: React.ComponentProps<"p">) {
   return (
-    <p
-      className={cn("text-sm text-muted-foreground", className)}
-      {...props}
-    />
+    <p className={cn("text-sm text-muted-foreground", className)} {...props} />
   );
 }
 
@@ -212,10 +211,7 @@ function ToolInputCardButton({
 }: React.ComponentProps<typeof Button>) {
   return (
     <Button
-      className={cn(
-        "h-10 rounded-xl px-4 text-sm shadow-none",
-        className,
-      )}
+      className={cn("h-10 rounded-xl px-4 text-sm shadow-none", className)}
       {...props}
     />
   );
@@ -225,12 +221,7 @@ function ToolInputCardProgress({
   className,
   ...props
 }: React.ComponentProps<typeof Progress>) {
-  return (
-    <Progress
-      className={cn("h-2 bg-white/10", className)}
-      {...props}
-    />
-  );
+  return <Progress className={cn("h-2 bg-white/10", className)} {...props} />;
 }
 
 function ToolInputCardPreview({

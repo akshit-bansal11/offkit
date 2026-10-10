@@ -1,8 +1,5 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useState } from "react";
 import {
   AlertCircle,
   ArchiveIcon,
@@ -14,15 +11,20 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import React, { useCallback, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { ImageConverterFileCard } from "@/components/tools/image-converter/ImageConverterFileCard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
+import { Tooltip } from "@/components/ui/feedback/Tooltip";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Separator } from "@/components/ui/layout/Separator";
+import { getToolBySlug } from "@/config/tools";
 import {
-  type ConversionStatus,
-  type FileItem,
   areFormatsEquivalent,
+  type ConversionStatus,
   detectFormat,
+  type FileItem,
   FORMAT_LABELS,
   FORMAT_MIME_MAP,
   generateId,
@@ -36,8 +38,6 @@ import {
   convertImage,
   getImageMetadata,
 } from "@/lib/converters/image-converter/engine";
-import { Tooltip } from "@/components/ui/feedback/Tooltip";
-import { ImageConverterFileCard } from "@/components/tools/image-converter/ImageConverterFileCard";
 import {
   ACCEPTED_INPUT,
   UNSUPPORTED_OUTPUT_FORMATS,
@@ -60,7 +60,6 @@ export default function ImageConverterPage() {
     </ToolPageShell>
   );
 }
-
 
 function ImageConverter() {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -476,4 +475,3 @@ function ImageConverter() {
     </div>
   );
 }
-

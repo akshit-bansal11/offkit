@@ -1,8 +1,5 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useState } from "react";
 import {
   Download,
   GripVertical,
@@ -11,13 +8,16 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import { PDFDocument } from "pdf-lib";
+import React, { useCallback, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/feedback/Progress";
+import { Select } from "@/components/ui/form/Select";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Card } from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { Select } from "@/components/ui/form/Select";
-import { PDFDocument } from "pdf-lib";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("convert-to-pdf");
 
@@ -80,11 +80,18 @@ async function imageFileToEmbeddable(
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0);
       URL.revokeObjectURL(url);
-      canvas.toBlob(async (blob) => {
-        if (!blob) { reject(new Error("Canvas conversion failed")); return; }
-        const jpgBuf = await blob.arrayBuffer();
-        resolve(pdfDoc.embedJpg(jpgBuf));
-      }, "image/jpeg", 0.92);
+      canvas.toBlob(
+        async (blob) => {
+          if (!blob) {
+            reject(new Error("Canvas conversion failed"));
+            return;
+          }
+          const jpgBuf = await blob.arrayBuffer();
+          resolve(pdfDoc.embedJpg(jpgBuf));
+        },
+        "image/jpeg",
+        0.92,
+      );
     };
     img.onerror = () => reject(new Error("Image load failed"));
     img.src = url;
@@ -141,8 +148,7 @@ function ConvertToPdfTool() {
       const page = pdfDoc.addPage([img.width, img.height]);
       page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
     } else {
-      const [pw, ph] =
-        pageSize === "a4" ? [595.28, 841.89] : [612, 792];
+      const [pw, ph] = pageSize === "a4" ? [595.28, 841.89] : [612, 792];
       const page = pdfDoc.addPage([pw, ph]);
       const scale = Math.min(pw / img.width, ph / img.height);
       const w = img.width * scale;
@@ -217,7 +223,8 @@ function ConvertToPdfTool() {
       <div className="flex items-start gap-3 rounded-2xl border border-sky-500/20 bg-sky-500/[0.07] p-3 text-sky-400">
         <Info className="size-4 mt-0.5 shrink-0" />
         <p className="text-xs leading-relaxed">
-          Currently supports JPG, PNG, and WEBP images. DOCX/HTML conversion requires a server-side component.
+          Currently supports JPG, PNG, and WEBP images. DOCX/HTML conversion
+          requires a server-side component.
         </p>
       </div>
 
@@ -229,7 +236,10 @@ function ConvertToPdfTool() {
               draggable
               onDragStart={() => setDraggingId(item.id)}
               onDragOver={(e) => handleDragOver(e, item.id)}
-              onDrop={(e) => { e.preventDefault(); setDraggingId(null); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDraggingId(null);
+              }}
               className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-background/45 aspect-square cursor-grab active:cursor-grabbing transition-all ${draggingId === item.id ? "opacity-40" : "hover:border-white/20"}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

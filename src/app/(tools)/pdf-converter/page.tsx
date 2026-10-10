@@ -1,34 +1,39 @@
 "use client";
 
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { getToolBySlug } from "@/config/tools";
-import React, { useCallback, useState, useEffect } from "react";
+import JSZip from "jszip";
 import {
-  FileImage,
-  FileBox,
-  Trash2,
-  RefreshCw,
   ArrowRight,
   Download,
-  ImageIcon,
-  GripVertical,
-  LayoutGrid,
-  Settings,
-  X,
   File,
+  FileBox,
+  FileImage,
+  GripVertical,
+  ImageIcon,
+  LayoutGrid,
+  RefreshCw,
+  Settings,
   Sparkles,
+  Trash2,
+  X,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
-import { Badge } from "@/components/ui/feedback/Badge";
-import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
-import { Progress } from "@/components/ui/feedback/Progress";
-import { Select } from "@/components/ui/form/Select";
-import { Label } from "@/components/ui/form/Label";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { PDFDocument } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import JSZip from "jszip";
+import React, { useCallback, useEffect, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/feedback/Badge";
+import { Progress } from "@/components/ui/feedback/Progress";
+import { Label } from "@/components/ui/form/Label";
+import { Select } from "@/components/ui/form/Select";
+import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("pdf-converter");
 
@@ -38,16 +43,11 @@ export default function PdfConverterPage() {
   }
 
   return (
-    <ToolPageShell
-      title={tool.name}
-      description={tool.description}
-     
-    >
+    <ToolPageShell title={tool.name} description={tool.description}>
       <PdfConverterTool />
     </ToolPageShell>
   );
 }
-
 
 // Set worker source for PDF.js safely in Next.js client
 if (typeof window !== "undefined") {
@@ -605,9 +605,7 @@ function PdfConverterTool() {
               {activeTab === "img-to-pdf" && (
                 <>
                   <div className="space-y-3">
-                    <Label>
-                      Export Mode
-                    </Label>
+                    <Label>Export Mode</Label>
                     <SegmentedControl
                       variant="dark"
                       fullWidth
@@ -675,9 +673,7 @@ function PdfConverterTool() {
               {activeTab === "pdf-to-img" && (
                 <>
                   <div className="space-y-3">
-                    <Label>
-                      Extract Format
-                    </Label>
+                    <Label>Extract Format</Label>
                     <Select
                       options={[
                         { label: "PNG Sequence", value: "image/png" },
@@ -729,5 +725,3 @@ function PdfConverterTool() {
     </div>
   );
 }
-
-

@@ -1,22 +1,27 @@
 "use client";
 
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { getToolBySlug } from "@/config/tools";
-import React, { useState, useMemo } from "react";
 import {
-  Droplet,
-  Copy,
   CheckCircle2,
-  SlidersHorizontal,
+  Copy,
+  Droplet,
   Image as ImageIcon,
+  SlidersHorizontal,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
+import React, { useMemo, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Slider } from "@/components/ui/Slider";
-import { Textarea } from "@/components/ui/form/Textarea";
-import { Label } from "@/components/ui/form/Label";
 import { ColorInput } from "@/components/ui/form/ColorInput";
+import { Label } from "@/components/ui/form/Label";
+import { Textarea } from "@/components/ui/form/Textarea";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Slider } from "@/components/ui/Slider";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("glassmorphism");
 
@@ -26,16 +31,11 @@ export default function GlassmorphismPage() {
   }
 
   return (
-    <ToolPageShell
-      title={tool.name}
-      description={tool.description}
-     
-    >
+    <ToolPageShell title={tool.name} description={tool.description}>
       <GlassmorphismTool />
     </ToolPageShell>
   );
 }
-
 
 function GlassmorphismTool() {
   const [blur, setBlur] = useState<number>(10);
@@ -259,9 +259,7 @@ function GlassmorphismTool() {
             <div className="p-6 space-y-8 layer-editor">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-foreground">
-                    Blur Radius
-                  </Label>
+                  <Label className="text-foreground">Blur Radius</Label>
                   <span className="font-mono text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded">
                     {blur}px
                   </span>
@@ -279,9 +277,7 @@ function GlassmorphismTool() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-foreground">
-                    Tint Opacity
-                  </Label>
+                  <Label className="text-foreground">Tint Opacity</Label>
                   <span className="font-mono text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded">
                     {opacity}%
                   </span>
@@ -299,9 +295,7 @@ function GlassmorphismTool() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-foreground">
-                    Saturation
-                  </Label>
+                  <Label className="text-foreground">Saturation</Label>
                   <span className="font-mono text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded">
                     {saturation}%
                   </span>
@@ -319,9 +313,7 @@ function GlassmorphismTool() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-foreground">
-                    Border Edge Opacity
-                  </Label>
+                  <Label className="text-foreground">Border Edge Opacity</Label>
                   <span className="font-mono text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded">
                     {borderOpacity}%
                   </span>
@@ -338,9 +330,7 @@ function GlassmorphismTool() {
               </div>
 
               <div className="pt-6 border-t border-white/5 flex items-center justify-between">
-                <Label className="block text-foreground">
-                  Tint Color
-                </Label>
+                <Label className="block text-foreground">Tint Color</Label>
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-xs text-muted-foreground uppercase">
                     {color}
@@ -359,4 +349,3 @@ function GlassmorphismTool() {
     </div>
   );
 }
-

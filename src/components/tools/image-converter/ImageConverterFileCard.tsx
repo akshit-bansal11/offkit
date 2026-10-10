@@ -3,7 +3,6 @@
 
 "use client";
 
-import React, { useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -15,6 +14,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import React, { useState } from "react";
 import {
   ToolInputCard,
   ToolInputCardBadge,
@@ -37,8 +37,8 @@ import {
   FORMAT_LABELS,
   formatFileSize,
   getAvailableTargets,
-  LOSSY_FORMATS,
   type ImageFormat,
+  LOSSY_FORMATS,
 } from "@/lib/converters/image-converter/converter";
 import { UNSUPPORTED_OUTPUT_SET } from "@/lib/tools/image-converter/constants";
 
@@ -135,7 +135,10 @@ export function ImageConverterFileCard({
             </div>
 
             <div className="min-w-0 flex-1">
-              <ToolInputCardTitle className="truncate text-base" title={item.name}>
+              <ToolInputCardTitle
+                className="truncate text-base"
+                title={item.name}
+              >
                 {item.name}
               </ToolInputCardTitle>
               <div className="mt-1 flex flex-wrap items-center gap-2">

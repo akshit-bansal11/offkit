@@ -1,12 +1,12 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { useState } from "react";
 import { CheckCircle2, Copy, Search } from "lucide-react";
+import { useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/form/Input";
 import { Card, CardHeader, CardTitle } from "@/components/ui/layout/Card";
-import { Button } from "@/components/ui/Button";
+import { getToolBySlug } from "@/config/tools";
 import { palettePresets } from "@/lib/design-tools/data/palette-presets";
 
 const tool = getToolBySlug("palette-library");
@@ -22,7 +22,6 @@ export default function PaletteLibraryPage() {
     </ToolPageShell>
   );
 }
-
 
 function PaletteLibraryTool() {
   const [search, setSearch] = useState("");
@@ -146,4 +145,3 @@ function PaletteLibraryTool() {
     </div>
   );
 }
-

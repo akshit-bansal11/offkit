@@ -1,8 +1,8 @@
 // Select.tsx
 // Interactive dropdown select menu built on Radix UI primitives.
 
-import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -30,8 +30,9 @@ const selectVariants = cva(
   },
 );
 
-interface SelectProps extends React.ComponentProps<"select">,
-  VariantProps<typeof selectVariants> {
+interface SelectProps
+  extends React.ComponentProps<"select">,
+    VariantProps<typeof selectVariants> {
   options?: readonly SelectOption[];
   placeholder?: string;
 }

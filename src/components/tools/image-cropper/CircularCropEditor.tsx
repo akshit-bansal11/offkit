@@ -1,18 +1,18 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  clampRect,
-  getCenterAndRadiusFromBounds,
-  loadImage,
-  pointToImageSpace,
-} from "@/lib/tools/image-cropper/utils";
 import type {
   CropRect,
   Handle,
   PointerState,
   UploadedImage,
 } from "@/lib/tools/image-cropper/types";
+import {
+  clampRect,
+  getCenterAndRadiusFromBounds,
+  loadImage,
+  pointToImageSpace,
+} from "@/lib/tools/image-cropper/utils";
 
 interface CircularCropEditorProps {
   image: UploadedImage;
@@ -170,7 +170,10 @@ export function CircularCropEditor({
       else if (pointer.handle === "e") newR = startR + dx;
       else if (pointer.handle === "w") newR = startR - dx;
 
-      newR = Math.max(10, Math.min(newR, Math.min(image.width, image.height) / 2));
+      newR = Math.max(
+        10,
+        Math.min(newR, Math.min(image.width, image.height) / 2),
+      );
 
       const newBounds = {
         x: Math.round(startCx - newR),
@@ -219,11 +222,11 @@ export function CircularCropEditor({
         if (!canvas) return;
 
         const point = pointToImageSpace(
-        canvas,
-        event.clientX,
-        event.clientY,
-        scale,
-      );
+          canvas,
+          event.clientX,
+          event.clientY,
+          scale,
+        );
         const handle = getHandleAtPoint(point, 12 / scale) ?? "move";
 
         pointerStateRef.current = {

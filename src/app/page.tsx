@@ -2,17 +2,20 @@
 // Home page displaying all tool categories in a card grid layout.
 
 import { Sparkles } from "lucide-react";
-import { Badge } from "@/components/ui/feedback/Badge";
 import { CategoryCard } from "@/components/common/CategoryCard";
-import { inDevelopmentSlugs } from "@/data/inDevelopmentSlugs";
+import { Badge } from "@/components/ui/feedback/Badge";
 import { toolsByCategory } from "@/config/tools";
+import { inDevelopmentSlugs } from "@/data/inDevelopmentSlugs";
 
 export default function Home() {
   return (
     <div className="page-shell">
       <div className="page-grid-overlay" />
 
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 overflow-hidden z-0"
+      >
         <div className="absolute -top-32 -left-24 h-[480px] w-[480px] rounded-full bg-blue-500/10 blur-[120px]" />
         <div className="absolute -top-20 right-0 h-[360px] w-[360px] rounded-full bg-pink-500/10 blur-[100px]" />
         <div className="absolute top-[40%] -left-20 h-[280px] w-[280px] rounded-full bg-yellow-400/8 blur-[100px]" />

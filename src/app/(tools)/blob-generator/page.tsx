@@ -1,17 +1,22 @@
 "use client";
 
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { getToolBySlug } from "@/config/tools";
-import React, { useMemo, useState } from "react";
 import { CheckCircle2, Copy, Dices, SlidersVertical } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
+import React, { useMemo, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Slider } from "@/components/ui/Slider";
-import { Textarea } from "@/components/ui/form/Textarea";
-import { Label } from "@/components/ui/form/Label";
 import { Checkbox } from "@/components/ui/form/Checkbox";
 import { ColorInput } from "@/components/ui/form/ColorInput";
+import { Label } from "@/components/ui/form/Label";
+import { Textarea } from "@/components/ui/form/Textarea";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Slider } from "@/components/ui/Slider";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("blob-generator");
 
@@ -21,16 +26,11 @@ export default function BlobGeneratorPage() {
   }
 
   return (
-    <ToolPageShell
-      title={tool.name}
-      description={tool.description}
-     
-    >
+    <ToolPageShell title={tool.name} description={tool.description}>
       <BlobGeneratorTool />
     </ToolPageShell>
   );
 }
-
 
 type CornerKey = "tl" | "tr" | "br" | "bl";
 type Axis = "x" | "y";
@@ -202,7 +202,10 @@ function CornerControl({
               {values.x}%
             </span>
           </div>
-          <RadiusSlider value={values.x} onChange={(v) => onChangeBoth(corner, v)} />
+          <RadiusSlider
+            value={values.x}
+            onChange={(v) => onChangeBoth(corner, v)}
+          />
         </div>
       ) : (
         <>
@@ -562,7 +565,8 @@ function BlobGeneratorTool() {
                   </Label>
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Corner values are automatically normalized to keep side sums valid, so x/y edits stay stable.
+                  Corner values are automatically normalized to keep side sums
+                  valid, so x/y edits stay stable.
                 </p>
               </div>
 
@@ -627,4 +631,3 @@ function BlobGeneratorTool() {
     </div>
   );
 }
-

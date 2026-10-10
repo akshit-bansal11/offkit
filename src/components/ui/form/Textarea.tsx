@@ -3,8 +3,8 @@
 // Textarea.tsx
 // Standard multiline text input area.
 
-import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -27,19 +27,18 @@ const textareaVariants = cva(
 type TextareaProps = React.ComponentProps<"textarea"> &
   VariantProps<typeof textareaVariants>;
 
-const Textarea = React.forwardRef<
-  HTMLTextAreaElement,
-  TextareaProps
->(({ className, variant, ...props }, ref) => {
-  return (
-    <textarea
-      data-slot="textarea"
-      className={cn(textareaVariants({ variant }), className)}
-      ref={ref}
-      {...props}
-    />
-  );
-});
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, variant, ...props }, ref) => {
+    return (
+      <textarea
+        data-slot="textarea"
+        className={cn(textareaVariants({ variant }), className)}
+        ref={ref}
+        {...props}
+      />
+    );
+  },
+);
 Textarea.displayName = "Textarea";
 
 export { Textarea, textareaVariants };

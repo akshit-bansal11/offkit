@@ -3,8 +3,8 @@
 
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
 import { FileUp, Upload } from "lucide-react";
+import React, { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/interaction/Button";
 import { cn } from "@/lib/utils";
 
@@ -129,10 +129,14 @@ export function FileDropZoneCard({
           disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
           isDragging && "drop-zone-active scale-[1.01]",
         )}
-        style={isDragging ? {
-          borderColor: "rgba(255,255,255,0.25)",
-          boxShadow: "0 0 40px rgba(255,255,255,0.06)",
-        } : undefined}
+        style={
+          isDragging
+            ? {
+                borderColor: "rgba(255,255,255,0.25)",
+                boxShadow: "0 0 40px rgba(255,255,255,0.06)",
+              }
+            : undefined
+        }
         onClick={openPicker}
         onKeyDown={(event) => {
           if (event.target !== event.currentTarget) return;
@@ -148,9 +152,7 @@ export function FileDropZoneCard({
         onDrop={handleDrop}
       >
         <div
-          className={cn(
-            "rounded-full border p-4 transition-all duration-300",
-          )}
+          className={cn("rounded-full border p-4 transition-all duration-300")}
           style={{
             borderColor: isDragging
               ? "rgba(255,255,255,0.2)"
@@ -161,9 +163,7 @@ export function FileDropZoneCard({
           }}
         >
           <FileUp
-            className={cn(
-              "size-8 transition-colors duration-300",
-            )}
+            className={cn("size-8 transition-colors duration-300")}
             style={{
               color: isDragging
                 ? "rgba(255,255,255,0.9)"
@@ -176,7 +176,9 @@ export function FileDropZoneCard({
           <p className="text-lg font-semibold text-foreground">
             Drop {fileTypeLabel} here
           </p>
-          <p className="text-sm text-muted-foreground">Supports {supportedFormats}.</p>
+          <p className="text-sm text-muted-foreground">
+            Supports {supportedFormats}.
+          </p>
         </div>
 
         <input

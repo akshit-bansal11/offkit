@@ -1,24 +1,24 @@
 "use client";
 
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { getToolBySlug } from "@/config/tools";
-import React, { useMemo, useState } from "react";
 import {
   Check,
   Copy as CopyIcon,
   Download,
   SlidersHorizontal,
 } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { Button } from "@/components/ui/Button";
+import { ColorInput } from "@/components/ui/form/ColorInput";
+import { Textarea } from "@/components/ui/form/Textarea";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/layout/Card";
-import { Button } from "@/components/ui/Button";
 import { Slider } from "@/components/ui/Slider";
-import { Textarea } from "@/components/ui/form/Textarea";
-import { ColorInput } from "@/components/ui/form/ColorInput";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("svg-pattern");
 
@@ -28,16 +28,11 @@ export default function SvgPatternPage() {
   }
 
   return (
-    <ToolPageShell
-      title={tool.name}
-      description={tool.description}
-     
-    >
+    <ToolPageShell title={tool.name} description={tool.description}>
       <SvgPatternTool />
     </ToolPageShell>
   );
 }
-
 
 const EXPORT_WIDTH = 1600;
 const EXPORT_HEIGHT = 900;
@@ -200,7 +195,9 @@ function SvgPatternTool() {
             <span className="text-sm font-medium capitalize tracking-wide opacity-70">
               {activePattern}
             </span>
-            <span className="text-xs text-white/40">{size}x{size}px</span>
+            <span className="text-xs text-white/40">
+              {size}x{size}px
+            </span>
           </div>
         </Card>
 
@@ -212,7 +209,13 @@ function SvgPatternTool() {
 
           <div className="mb-2 grid grid-cols-3 gap-2">
             {(Object.keys(PATTERNS) as PatternType[]).map((pattern) => {
-              const preview = buildTileSvg(pattern, "transparent", finalFgHex, 24, 1);
+              const preview = buildTileSvg(
+                pattern,
+                "transparent",
+                finalFgHex,
+                24,
+                1,
+              );
               return (
                 <Button
                   variant={activePattern === pattern ? "default" : "outline"}
@@ -245,7 +248,9 @@ function SvgPatternTool() {
                 max={128}
                 step={2}
                 value={size}
-                onChange={(e: SliderChangeEvent) => setSize(Number(e.target.value))}
+                onChange={(e: SliderChangeEvent) =>
+                  setSize(Number(e.target.value))
+                }
               />
             </div>
 
@@ -260,7 +265,9 @@ function SvgPatternTool() {
                   max={3}
                   step={0.1}
                   value={fgSize}
-                  onChange={(e: SliderChangeEvent) => setFgSize(Number(e.target.value))}
+                  onChange={(e: SliderChangeEvent) =>
+                    setFgSize(Number(e.target.value))
+                  }
                 />
               </div>
             )}
@@ -274,7 +281,9 @@ function SvgPatternTool() {
                 min={0}
                 max={100}
                 value={fgOpacity}
-                onChange={(e: SliderChangeEvent) => setFgOpacity(Number(e.target.value))}
+                onChange={(e: SliderChangeEvent) =>
+                  setFgOpacity(Number(e.target.value))
+                }
               />
             </div>
           </div>
@@ -310,7 +319,11 @@ function SvgPatternTool() {
               <Button
                 size="sm"
                 onClick={() => copy(cssValue, "css")}
-                className={copiedCSS ? "bg-white/20 text-white" : "bg-white/10 text-white hover:bg-white/20"}
+                className={
+                  copiedCSS
+                    ? "bg-white/20 text-white"
+                    : "bg-white/10 text-white hover:bg-white/20"
+                }
               >
                 {copiedCSS ? (
                   <Check className="size-4" />
@@ -332,7 +345,11 @@ function SvgPatternTool() {
               <Button
                 size="sm"
                 onClick={() => copy(exportSvg, "svg")}
-                className={copiedSVG ? "bg-white/20 text-white" : "bg-white/10 text-white hover:bg-white/20"}
+                className={
+                  copiedSVG
+                    ? "bg-white/20 text-white"
+                    : "bg-white/10 text-white hover:bg-white/20"
+                }
               >
                 {copiedSVG ? (
                   <Check className="size-4" />
@@ -352,4 +369,3 @@ function SvgPatternTool() {
     </div>
   );
 }
-

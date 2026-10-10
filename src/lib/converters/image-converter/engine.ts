@@ -1,9 +1,9 @@
 import {
   FORMAT_LABELS,
   FORMAT_MIME_MAP,
+  type ImageFormat,
   LOSSY_FORMATS,
   SUPPORTED_OUTPUT_FORMATS,
-  type ImageFormat,
 } from "./converter";
 
 type MagickModule = typeof import("@imagemagick/magick-wasm");

@@ -7,6 +7,7 @@ import {
   Binary,
   Blend,
   Box,
+  Code2,
   Crop,
   Droplet,
   FileCode2,
@@ -32,8 +33,8 @@ import {
   Palette,
   Pipette,
   Scissors,
-  SlidersHorizontal,
   Shapes,
+  SlidersHorizontal,
   Sparkles,
   SplitSquareHorizontal,
   SwatchBook,
@@ -41,20 +42,19 @@ import {
   VectorSquare,
   Video,
   Wand2,
-  Code2,
 } from "lucide-react";
 import type { ToolCategoryDefinition, ToolDefinition } from "@/types/tool";
 
 export const toolCategories: ToolCategoryDefinition[] = [
-  { name: "Audio",     icon: AudioLines,   accentColor: "#60a5fa" },
-  { name: "Video",     icon: Video,        accentColor: "#facc15" },
-  { name: "Dev",       icon: Code2,        accentColor: "#4ade80" },
-  { name: "Images",    icon: ImageIcon,    accentColor: "#f87171" },
-  { name: "SVG",       icon: VectorSquare, accentColor: "#f472b6" },
-  { name: "Colors",    icon: SwatchBook,   accentColor: "#a78bfa" },
-  { name: "CSS",       icon: FileCode2,    accentColor: "#fb923c" },
-  { name: "PDF",       icon: FileText,     accentColor: "#34d399" },
-  { name: "Text",      icon: Type,         accentColor: "#38bdf8" },
+  { name: "Audio", icon: AudioLines, accentColor: "#60a5fa" },
+  { name: "Video", icon: Video, accentColor: "#facc15" },
+  { name: "Dev", icon: Code2, accentColor: "#4ade80" },
+  { name: "Images", icon: ImageIcon, accentColor: "#f87171" },
+  { name: "SVG", icon: VectorSquare, accentColor: "#f472b6" },
+  { name: "Colors", icon: SwatchBook, accentColor: "#a78bfa" },
+  { name: "CSS", icon: FileCode2, accentColor: "#fb923c" },
+  { name: "PDF", icon: FileText, accentColor: "#34d399" },
+  { name: "Text", icon: Type, accentColor: "#38bdf8" },
 ];
 
 export const tools: ToolDefinition[] = [
@@ -424,7 +424,10 @@ export const tools: ToolDefinition[] = [
     description:
       "Reduce PDF file size by rasterizing pages at adjustable quality and resolution.",
     category: "PDF",
-    highlights: ["Adjustable render scale & quality", "Size comparison preview"],
+    highlights: [
+      "Adjustable render scale & quality",
+      "Size comparison preview",
+    ],
     icon: Minimize2,
   },
   {
@@ -478,8 +481,7 @@ export const tools: ToolDefinition[] = [
     href: "/archiver",
     name: "Archiver",
     shortName: "Archive",
-    description:
-      "Drop files to create a ZIP archive instantly in the browser.",
+    description: "Drop files to create a ZIP archive instantly in the browser.",
     category: "Dev",
     highlights: ["Editable file paths", "DEFLATE compression"],
     icon: FolderArchive,
@@ -495,11 +497,9 @@ export const toolsByCategory = toolCategories.map((category) => ({
   tools: tools.filter((tool) => tool.category === category.name),
 }));
 
-
 export function getToolAccentColor(slug: string): string {
   const tool = getToolBySlug(slug);
   if (!tool) return "#60a5fa";
   const category = toolCategories.find((c) => c.name === tool.category);
   return category?.accentColor ?? "#60a5fa";
 }
-

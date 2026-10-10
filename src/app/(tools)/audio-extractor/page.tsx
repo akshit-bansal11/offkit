@@ -1,28 +1,23 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useState } from "react";
 import { fetchFile } from "@ffmpeg/util";
-import {
-  Download,
-  Loader2,
-  ScissorsLineDashed,
-  X,
-} from "lucide-react";
-import { Badge } from "@/components/ui/feedback/Badge";
+import { Download, Loader2, ScissorsLineDashed, X } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
 import { Select } from "@/components/ui/form/Select";
+import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import { getToolBySlug } from "@/config/tools";
 import {
   type AudioOutputFormat,
+  audioCodecArgs,
   formatFileSize,
   getAudioCodecsForFormat,
-  audioCodecArgs,
   getFFmpeg,
-  runFFmpeg,
   getFileExtension,
+  runFFmpeg,
   stripExtension,
   uid,
 } from "@/lib/ffmpeg/client";
@@ -40,7 +35,6 @@ export default function AudioExtractorPage() {
     </ToolPageShell>
   );
 }
-
 
 const ACCEPTED_VIDEO =
   "video/mp4,video/x-matroska,video/quicktime,video/x-msvideo,video/webm,video/x-flv";
@@ -290,4 +284,3 @@ function AudioExtractorTool() {
     </div>
   );
 }
-

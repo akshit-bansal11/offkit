@@ -1,31 +1,47 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import NextImage from "next/image";
 import JSZip from "jszip";
 import { Crop, Download, Loader2, Scissors, X } from "lucide-react";
-import { Badge } from "@/components/ui/feedback/Badge";
-import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
-import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
-import { Select } from "@/components/ui/form/Select";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { formatFileSize, uid } from "@/lib/ffmpeg/client";
-import { CropCanvasEditor } from "@/components/tools/image-cropper/CropCanvasEditor";
+import NextImage from "next/image";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { CircularCropEditor } from "@/components/tools/image-cropper/CircularCropEditor";
+import { CropCanvasEditor } from "@/components/tools/image-cropper/CropCanvasEditor";
 import { MeshCropEditor } from "@/components/tools/image-cropper/MeshCropEditor";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/feedback/Badge";
+import { Select } from "@/components/ui/form/Select";
+import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { getToolBySlug } from "@/config/tools";
+import { formatFileSize, uid } from "@/lib/ffmpeg/client";
 import {
   ACCEPTED_IMAGES,
   ASPECT_PRESETS,
   type AspectValue,
 } from "@/lib/tools/image-cropper/constants";
-import type { CropMode, CropRect, CropShape, UploadedImage } from "@/lib/tools/image-cropper/types";
+import type {
+  CropMode,
+  CropRect,
+  CropShape,
+  UploadedImage,
+} from "@/lib/tools/image-cropper/types";
 import {
   clampBatchCropToImage,
-  createDefaultCrop,
   createDefaultCircularCrop,
+  createDefaultCrop,
   cropToBlob,
   cropToCircularBlob,
   fitCropToAspect,
@@ -46,7 +62,6 @@ export default function ImageCropperPage() {
     </ToolPageShell>
   );
 }
-
 
 function ImageCropperTool() {
   const [images, setImages] = useState<UploadedImage[]>([]);
@@ -85,9 +100,13 @@ function ImageCropperTool() {
 
         try {
           const source = await loadImage(srcUrl);
-          const crop = cropShape === "circular"
-            ? createDefaultCircularCrop(source.naturalWidth, source.naturalHeight)
-            : createDefaultCrop(source.naturalWidth, source.naturalHeight);
+          const crop =
+            cropShape === "circular"
+              ? createDefaultCircularCrop(
+                  source.naturalWidth,
+                  source.naturalHeight,
+                )
+              : createDefaultCrop(source.naturalWidth, source.naturalHeight);
 
           loaded.push({
             id: uid("crop"),
@@ -148,7 +167,7 @@ function ImageCropperTool() {
   }, [images]);
 
   const getPngFileName = (originalName: string) => {
-    return originalName.replace(/\.[^.]+$/, '.png');
+    return originalName.replace(/\.[^.]+$/, ".png");
   };
 
   const generatePreviewForImage = useCallback(
@@ -158,9 +177,10 @@ function ImageCropperTool() {
           ? clampBatchCropToImage(batchCrop, image)
           : image.crop;
 
-      const blob = image.cropShape === "circular"
-        ? await cropToCircularBlob(image, crop)
-        : await cropToBlob(image, crop);
+      const blob =
+        image.cropShape === "circular"
+          ? await cropToCircularBlob(image, crop)
+          : await cropToBlob(image, crop);
 
       const outputUrl = URL.createObjectURL(blob);
 
@@ -200,9 +220,10 @@ function ImageCropperTool() {
             mode === "batch" && batchCrop
               ? clampBatchCropToImage(batchCrop, image)
               : image.crop;
-          blob = image.cropShape === "circular"
-            ? await cropToCircularBlob(image, crop)
-            : await cropToBlob(image, crop);
+          blob =
+            image.cropShape === "circular"
+              ? await cropToCircularBlob(image, crop)
+              : await cropToBlob(image, crop);
         }
 
         const pngName = getPngFileName(image.name);
@@ -244,9 +265,10 @@ function ImageCropperTool() {
       setCropShape(newShape);
       setImages((prev) =>
         prev.map((image) => {
-          const crop = newShape === "circular"
-            ? createDefaultCircularCrop(image.width, image.height)
-            : createDefaultCrop(image.width, image.height);
+          const crop =
+            newShape === "circular"
+              ? createDefaultCircularCrop(image.width, image.height)
+              : createDefaultCrop(image.width, image.height);
 
           if (image.outputUrl) URL.revokeObjectURL(image.outputUrl);
 
@@ -309,14 +331,14 @@ function ImageCropperTool() {
         <CardContent className="space-y-5">
           <div className="space-y-3">
             <div>
-              <p className="mb-2 text-xs text-muted-foreground">Processing mode</p>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Processing mode
+              </p>
               <SegmentedControl
                 variant="dark"
                 size="sm"
                 value={mode}
-                onValueChange={(value) =>
-                  setMode(value as CropMode)
-                }
+                onValueChange={(value) => setMode(value as CropMode)}
                 options={[
                   { label: "Individual Crop", value: "individual" },
                   { label: "Batch Crop", value: "batch" },
@@ -330,9 +352,7 @@ function ImageCropperTool() {
                 variant="dark"
                 size="sm"
                 value={cropShape}
-                onValueChange={(value) =>
-                  changeCropShape(value as CropShape)
-                }
+                onValueChange={(value) => changeCropShape(value as CropShape)}
                 options={[
                   { label: "Rectangular", value: "rectangular" },
                   { label: "Circular", value: "circular" },
@@ -537,14 +557,18 @@ function ImageCropperTool() {
                             image={image}
                             crop={image.crop}
                             aspectRatio={aspectRatio}
-                            onCropChange={(next) => setImageCrop(image.id, next)}
+                            onCropChange={(next) =>
+                              setImageCrop(image.id, next)
+                            }
                           />
                         )}
                         {cropShape === "circular" && (
                           <CircularCropEditor
                             image={image}
                             crop={image.crop}
-                            onCropChange={(next) => setImageCrop(image.id, next)}
+                            onCropChange={(next) =>
+                              setImageCrop(image.id, next)
+                            }
                           />
                         )}
                         {cropShape === "mesh" && (
@@ -552,7 +576,9 @@ function ImageCropperTool() {
                             image={image}
                             crop={image.crop}
                             aspectRatio={aspectRatio}
-                            onCropChange={(next) => setImageCrop(image.id, next)}
+                            onCropChange={(next) =>
+                              setImageCrop(image.id, next)
+                            }
                           />
                         )}
                       </>

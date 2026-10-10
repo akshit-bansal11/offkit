@@ -33,7 +33,9 @@ export function CategoryCard({
       >
         <div
           className="h-[2px] w-full opacity-70 transition-opacity duration-300 group-hover:opacity-100"
-          style={{ background: `linear-gradient(90deg, transparent, ${accent}88, transparent)` }}
+          style={{
+            background: `linear-gradient(90deg, transparent, ${accent}88, transparent)`,
+          }}
         />
 
         <div className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(44,44,44,0.52)_0%,rgba(31,31,31,0.38)_100%)] p-2">

@@ -1,8 +1,6 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import JSZip from "jszip";
 import {
   Download,
   File,
@@ -10,15 +8,17 @@ import {
   SplitSquareHorizontal,
   X,
 } from "lucide-react";
+import { PDFDocument } from "pdf-lib";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/feedback/Progress";
+import { Input } from "@/components/ui/form/Input";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Card } from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { Input } from "@/components/ui/form/Input";
-import { PDFDocument } from "pdf-lib";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import JSZip from "jszip";
+import { getToolBySlug } from "@/config/tools";
 
 if (typeof window !== "undefined") {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -178,10 +178,7 @@ function PdfSplitterTool() {
         const pages = await newPdf.copyPages(pdf, indices);
         pages.forEach((p) => newPdf.addPage(p));
         const bytes = await newPdf.save();
-        downloadBlob(
-          bytesToPdfBlob(bytes),
-          "Extracted_Pages.pdf",
-        );
+        downloadBlob(bytesToPdfBlob(bytes), "Extracted_Pages.pdf");
         setProgress(100);
       } else {
         // fixed chunks

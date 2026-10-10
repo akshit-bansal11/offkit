@@ -1,20 +1,20 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { useMemo, useState, useRef, useEffect } from "react";
 import { ArrowRightLeft, Wand2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { OutputField } from "@/components/ui/design/OutputField";
-import { Textarea } from "@/components/ui/form/Textarea";
 import { Badge } from "@/components/ui/feedback/Badge";
+import { Textarea } from "@/components/ui/form/Textarea";
 import { Card, CardHeader, CardTitle } from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { getToolBySlug } from "@/config/tools";
 import {
   convertGradientSyntax,
-  normalizeGradientInput,
-  parseGradientString,
   type GradientKind,
+  normalizeGradientInput,
   type ParsedGradient,
+  parseGradientString,
 } from "@/lib/design-tools/gradients";
 
 const tool = getToolBySlug("gradient-converter");
@@ -30,7 +30,6 @@ export default function GradientConverterPage() {
     </ToolPageShell>
   );
 }
-
 
 const SAMPLE_GRADIENT =
   "linear-gradient(135deg, #2563EB 0%, #7C3AED 50%, #EC4899 100%)";
@@ -282,4 +281,3 @@ function GradientConverterTool() {
     </div>
   );
 }
-

@@ -1,8 +1,6 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useState } from "react";
+import JSZip from "jszip";
 import {
   ChevronDown,
   ChevronRight,
@@ -13,12 +11,14 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import React, { useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Card } from "@/components/ui/layout/Card";
-import JSZip from "jszip";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("archive-extractor");
 
@@ -212,7 +212,9 @@ function ArchiveExtractorTool() {
       setTree(t);
 
       let fc = 0;
-      z.forEach((_, entry) => { if (!entry.dir) fc++; });
+      z.forEach((_, entry) => {
+        if (!entry.dir) fc++;
+      });
       setTotalFiles(fc);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to read ZIP file.");
@@ -240,13 +242,15 @@ function ArchiveExtractorTool() {
 
       zip.forEach((path, entry) => {
         if (!entry.dir) {
-          outZip.file(path, entry.async("blob").then((b) => b));
+          outZip.file(
+            path,
+            entry.async("blob").then((b) => b),
+          );
         }
       });
 
-      const blob = await outZip.generateAsync(
-        { type: "blob" },
-        (m) => setProgress(Math.round(m.percent)),
+      const blob = await outZip.generateAsync({ type: "blob" }, (m) =>
+        setProgress(Math.round(m.percent)),
       );
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -278,9 +282,8 @@ function ArchiveExtractorTool() {
         }
       }
 
-      const blob = await outZip.generateAsync(
-        { type: "blob" },
-        (m) => setProgress(Math.round(m.percent)),
+      const blob = await outZip.generateAsync({ type: "blob" }, (m) =>
+        setProgress(Math.round(m.percent)),
       );
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

@@ -30,7 +30,11 @@ test("quantizePixels orders colours by dominance and skips transparent pixels", 
 });
 
 test("quantizePixels merges near-identical shades and honours the count", () => {
-  const data = pixels([50, 200, 10, 10, 255], [40, 215, 20, 20, 255], [20, 0, 0, 0, 255]);
+  const data = pixels(
+    [50, 200, 10, 10, 255],
+    [40, 215, 20, 20, 255],
+    [20, 0, 0, 0, 255],
+  );
   assert.equal(quantizePixels(data, 10).length, 2);
   assert.equal(quantizePixels(data, 1).length, 1);
   assert.deepEqual(quantizePixels(new Uint8Array(0), 5), []);
@@ -39,7 +43,14 @@ test("quantizePixels merges near-identical shades and honours the count", () => 
 test("audioCodecArgs uses the native Opus encoder with its required flags", () => {
   assert.deepEqual(audioCodecArgs("aac"), ["-c:a", "aac"]);
   assert.deepEqual(audioCodecArgs("opus"), [
-    "-c:a", "opus", "-strict", "-2", "-ar", "48000", "-ac", "2",
+    "-c:a",
+    "opus",
+    "-strict",
+    "-2",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
   ]);
 });
 
@@ -49,7 +60,10 @@ test("codec tables only list encoders that work in the single-threaded core", ()
     for (const codec of codecs) assert.ok(!broken.includes(codec), codec);
   }
   assert.deepEqual(videoContainerCodecArgs("webm"), [
-    "-c:v", "libvpx", "-c:a", "libvorbis",
+    "-c:v",
+    "libvpx",
+    "-c:a",
+    "libvorbis",
   ]);
 });
 

@@ -1,24 +1,29 @@
 "use client";
 
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { getToolBySlug } from "@/config/tools";
-import React, { useState, useMemo } from "react";
 import {
+  AlignJustify,
+  AlignLeft,
+  CheckCircle2,
   Copy,
   RefreshCw,
-  Type,
-  AlignLeft,
-  AlignJustify,
-  CheckCircle2,
   Settings,
+  Type,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/layout/Card";
+import React, { useMemo, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/form/Input";
-import { Textarea } from "@/components/ui/form/Textarea";
-import { Label } from "@/components/ui/form/Label";
 import { Checkbox } from "@/components/ui/form/Checkbox";
+import { Input } from "@/components/ui/form/Input";
+import { Label } from "@/components/ui/form/Label";
+import { Textarea } from "@/components/ui/form/Textarea";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("lorem-generator");
 
@@ -28,16 +33,11 @@ export default function LoremGeneratorPage() {
   }
 
   return (
-    <ToolPageShell
-      title={tool.name}
-      description={tool.description}
-     
-    >
+    <ToolPageShell title={tool.name} description={tool.description}>
       <LoremGeneratorTool />
     </ToolPageShell>
   );
 }
-
 
 const CLASSIC_WORDS = [
   "lorem",
@@ -348,9 +348,7 @@ function LoremGeneratorTool() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
             {/* Unit Toggle */}
             <div className="space-y-3">
-              <Label className="block text-muted-foreground">
-                Length Unit
-              </Label>
+              <Label className="block text-muted-foreground">Length Unit</Label>
               <SegmentedControl
                 fullWidth
                 size="sm"
@@ -393,9 +391,7 @@ function LoremGeneratorTool() {
             {/* Input Count & Style */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-3">
-                <Label className="block text-muted-foreground">
-                  Count
-                </Label>
+                <Label className="block text-muted-foreground">Count</Label>
                 <Input
                   type="number"
                   min={1}
@@ -410,9 +406,7 @@ function LoremGeneratorTool() {
               </div>
 
               <div className="space-y-3">
-                <Label className="block text-muted-foreground">
-                  Style
-                </Label>
+                <Label className="block text-muted-foreground">Style</Label>
                 <SegmentedControl
                   fullWidth
                   size="sm"
@@ -503,4 +497,3 @@ function LoremGeneratorTool() {
     </div>
   );
 }
-

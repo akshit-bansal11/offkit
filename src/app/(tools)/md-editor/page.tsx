@@ -1,8 +1,6 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import DOMPurify from "dompurify";
 import {
   Bold,
   Code,
@@ -16,18 +14,20 @@ import {
   Link,
   List,
   ListOrdered,
-  Minus,
   MessageSquare,
+  Minus,
   Printer,
   RotateCcw,
   Table,
 } from "lucide-react";
+import { marked } from "marked";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
-import { Card } from "@/components/ui/layout/Card";
 import { Input } from "@/components/ui/form/Input";
-import { marked } from "marked";
-import DOMPurify from "dompurify";
+import { Card } from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("md-editor");
 
@@ -74,7 +74,11 @@ export default function MdEditorPage() {
 interface ToolbarButton {
   label: string;
   icon: React.ReactNode;
-  action: (ta: HTMLTextAreaElement, val: string, set: (s: string) => void) => void;
+  action: (
+    ta: HTMLTextAreaElement,
+    val: string,
+    set: (s: string) => void,
+  ) => void;
 }
 
 function insertWrapped(
@@ -139,27 +143,23 @@ function TOOLBAR_BUTTONS(): ToolbarButton[] {
     {
       label: "Code",
       icon: <Code className="size-3.5" />,
-      action: (ta, val, set) =>
-        insertWrapped(ta, val, set, "`", "`", "code"),
+      action: (ta, val, set) => insertWrapped(ta, val, set, "`", "`", "code"),
     },
     { label: "divider", icon: null, action: () => {} },
     {
       label: "H1",
       icon: <Heading1 className="size-3.5" />,
-      action: (ta, val, set) =>
-        insertLine(ta, val, set, "# ", "Heading 1"),
+      action: (ta, val, set) => insertLine(ta, val, set, "# ", "Heading 1"),
     },
     {
       label: "H2",
       icon: <Heading2 className="size-3.5" />,
-      action: (ta, val, set) =>
-        insertLine(ta, val, set, "## ", "Heading 2"),
+      action: (ta, val, set) => insertLine(ta, val, set, "## ", "Heading 2"),
     },
     {
       label: "H3",
       icon: <Heading3 className="size-3.5" />,
-      action: (ta, val, set) =>
-        insertLine(ta, val, set, "### ", "Heading 3"),
+      action: (ta, val, set) => insertLine(ta, val, set, "### ", "Heading 3"),
     },
     { label: "divider", icon: null, action: () => {} },
     {
@@ -169,10 +169,7 @@ function TOOLBAR_BUTTONS(): ToolbarButton[] {
         const start = ta.selectionStart;
         const end = ta.selectionEnd;
         const sel = val.slice(start, end) || "link text";
-        const next =
-          val.slice(0, start) +
-          `[${sel}](url)` +
-          val.slice(end);
+        const next = val.slice(0, start) + `[${sel}](url)` + val.slice(end);
         set(next);
         setTimeout(() => {
           ta.selectionStart = start + sel.length + 3;
@@ -201,20 +198,17 @@ function TOOLBAR_BUTTONS(): ToolbarButton[] {
     {
       label: "Bullet list",
       icon: <List className="size-3.5" />,
-      action: (ta, val, set) =>
-        insertLine(ta, val, set, "- ", "List item"),
+      action: (ta, val, set) => insertLine(ta, val, set, "- ", "List item"),
     },
     {
       label: "Numbered list",
       icon: <ListOrdered className="size-3.5" />,
-      action: (ta, val, set) =>
-        insertLine(ta, val, set, "1. ", "List item"),
+      action: (ta, val, set) => insertLine(ta, val, set, "1. ", "List item"),
     },
     {
       label: "Blockquote",
       icon: <MessageSquare className="size-3.5" />,
-      action: (ta, val, set) =>
-        insertLine(ta, val, set, "> ", "Quote"),
+      action: (ta, val, set) => insertLine(ta, val, set, "> ", "Quote"),
     },
     {
       label: "HR",
@@ -292,8 +286,7 @@ function MdEditorTool() {
       const ta = e.currentTarget;
       const start = ta.selectionStart;
       const end = ta.selectionEnd;
-      const next =
-        markdown.slice(0, start) + "  " + markdown.slice(end);
+      const next = markdown.slice(0, start) + "  " + markdown.slice(end);
       setMarkdown(next);
       setTimeout(() => {
         ta.selectionStart = ta.selectionEnd = start + 2;
@@ -338,12 +331,7 @@ function MdEditorTool() {
         <div className="flex flex-wrap items-center gap-0.5">
           {buttons.map((btn, i) => {
             if (btn.label === "divider") {
-              return (
-                <div
-                  key={i}
-                  className="mx-1 h-5 w-px bg-white/10"
-                />
-              );
+              return <div key={i} className="mx-1 h-5 w-px bg-white/10" />;
             }
             return (
               <button

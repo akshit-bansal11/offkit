@@ -1,8 +1,5 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { useState } from "react";
 import {
   ArrowLeftRight,
   CheckCircle2,
@@ -11,9 +8,17 @@ import {
   Lock,
   Unlock,
 } from "lucide-react";
+import { useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
 import { Textarea } from "@/components/ui/form/Textarea";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("base64");
 
@@ -28,7 +33,6 @@ export default function Base64Page() {
     </ToolPageShell>
   );
 }
-
 
 const SAMPLE_TEXT = "open-tools keeps small utilities easy to use.";
 
@@ -205,4 +209,3 @@ function decodeBase64(input: string) {
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
   return new TextDecoder().decode(bytes);
 }
-

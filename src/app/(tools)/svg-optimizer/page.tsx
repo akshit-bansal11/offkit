@@ -1,26 +1,31 @@
 "use client";
 
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { getToolBySlug } from "@/config/tools";
-import React, { useState, useMemo } from "react";
 import {
-  FileCode2,
+  ArrowRight,
+  CheckCircle2,
   Copy,
   Download,
+  FileCode2,
   Settings,
-  CheckCircle2,
-  ArrowRight,
 } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { optimize } from "svgo/browser";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
 import { Badge } from "@/components/ui/feedback/Badge";
+import { Checkbox } from "@/components/ui/form/Checkbox";
+import { Label } from "@/components/ui/form/Label";
+import { Textarea } from "@/components/ui/form/Textarea";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { ToggleSwitch } from "@/components/ui/interaction/ToggleSwitch";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
 import { Slider } from "@/components/ui/Slider";
-import { Textarea } from "@/components/ui/form/Textarea";
-import { Label } from "@/components/ui/form/Label";
-import { Checkbox } from "@/components/ui/form/Checkbox";
-import { optimize } from "svgo/browser";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("svg-optimizer");
 
@@ -30,17 +35,11 @@ export default function SvgOptimizerPage() {
   }
 
   return (
-    <ToolPageShell
-      title={tool.name}
-      description={tool.description}
-     
-    >
+    <ToolPageShell title={tool.name} description={tool.description}>
       <SvgOptimizerTool />
     </ToolPageShell>
   );
 }
-
-
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return bytes + " B";
@@ -276,9 +275,7 @@ function SvgOptimizerTool() {
               </div>
 
               <div className="space-y-3">
-                <Label>
-                  Strip Toggles
-                </Label>
+                <Label>Strip Toggles</Label>
 
                 <Label className="flex items-center gap-3 p-1 text-sm text-foreground hover:cursor-pointer">
                   <Checkbox
@@ -461,9 +458,11 @@ function SvgOptimizerTool() {
                   </Badge>
                   <Badge
                     variant="outline"
-                    className={enableJsx
-                      ? "border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-primary"
-                      : "border-white/10 bg-background/40 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground"}
+                    className={
+                      enableJsx
+                        ? "border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-primary"
+                        : "border-white/10 bg-background/40 px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
+                    }
                   >
                     JSX
                   </Badge>
@@ -550,9 +549,11 @@ function SvgOptimizerTool() {
                 </div>
                 <Badge
                   variant="outline"
-                  className={enableJsx
-                    ? "border-primary/25 bg-primary/10 text-primary"
-                    : "border-white/10 bg-background/40 text-muted-foreground"}
+                  className={
+                    enableJsx
+                      ? "border-primary/25 bg-primary/10 text-primary"
+                      : "border-white/10 bg-background/40 text-muted-foreground"
+                  }
                 >
                   {enableJsx ? "Generated" : "Disabled"}
                 </Badge>

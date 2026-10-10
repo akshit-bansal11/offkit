@@ -1,24 +1,29 @@
 "use client";
 
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { getToolBySlug } from "@/config/tools";
-import React, { useState, useMemo } from "react";
 import {
-  Plus,
-  Trash2,
-  Copy,
   CheckCircle2,
+  Copy,
   Layers,
+  Plus,
   Settings2,
+  Trash2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
+import React, { useMemo, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
-import { Slider } from "@/components/ui/Slider";
-import { Textarea } from "@/components/ui/form/Textarea";
-import { Label } from "@/components/ui/form/Label";
 import { ColorInput } from "@/components/ui/form/ColorInput";
+import { Label } from "@/components/ui/form/Label";
+import { Textarea } from "@/components/ui/form/Textarea";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Slider } from "@/components/ui/Slider";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("box-shadow");
 
@@ -28,16 +33,11 @@ export default function BoxShadowPage() {
   }
 
   return (
-    <ToolPageShell
-      title={tool.name}
-      description={tool.description}
-     
-    >
+    <ToolPageShell title={tool.name} description={tool.description}>
       <BoxShadowTool />
     </ToolPageShell>
   );
 }
-
 
 interface ShadowLayer {
   id: string;
@@ -318,9 +318,7 @@ function BoxShadowTool() {
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <Label className="text-foreground">
-                        X Offset
-                      </Label>
+                      <Label className="text-foreground">X Offset</Label>
                       <span className="font-mono text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded">
                         {activeLayer.xOffset}px
                       </span>
@@ -338,9 +336,7 @@ function BoxShadowTool() {
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <Label className="text-foreground">
-                        Y Offset
-                      </Label>
+                      <Label className="text-foreground">Y Offset</Label>
                       <span className="font-mono text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded">
                         {activeLayer.yOffset}px
                       </span>
@@ -358,9 +354,7 @@ function BoxShadowTool() {
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <Label className="text-foreground">
-                        Blur Content
-                      </Label>
+                      <Label className="text-foreground">Blur Content</Label>
                       <span className="font-mono text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded">
                         {activeLayer.blur}px
                       </span>
@@ -378,9 +372,7 @@ function BoxShadowTool() {
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <Label className="text-foreground">
-                        Spread Radius
-                      </Label>
+                      <Label className="text-foreground">Spread Radius</Label>
                       <span className="font-mono text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded">
                         {activeLayer.spread}px
                       </span>
@@ -398,9 +390,7 @@ function BoxShadowTool() {
 
                   <div className="space-y-4 pt-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-foreground">
-                        Opacity
-                      </Label>
+                      <Label className="text-foreground">Opacity</Label>
                       <span className="font-mono text-xs text-muted-foreground bg-background/50 px-2 py-0.5 rounded">
                         {activeLayer.opacity}%
                       </span>
@@ -436,9 +426,7 @@ function BoxShadowTool() {
                     </div>
 
                     <div className="space-y-1 text-right">
-                      <Label className="block text-foreground">
-                        Position
-                      </Label>
+                      <Label className="block text-foreground">Position</Label>
                       <SegmentedControl
                         size="sm"
                         value={activeLayer.inset ? "inset" : "outset"}
@@ -461,4 +449,3 @@ function BoxShadowTool() {
     </div>
   );
 }
-

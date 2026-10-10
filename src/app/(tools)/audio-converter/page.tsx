@@ -1,11 +1,9 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchFile } from "@ffmpeg/util";
 import JSZip from "jszip";
 import { ArrowRight, Download, Loader2, Music, Trash2, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ToolInputCard,
   ToolInputCardBadge,
@@ -22,24 +20,26 @@ import {
   ToolInputCardText,
   ToolInputCardTitle,
 } from "@/components/common/ToolInputCard";
-import { Badge } from "@/components/ui/feedback/Badge";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/feedback/Badge";
+import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/layout/Card";
-import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import { getToolBySlug } from "@/config/tools";
 import {
   AUDIO_FORMAT_CODEC_MAP,
   type AudioOutputFormat,
-  formatFileSize,
   audioCodecArgs,
+  formatFileSize,
   getAudioCodecsForFormat,
   getFFmpeg,
-  runFFmpeg,
   getFileExtension,
+  runFFmpeg,
   stripExtension,
   uid,
 } from "@/lib/ffmpeg/client";
@@ -57,7 +57,6 @@ export default function AudioConverterPage() {
     </ToolPageShell>
   );
 }
-
 
 type ConversionStatus = "idle" | "converting" | "done" | "error";
 
@@ -543,4 +542,3 @@ function AudioConverterTool() {
     </div>
   );
 }
-

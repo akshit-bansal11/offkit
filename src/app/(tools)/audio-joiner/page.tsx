@@ -1,8 +1,5 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useRef, useState } from "react";
 import { fetchFile } from "@ffmpeg/util";
 import {
   ChevronDown,
@@ -16,6 +13,8 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
@@ -23,18 +22,16 @@ import { Select } from "@/components/ui/form/Select";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { WaveformCanvas } from "@/components/ui/interaction/WaveformCanvas";
 import { Card } from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
+import { decodeAudioFile, formatDuration } from "@/lib/audio/utils";
 import {
-  formatFileSize,
   audioCodecArgs,
+  formatFileSize,
   getFFmpeg,
-  runFFmpeg,
   getFileExtension,
+  runFFmpeg,
   uid,
 } from "@/lib/ffmpeg/client";
-import {
-  decodeAudioFile,
-  formatDuration,
-} from "@/lib/audio/utils";
 
 // ─── Page shell ──────────────────────────────────────────────────────────────
 
@@ -54,18 +51,18 @@ export default function AudioJoinerPage() {
 const ACCEPTED_AUDIO = ".mp3,.wav,.flac,.aac,.m4a,.opus,.ogg";
 
 const OUTPUT_FORMATS = [
-  { label: "MP3",  value: "mp3"  },
-  { label: "WAV",  value: "wav"  },
+  { label: "MP3", value: "mp3" },
+  { label: "WAV", value: "wav" },
   { label: "FLAC", value: "flac" },
-  { label: "AAC",  value: "aac"  },
+  { label: "AAC", value: "aac" },
   { label: "OPUS", value: "opus" },
 ];
 
 const CODEC_FOR_FORMAT: Record<string, string> = {
-  mp3:  "libmp3lame",
-  wav:  "pcm_s16le",
+  mp3: "libmp3lame",
+  wav: "pcm_s16le",
   flac: "flac",
-  aac:  "aac",
+  aac: "aac",
   opus: "opus",
 };
 
@@ -103,7 +100,9 @@ function AudioJoinerTool() {
   const dragOverIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    return () => { if (outputUrl) URL.revokeObjectURL(outputUrl); };
+    return () => {
+      if (outputUrl) URL.revokeObjectURL(outputUrl);
+    };
   }, [outputUrl]);
 
   // ── Add files ──────────────────────────────────────────────────────────────
@@ -127,13 +126,19 @@ function AudioJoinerTool() {
         setTracks((prev) =>
           prev.map((t) =>
             t.id === track.id
-              ? { ...t, audioBuffer: buf, duration: buf.duration, trimEnd: buf.duration, decoding: false }
+              ? {
+                  ...t,
+                  audioBuffer: buf,
+                  duration: buf.duration,
+                  trimEnd: buf.duration,
+                  decoding: false,
+                }
               : t,
           ),
         );
       } catch {
         setTracks((prev) =>
-          prev.map((t) => t.id === track.id ? { ...t, decoding: false } : t),
+          prev.map((t) => (t.id === track.id ? { ...t, decoding: false } : t)),
         );
       }
     }
@@ -144,11 +149,15 @@ function AudioJoinerTool() {
   }, []);
 
   const updateTrack = useCallback((id: string, patch: Partial<TrackItem>) => {
-    setTracks((prev) => prev.map((t) => t.id === id ? { ...t, ...patch } : t));
+    setTracks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+    );
   }, []);
 
   // ── Drag-to-reorder ────────────────────────────────────────────────────────
-  const handleDragStart = (id: string) => { dragIdRef.current = id; };
+  const handleDragStart = (id: string) => {
+    dragIdRef.current = id;
+  };
   const handleDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
     dragOverIdRef.current = id;
@@ -204,7 +213,9 @@ function AudioJoinerTool() {
 
         await ffmpeg.writeFile(rawName, await fetchFile(track.file));
 
-        const hasTrim = track.trimStart > 0 || (track.trimEnd !== null && track.trimEnd < track.duration - 0.05);
+        const hasTrim =
+          track.trimStart > 0 ||
+          (track.trimEnd !== null && track.trimEnd < track.duration - 0.05);
 
         const args = ["-i", rawName];
         if (hasTrim) {
@@ -214,9 +225,12 @@ function AudioJoinerTool() {
 
         args.push(
           "-vn",
-          "-ac", "2",
-          "-ar", "48000",
-          "-c:a", "pcm_s16le",
+          "-ac",
+          "2",
+          "-ar",
+          "48000",
+          "-c:a",
+          "pcm_s16le",
           normalizedName,
         );
 
@@ -229,7 +243,10 @@ function AudioJoinerTool() {
       setProgress(65);
 
       const concatContent = processedNames.map((n) => `file '${n}'`).join("\n");
-      await ffmpeg.writeFile("concat.txt", new TextEncoder().encode(concatContent));
+      await ffmpeg.writeFile(
+        "concat.txt",
+        new TextEncoder().encode(concatContent),
+      );
 
       const outputName = `joined_${jobId}.${outputFormat}`;
 
@@ -239,20 +256,36 @@ function AudioJoinerTool() {
       };
       let animRaf = 0;
       const animate = () => {
-        setProgress((cur) => Math.min(cur + Math.max(1, Math.round((targetProgress - cur) * 0.2)), targetProgress));
+        setProgress((cur) =>
+          Math.min(
+            cur + Math.max(1, Math.round((targetProgress - cur) * 0.2)),
+            targetProgress,
+          ),
+        );
         animRaf = requestAnimationFrame(animate);
       };
       ffmpeg.on("progress", onProgress);
       animRaf = requestAnimationFrame(animate);
 
       // Step 3 — concat
-      await runFFmpeg(ffmpeg, ["-f", "concat", "-safe", "0", "-i", "concat.txt", ...audioCodecArgs(codec), outputName]);
+      await runFFmpeg(ffmpeg, [
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        "concat.txt",
+        ...audioCodecArgs(codec),
+        outputName,
+      ]);
 
       cancelAnimationFrame(animRaf);
       ffmpeg.off("progress", onProgress);
 
       const out = await ffmpeg.readFile(outputName);
-      const blob = new Blob([(out as Uint8Array).slice()], { type: `audio/${outputFormat}` });
+      const blob = new Blob([(out as Uint8Array).slice()], {
+        type: `audio/${outputFormat}`,
+      });
       setOutputUrl(URL.createObjectURL(blob));
       setOutputSize(blob.size);
       setProgress(100);
@@ -298,8 +331,11 @@ function AudioJoinerTool() {
           {tracks.map((track, index) => {
             const effectiveEnd = track.trimEnd ?? track.duration;
             const effectiveStart = track.trimStart;
-            const hasTrim = effectiveStart > 0.01 || (track.duration > 0 && effectiveEnd < track.duration - 0.05);
-            const clipDuration = track.duration > 0 ? effectiveEnd - effectiveStart : 0;
+            const hasTrim =
+              effectiveStart > 0.01 ||
+              (track.duration > 0 && effectiveEnd < track.duration - 0.05);
+            const clipDuration =
+              track.duration > 0 ? effectiveEnd - effectiveStart : 0;
 
             return (
               <div
@@ -313,7 +349,9 @@ function AudioJoinerTool() {
                 {/* Main row */}
                 <div className="flex items-center gap-3 p-3">
                   <GripVertical className="size-4 shrink-0 cursor-grab text-white/25 group-hover:text-white/50 active:cursor-grabbing" />
-                  <span className="w-5 shrink-0 text-center text-xs text-muted-foreground">{index + 1}</span>
+                  <span className="w-5 shrink-0 text-center text-xs text-muted-foreground">
+                    {index + 1}
+                  </span>
 
                   {/* Mini waveform */}
                   <div className="w-32 shrink-0 sm:w-44">
@@ -322,7 +360,11 @@ function AudioJoinerTool() {
                         <Loader2 className="size-4 animate-spin text-muted-foreground" />
                       </div>
                     ) : track.audioBuffer ? (
-                      <WaveformCanvas audioBuffer={track.audioBuffer} height={56} trimHandles={false} />
+                      <WaveformCanvas
+                        audioBuffer={track.audioBuffer}
+                        height={56}
+                        trimHandles={false}
+                      />
                     ) : (
                       <div className="flex h-14 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-xs text-muted-foreground">
                         no preview
@@ -332,20 +374,36 @@ function AudioJoinerTool() {
 
                   {/* Info */}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium" title={track.file.name}>
+                    <p
+                      className="truncate text-sm font-medium"
+                      title={track.file.name}
+                    >
                       {track.file.name}
                     </p>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="border-white/10 bg-white/[0.04] px-1.5 py-0 text-[10px]">
+                      <Badge
+                        variant="outline"
+                        className="border-white/10 bg-white/[0.04] px-1.5 py-0 text-[10px]"
+                      >
                         {getFileExtension(track.file.name).toUpperCase()}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{formatFileSize(track.file.size)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatFileSize(track.file.size)}
+                      </span>
                       {track.duration > 0 && (
                         <span className="font-mono text-xs text-muted-foreground">
-                          {hasTrim
-                            ? <><span className="text-blue-400">{formatDuration(clipDuration)}</span> <span className="text-white/30">({formatDuration(track.duration)})</span></>
-                            : formatDuration(track.duration)
-                          }
+                          {hasTrim ? (
+                            <>
+                              <span className="text-blue-400">
+                                {formatDuration(clipDuration)}
+                              </span>{" "}
+                              <span className="text-white/30">
+                                ({formatDuration(track.duration)})
+                              </span>
+                            </>
+                          ) : (
+                            formatDuration(track.duration)
+                          )}
                         </span>
                       )}
                     </div>
@@ -357,10 +415,18 @@ function AudioJoinerTool() {
                       variant="ghost"
                       size="sm"
                       className={`h-7 gap-1 border text-[10px] ${track.trimExpanded ? "border-blue-500/30 bg-blue-500/10 text-blue-400" : "border-white/10 text-muted-foreground"}`}
-                      onClick={() => updateTrack(track.id, { trimExpanded: !track.trimExpanded })}
+                      onClick={() =>
+                        updateTrack(track.id, {
+                          trimExpanded: !track.trimExpanded,
+                        })
+                      }
                       disabled={status === "joining"}
                     >
-                      {track.trimExpanded ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+                      {track.trimExpanded ? (
+                        <ChevronUp className="size-3" />
+                      ) : (
+                        <ChevronDown className="size-3" />
+                      )}
                       Trim
                     </Button>
                   )}
@@ -382,11 +448,17 @@ function AudioJoinerTool() {
                     <WaveformCanvas
                       audioBuffer={track.audioBuffer}
                       height={100}
-                      startRatio={track.duration > 0 ? effectiveStart / track.duration : 0}
-                      endRatio={track.duration > 0 ? effectiveEnd / track.duration : 1}
+                      startRatio={
+                        track.duration > 0 ? effectiveStart / track.duration : 0
+                      }
+                      endRatio={
+                        track.duration > 0 ? effectiveEnd / track.duration : 1
+                      }
                       onRegionChange={(s, e) =>
                         updateTrack(track.id, {
-                          trimStart: parseFloat((s * track.duration).toFixed(2)),
+                          trimStart: parseFloat(
+                            (s * track.duration).toFixed(2),
+                          ),
                           trimEnd: parseFloat((e * track.duration).toFixed(2)),
                         })
                       }
@@ -395,39 +467,84 @@ function AudioJoinerTool() {
                     {/* Time nudge row */}
                     <div className="flex flex-wrap items-center gap-4">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">Start</span>
-                        <Button variant="ghost" size="icon" className="size-6 rounded text-muted-foreground"
-                          onClick={() => updateTrack(track.id, {
-                            trimStart: parseFloat(Math.max(0, effectiveStart - 0.1).toFixed(2)),
-                          })}>
+                        <span className="text-xs text-muted-foreground">
+                          Start
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 rounded text-muted-foreground"
+                          onClick={() =>
+                            updateTrack(track.id, {
+                              trimStart: parseFloat(
+                                Math.max(0, effectiveStart - 0.1).toFixed(2),
+                              ),
+                            })
+                          }
+                        >
                           <Minus className="size-3" />
                         </Button>
                         <span className="w-16 text-center font-mono text-xs tabular-nums">
                           {formatDuration(effectiveStart)}
                         </span>
-                        <Button variant="ghost" size="icon" className="size-6 rounded text-muted-foreground"
-                          onClick={() => updateTrack(track.id, {
-                            trimStart: parseFloat(Math.min(effectiveEnd - 0.1, effectiveStart + 0.1).toFixed(2)),
-                          })}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 rounded text-muted-foreground"
+                          onClick={() =>
+                            updateTrack(track.id, {
+                              trimStart: parseFloat(
+                                Math.min(
+                                  effectiveEnd - 0.1,
+                                  effectiveStart + 0.1,
+                                ).toFixed(2),
+                              ),
+                            })
+                          }
+                        >
                           <Plus className="size-3" />
                         </Button>
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground">End</span>
-                        <Button variant="ghost" size="icon" className="size-6 rounded text-muted-foreground"
-                          onClick={() => updateTrack(track.id, {
-                            trimEnd: parseFloat(Math.max(effectiveStart + 0.1, effectiveEnd - 0.1).toFixed(2)),
-                          })}>
+                        <span className="text-xs text-muted-foreground">
+                          End
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 rounded text-muted-foreground"
+                          onClick={() =>
+                            updateTrack(track.id, {
+                              trimEnd: parseFloat(
+                                Math.max(
+                                  effectiveStart + 0.1,
+                                  effectiveEnd - 0.1,
+                                ).toFixed(2),
+                              ),
+                            })
+                          }
+                        >
                           <Minus className="size-3" />
                         </Button>
                         <span className="w-16 text-center font-mono text-xs tabular-nums">
                           {formatDuration(effectiveEnd)}
                         </span>
-                        <Button variant="ghost" size="icon" className="size-6 rounded text-muted-foreground"
-                          onClick={() => updateTrack(track.id, {
-                            trimEnd: parseFloat(Math.min(track.duration, effectiveEnd + 0.1).toFixed(2)),
-                          })}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 rounded text-muted-foreground"
+                          onClick={() =>
+                            updateTrack(track.id, {
+                              trimEnd: parseFloat(
+                                Math.min(
+                                  track.duration,
+                                  effectiveEnd + 0.1,
+                                ).toFixed(2),
+                              ),
+                            })
+                          }
+                        >
                           <Plus className="size-3" />
                         </Button>
                       </div>
@@ -437,7 +554,12 @@ function AudioJoinerTool() {
                           variant="ghost"
                           size="sm"
                           className="h-6 border border-white/10 px-2 text-[10px] text-muted-foreground"
-                          onClick={() => updateTrack(track.id, { trimStart: 0, trimEnd: track.duration })}
+                          onClick={() =>
+                            updateTrack(track.id, {
+                              trimStart: 0,
+                              trimEnd: track.duration,
+                            })
+                          }
                         >
                           Reset
                         </Button>
@@ -459,7 +581,9 @@ function AudioJoinerTool() {
       {tracks.length === 0 && (
         <Card className="flex flex-col items-center justify-center gap-2 border-white/10 bg-background/30 py-12 text-center">
           <ListMusic className="size-8 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">Add two or more audio files to get started.</p>
+          <p className="text-sm text-muted-foreground">
+            Add two or more audio files to get started.
+          </p>
         </Card>
       )}
 
@@ -470,13 +594,18 @@ function AudioJoinerTool() {
             {totalDuration > 0 && (
               <p className="text-xs text-muted-foreground">
                 Total output:{" "}
-                <span className="font-mono">{formatDuration(totalDuration)}</span>
-                {" · "}{tracks.length} track{tracks.length !== 1 ? "s" : ""}
+                <span className="font-mono">
+                  {formatDuration(totalDuration)}
+                </span>
+                {" · "}
+                {tracks.length} track{tracks.length !== 1 ? "s" : ""}
               </p>
             )}
 
             {progressLabel && status === "joining" && (
-              <span className="text-xs text-muted-foreground">{progressLabel}</span>
+              <span className="text-xs text-muted-foreground">
+                {progressLabel}
+              </span>
             )}
 
             <div className="ml-auto flex items-center gap-2">
@@ -506,9 +635,11 @@ function AudioJoinerTool() {
                 disabled={status === "joining" || tracks.length < 2}
                 onClick={() => void joinAndExport()}
               >
-                {status === "joining"
-                  ? <Loader2 className="size-3.5 animate-spin" />
-                  : <RotateCcw className="size-3.5" />}
+                {status === "joining" ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="size-3.5" />
+                )}
                 {status === "joining" ? "Joining…" : "Join & Export"}
               </Button>
             </div>
@@ -519,7 +650,8 @@ function AudioJoinerTool() {
               <Progress value={progress} className="h-1.5 bg-white/10" />
               {status === "done" && outputSize > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Output: {formatFileSize(outputSize)} · {outputFormat.toUpperCase()}
+                  Output: {formatFileSize(outputSize)} ·{" "}
+                  {outputFormat.toUpperCase()}
                 </p>
               )}
             </div>

@@ -1,8 +1,5 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { useMemo, useState } from "react";
 import {
   CheckCircle2,
   Copy,
@@ -11,10 +8,18 @@ import {
   Minimize2,
   Wand2,
 } from "lucide-react";
-import { Badge } from "@/components/ui/feedback/Badge";
+import { useMemo, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
+import { Badge } from "@/components/ui/feedback/Badge";
 import { Textarea } from "@/components/ui/form/Textarea";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("json-formatter");
 
@@ -29,7 +34,6 @@ export default function JsonFormatterPage() {
     </ToolPageShell>
   );
 }
-
 
 const SAMPLE_JSON = `{
   "name": "open-tools",
@@ -184,4 +188,3 @@ function formatJson(input: string, mode: "pretty" | "minify") {
     ? JSON.stringify(parsed, null, 2)
     : JSON.stringify(parsed);
 }
-

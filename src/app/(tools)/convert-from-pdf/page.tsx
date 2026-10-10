@@ -1,24 +1,18 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
+import JSZip from "jszip";
+import { Download, File, FileInput, Loader2, X } from "lucide-react";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import React, { useState } from "react";
-import {
-  Download,
-  File,
-  FileInput,
-  Loader2,
-  X,
-} from "lucide-react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
+import { Select } from "@/components/ui/form/Select";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Card } from "@/components/ui/layout/Card";
 import { Slider } from "@/components/ui/Slider";
-import { Select } from "@/components/ui/form/Select";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import JSZip from "jszip";
+import { getToolBySlug } from "@/config/tools";
 
 if (typeof window !== "undefined") {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -120,7 +114,10 @@ function ConvertFromPdfTool() {
     if (pages.length === 0) return;
     const zip = new JSZip();
     pages.forEach((p) =>
-      zip.file(`page_${String(p.index).padStart(3, "0")}.${outputFormat}`, p.blob),
+      zip.file(
+        `page_${String(p.index).padStart(3, "0")}.${outputFormat}`,
+        p.blob,
+      ),
     );
     const blob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(blob);

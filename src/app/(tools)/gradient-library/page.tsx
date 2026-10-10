@@ -1,20 +1,20 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { useState } from "react";
 import { Download, Search } from "lucide-react";
-import { CopyButton } from "@/components/ui/design/CopyButton";
+import { useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/form/Input";
+import { CopyButton } from "@/components/ui/design/CopyButton";
 import { Badge } from "@/components/ui/feedback/Badge";
+import { Input } from "@/components/ui/form/Input";
+import { getToolBySlug } from "@/config/tools";
 import { gradientPresets } from "@/lib/design-tools/data/gradient-presets";
-import { cn } from "@/lib/utils";
 import {
   downloadGradientPng,
   gradientToBackgroundProperty,
   gradientToTailwindArbitrary,
 } from "@/lib/design-tools/gradients";
+import { cn } from "@/lib/utils";
 
 const tool = getToolBySlug("gradient-library");
 
@@ -29,7 +29,6 @@ export default function GradientLibraryPage() {
     </ToolPageShell>
   );
 }
-
 
 const FEELS = [
   "All",
@@ -87,7 +86,7 @@ function GradientLibraryTool() {
                 onClick={() => setFeel(feelOption)}
                 variant={feel === feelOption ? "default" : "outline"}
                 size="sm"
-                  className={cn(
+                className={cn(
                   "rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
                   feel === feelOption
                     ? "btn-accent shadow-md"
@@ -165,4 +164,3 @@ function GradientLibraryTool() {
     </div>
   );
 }
-

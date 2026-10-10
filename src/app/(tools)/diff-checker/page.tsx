@@ -1,25 +1,30 @@
 "use client";
 
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { getToolBySlug } from "@/config/tools";
-import React, { useState, useMemo } from "react";
+import * as diff from "diff";
 import {
+  AlignJustify,
+  AlignLeft,
   ArrowRightLeft,
+  CheckCircle2,
   Copy,
   FileDiff,
-  CheckCircle2,
   Settings,
-  AlignLeft,
-  AlignJustify,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
+import React, { useMemo, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Textarea } from "@/components/ui/form/Textarea";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Checkbox } from "@/components/ui/form/Checkbox";
 import { Label } from "@/components/ui/form/Label";
+import { Textarea } from "@/components/ui/form/Textarea";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import * as diff from "diff";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("diff-checker");
 
@@ -29,16 +34,11 @@ export default function DiffCheckerPage() {
   }
 
   return (
-    <ToolPageShell
-      title={tool.name}
-      description={tool.description}
-     
-    >
+    <ToolPageShell title={tool.name} description={tool.description}>
       <DiffCheckerTool />
     </ToolPageShell>
   );
 }
-
 
 function DiffCheckerTool() {
   const [original, setOriginal] = useState("");
@@ -156,7 +156,9 @@ function DiffCheckerTool() {
               <SegmentedControl
                 size="sm"
                 value={diffMode}
-                onValueChange={(value) => setDiffMode(value as "chars" | "words")}
+                onValueChange={(value) =>
+                  setDiffMode(value as "chars" | "words")
+                }
                 options={[
                   { label: "Character Level", value: "chars" },
                   { label: "Word Level", value: "words" },

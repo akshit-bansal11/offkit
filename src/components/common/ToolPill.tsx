@@ -1,8 +1,8 @@
 // ToolPill.tsx
 // Individual tool link pill with category accent color and in-development state.
 
-import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ToolDefinition } from "@/types/tool";
 
@@ -36,7 +36,10 @@ export function ToolPill({
       {isInDevelopment ? (
         <TriangleAlert className="size-4 shrink-0 text-amber-300" />
       ) : (
-        <Icon className="size-4 shrink-0 transition-colors duration-300" style={iconStyle} />
+        <Icon
+          className="size-4 shrink-0 transition-colors duration-300"
+          style={iconStyle}
+        />
       )}
       <span>{label}</span>
     </>
@@ -60,7 +63,9 @@ export function ToolPill({
       className={pillClass}
       style={
         accentColor
-          ? ({ "--pill-accent-border": `${accentColor}59` } as React.CSSProperties) // ~35% alpha
+          ? ({
+              "--pill-accent-border": `${accentColor}59`,
+            } as React.CSSProperties) // ~35% alpha
           : undefined
       }
     >
@@ -68,4 +73,3 @@ export function ToolPill({
     </Link>
   );
 }
-

@@ -1,24 +1,24 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { useCallback, useMemo, useState } from "react";
 import { Download, Play } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { Button } from "@/components/ui/Button";
 import { OutputField } from "@/components/ui/design/OutputField";
 import { Badge } from "@/components/ui/feedback/Badge";
-import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/form/Checkbox";
+import { ColorInput } from "@/components/ui/form/ColorInput";
+import { Input } from "@/components/ui/form/Input";
+import { Label } from "@/components/ui/form/Label";
+import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/layout/Card";
-import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
-import { Label } from "@/components/ui/form/Label";
 import { Slider } from "@/components/ui/Slider";
-import { ColorInput } from "@/components/ui/form/ColorInput";
-import { Input } from "@/components/ui/form/Input";
-import { Checkbox } from "@/components/ui/form/Checkbox";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("svg-animator");
 
@@ -33,7 +33,6 @@ export default function SvgAnimatorPage() {
     </ToolPageShell>
   );
 }
-
 
 type PlayMode = "sequential" | "simultaneous";
 
@@ -137,7 +136,9 @@ function buildAnimatedSvg(
   }
 
   svg
-    .querySelectorAll("style[data-svg-animator='true'], animate[data-svg-animator='true']")
+    .querySelectorAll(
+      "style[data-svg-animator='true'], animate[data-svg-animator='true']",
+    )
     .forEach((node) => {
       node.remove();
     });
@@ -424,7 +425,9 @@ function SvgAnimatorTool() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs">Width: {strokeWidth.toFixed(1)}</Label>
+                <Label className="text-xs">
+                  Width: {strokeWidth.toFixed(1)}
+                </Label>
                 <Slider
                   value={strokeWidth}
                   min={MIN_STROKE_WIDTH}
@@ -439,7 +442,9 @@ function SvgAnimatorTool() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs">Zoom: {Math.round(zoom * 100)}%</Label>
+                <Label className="text-xs">
+                  Zoom: {Math.round(zoom * 100)}%
+                </Label>
                 <Slider
                   value={zoom}
                   min={MIN_ZOOM}
@@ -500,7 +505,10 @@ function SvgAnimatorTool() {
                 <div
                   key={previewKey}
                   className="flex min-h-[420px] items-center justify-center text-foreground [&_svg]:h-auto [&_svg]:max-h-none [&_svg]:max-w-none"
-                  style={{ transform: `scale(${zoom})`, transformOrigin: "center" }}
+                  style={{
+                    transform: `scale(${zoom})`,
+                    transformOrigin: "center",
+                  }}
                   dangerouslySetInnerHTML={{ __html: animatedSvg }}
                 />
               </div>
@@ -530,4 +538,3 @@ function SvgAnimatorTool() {
     </div>
   );
 }
-

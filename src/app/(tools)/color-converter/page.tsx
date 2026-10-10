@@ -1,13 +1,13 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { Droplets, Pipette } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Pipette, Droplets } from "lucide-react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { OutputField } from "@/components/ui/design/OutputField";
-import { Input } from "@/components/ui/form/Input";
 import { Badge } from "@/components/ui/feedback/Badge";
+import { Input } from "@/components/ui/form/Input";
 import { Card, CardHeader, CardTitle } from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
 import {
   formatColorOutputs,
   parseColorInput,
@@ -27,7 +27,6 @@ export default function ColorConverterPage() {
     </ToolPageShell>
   );
 }
-
 
 const SAMPLE_COLOR = "rebeccapurple";
 
@@ -350,4 +349,3 @@ function ColorConverterTool() {
     </div>
   );
 }
-

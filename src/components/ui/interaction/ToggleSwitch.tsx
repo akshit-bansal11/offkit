@@ -3,8 +3,8 @@
 
 "use client";
 
-import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -23,8 +23,7 @@ const toggleSwitchVariants = cva(
           "shadow-[0px_2px_4px_0px_rgba(18,18,18,0.25),0px_4px_8px_0px_rgba(18,18,18,0.35)]",
         ghost:
           "shadow-[0px_2px_4px_0px_rgba(18,18,18,0.25),0px_4px_8px_0px_rgba(18,18,18,0.35)]",
-        link:
-          "shadow-[0px_2px_4px_0px_rgba(18,18,18,0.25),0px_4px_8px_0px_rgba(18,18,18,0.35)]",
+        link: "shadow-[0px_2px_4px_0px_rgba(18,18,18,0.25),0px_4px_8px_0px_rgba(18,18,18,0.35)]",
       },
       size: {
         sm: "h-7 w-14",
@@ -45,7 +44,8 @@ const toggleSwitchThumbVariants = cva(
     variants: {
       size: {
         sm: "left-[0.18rem] size-[1.45rem] data-[state=checked]:left-[calc(100%-1.63rem)]",
-        default: "left-[0.2rem] size-[1.65rem] data-[state=checked]:left-[calc(100%-1.85rem)]",
+        default:
+          "left-[0.2rem] size-[1.65rem] data-[state=checked]:left-[calc(100%-1.85rem)]",
         lg: "left-[0.2rem] size-[2.1rem] data-[state=checked]:left-[calc(100%-2.3rem)]",
       },
       variant: {

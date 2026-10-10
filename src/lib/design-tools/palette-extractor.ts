@@ -19,7 +19,10 @@ export function quantizePixels(
   data: Uint8ClampedArray | Uint8Array,
   count: number,
 ): string[] {
-  const buckets = new Map<number, { n: number; r: number; g: number; b: number }>();
+  const buckets = new Map<
+    number,
+    { n: number; r: number; g: number; b: number }
+  >();
   const shift = 8 - BUCKET_BITS;
 
   for (let i = 0; i + 3 < data.length; i += 4) {
@@ -60,9 +63,8 @@ export function quantizePixels(
     if (distinct) picked.push(candidate);
   }
 
-  return picked.map(
-    (color) =>
-      `#${color.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`.toUpperCase(),
+  return picked.map((color) =>
+    `#${color.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`.toUpperCase(),
   );
 }
 

@@ -1,8 +1,5 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useRef, useState } from "react";
 import { fetchFile } from "@ffmpeg/util";
 import {
   AlertTriangle,
@@ -13,20 +10,23 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
 import { Select } from "@/components/ui/form/Select";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Card } from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
 import {
   formatFileSize,
   getFFmpeg,
-  runFFmpeg,
-  videoContainerCodecArgs,
-  type VideoOutputFormat,
   getFileExtension,
+  runFFmpeg,
   uid,
+  type VideoOutputFormat,
+  videoContainerCodecArgs,
 } from "@/lib/ffmpeg/client";
 
 const tool = getToolBySlug("video-merger");
@@ -64,7 +64,9 @@ function formatDuration(sec: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-async function generateThumbnail(file: File): Promise<{ url: string; duration: number }> {
+async function generateThumbnail(
+  file: File,
+): Promise<{ url: string; duration: number }> {
   return new Promise((resolve) => {
     const video = document.createElement("video");
     const url = URL.createObjectURL(file);
@@ -86,14 +88,18 @@ async function generateThumbnail(file: File): Promise<{ url: string; duration: n
         canvas.height = 90;
         const ctx = canvas.getContext("2d")!;
         ctx.drawImage(video, 0, 0, 160, 90);
-        canvas.toBlob((blob) => {
-          cleanup();
-          if (blob) {
-            resolve({ url: URL.createObjectURL(blob), duration });
-          } else {
-            resolve({ url: "", duration });
-          }
-        }, "image/jpeg", 0.75);
+        canvas.toBlob(
+          (blob) => {
+            cleanup();
+            if (blob) {
+              resolve({ url: URL.createObjectURL(blob), duration });
+            } else {
+              resolve({ url: "", duration });
+            }
+          },
+          "image/jpeg",
+          0.75,
+        );
       };
     };
 
@@ -220,10 +226,14 @@ function VideoMergerTool() {
         const logs: string[] = [];
         const onLog = ({ message }: { message: string }) => logs.push(message);
         ffmpeg.on("log", onLog);
-        try { await ffmpeg.exec(["-i", firstInput]); } catch {}
+        try {
+          await ffmpeg.exec(["-i", firstInput]);
+        } catch {}
         ffmpeg.off("log", onLog);
 
-        const sizeMatch = logs.join("\n").match(/Video:.*?\b(\d{2,5})x(\d{2,5})\b/);
+        const sizeMatch = logs
+          .join("\n")
+          .match(/Video:.*?\b(\d{2,5})x(\d{2,5})\b/);
         const targetW = sizeMatch ? parseInt(sizeMatch[1], 10) : 1280;
         const targetH = sizeMatch ? parseInt(sizeMatch[2], 10) : 720;
 
@@ -241,10 +251,22 @@ function VideoMergerTool() {
           // Concat needs identical stream parameters, so frame rate, pixel
           // format and audio layout are pinned along with the frame size.
           await runFFmpeg(ffmpeg, [
-            "-i", rawName,
-            "-vf", `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2,setsar=1`,
-            "-r", "30", "-pix_fmt", "yuv420p",
-            "-c:v", "libx264", "-c:a", "aac", "-ar", "44100", "-ac", "2",
+            "-i",
+            rawName,
+            "-vf",
+            `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2,setsar=1`,
+            "-r",
+            "30",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-ar",
+            "44100",
+            "-ac",
+            "2",
             normName,
           ]);
           processedNames.push(normName);
@@ -264,7 +286,10 @@ function VideoMergerTool() {
       setProgress(55);
 
       const concatContent = processedNames.map((n) => `file '${n}'`).join("\n");
-      await ffmpeg.writeFile("concat.txt", new TextEncoder().encode(concatContent));
+      await ffmpeg.writeFile(
+        "concat.txt",
+        new TextEncoder().encode(concatContent),
+      );
 
       const outputName = `merged_${jobId}.${outputFormat}`;
 
@@ -275,7 +300,10 @@ function VideoMergerTool() {
       let raf = 0;
       const animate = () => {
         setProgress((cur) =>
-          Math.min(cur + Math.max(1, Math.round((targetProgress - cur) * 0.2)), targetProgress),
+          Math.min(
+            cur + Math.max(1, Math.round((targetProgress - cur) * 0.2)),
+            targetProgress,
+          ),
         );
         raf = requestAnimationFrame(animate);
       };
@@ -283,7 +311,12 @@ function VideoMergerTool() {
       raf = requestAnimationFrame(animate);
 
       await runFFmpeg(ffmpeg, [
-        "-f", "concat", "-safe", "0", "-i", "concat.txt",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        "concat.txt",
         ...videoContainerCodecArgs(outputFormat),
         outputName,
       ]);
@@ -292,7 +325,9 @@ function VideoMergerTool() {
       ffmpeg.off("progress", onProgress);
 
       const out = await ffmpeg.readFile(outputName);
-      const blob = new Blob([(out as Uint8Array).slice()], { type: `video/${outputFormat}` });
+      const blob = new Blob([(out as Uint8Array).slice()], {
+        type: `video/${outputFormat}`,
+      });
       setOutputUrl(URL.createObjectURL(blob));
       setOutputSize(blob.size);
       setProgress(100);
@@ -330,8 +365,8 @@ function VideoMergerTool() {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-3 text-amber-400">
           <AlertTriangle className="size-4 mt-0.5 shrink-0" />
           <p className="text-xs leading-relaxed">
-            Large files detected (&gt;200MB). ffmpeg.wasm runs in-browser and may
-            be slow or run out of memory with very large inputs.
+            Large files detected (&gt;200MB). ffmpeg.wasm runs in-browser and
+            may be slow or run out of memory with very large inputs.
           </p>
         </div>
       )}
@@ -428,7 +463,10 @@ function VideoMergerTool() {
               {totalDuration > 0 && (
                 <>
                   Total:{" "}
-                  <span className="font-mono">{formatDuration(totalDuration)}</span>{" · "}
+                  <span className="font-mono">
+                    {formatDuration(totalDuration)}
+                  </span>
+                  {" · "}
                 </>
               )}
               {tracks.length} clip{tracks.length !== 1 ? "s" : ""}
@@ -459,7 +497,9 @@ function VideoMergerTool() {
               <Select
                 options={OUTPUT_FORMATS}
                 value={outputFormat}
-                onChange={(e) => setOutputFormat(e.target.value as VideoOutputFormat)}
+                onChange={(e) =>
+                  setOutputFormat(e.target.value as VideoOutputFormat)
+                }
                 disabled={status === "merging"}
                 className="h-8 w-24 border-white/10 bg-white/[0.04] text-xs shadow-none"
               />

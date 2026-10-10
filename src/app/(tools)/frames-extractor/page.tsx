@@ -1,27 +1,27 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import Image from "next/image";
 import { fetchFile } from "@ffmpeg/util";
 import JSZip from "jszip";
 import { Download, Film, Loader2, X } from "lucide-react";
-import { Badge } from "@/components/ui/feedback/Badge";
+import Image from "next/image";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
-import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
+import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
 import {
   formatFileSize,
   getFFmpeg,
-  runFFmpeg,
   getFileExtension,
+  runFFmpeg,
   stripExtension,
   uid,
 } from "@/lib/ffmpeg/client";
@@ -39,7 +39,6 @@ export default function FramesExtractorPage() {
     </ToolPageShell>
   );
 }
-
 
 interface ExtractedFrame {
   name: string;
@@ -194,7 +193,9 @@ function FramesExtractorTool() {
             break;
           }
 
-          const blob = new Blob([(output as Uint8Array).slice()], { type: "image/png" });
+          const blob = new Blob([(output as Uint8Array).slice()], {
+            type: "image/png",
+          });
           const url = URL.createObjectURL(blob);
           extracted.push({
             name: `frame_${String(index).padStart(4, "0")}.png`,
@@ -207,8 +208,9 @@ function FramesExtractorTool() {
       }
 
       setFrames(extracted);
-      
-      const parsedFps = targetFps !== "auto" ? parseFloat(targetFps) : detectedFps;
+
+      const parsedFps =
+        targetFps !== "auto" ? parseFloat(targetFps) : detectedFps;
       setMeta({ fps: parsedFps, frameCount: extracted.length });
       setProgress(100);
     } catch (error) {
@@ -313,25 +315,59 @@ function FramesExtractorTool() {
 
               <div className="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">Extract Frequency</label>
+                  <label className="text-xs text-muted-foreground">
+                    Extract Frequency
+                  </label>
                   <select
                     className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
                     value={targetFps}
                     onChange={(e) => setTargetFps(e.target.value)}
                     disabled={isExtracting}
                   >
-                    <option value="auto" className="bg-background text-foreground">Extract every frame (Auto)</option>
-                    <option value="30" className="bg-background text-foreground">30 FPS</option>
-                    <option value="10" className="bg-background text-foreground">10 FPS</option>
-                    <option value="5" className="bg-background text-foreground">5 FPS</option>
-                    <option value="1" className="bg-background text-foreground">1 FPS (1 frame/sec)</option>
-                    <option value="0.5" className="bg-background text-foreground">0.5 FPS (1 frame/2s)</option>
-                    <option value="0.1" className="bg-background text-foreground">0.1 FPS (1 frame/10s)</option>
+                    <option
+                      value="auto"
+                      className="bg-background text-foreground"
+                    >
+                      Extract every frame (Auto)
+                    </option>
+                    <option
+                      value="30"
+                      className="bg-background text-foreground"
+                    >
+                      30 FPS
+                    </option>
+                    <option
+                      value="10"
+                      className="bg-background text-foreground"
+                    >
+                      10 FPS
+                    </option>
+                    <option value="5" className="bg-background text-foreground">
+                      5 FPS
+                    </option>
+                    <option value="1" className="bg-background text-foreground">
+                      1 FPS (1 frame/sec)
+                    </option>
+                    <option
+                      value="0.5"
+                      className="bg-background text-foreground"
+                    >
+                      0.5 FPS (1 frame/2s)
+                    </option>
+                    <option
+                      value="0.1"
+                      className="bg-background text-foreground"
+                    >
+                      0.1 FPS (1 frame/10s)
+                    </option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">Start Time (sec) <span className="opacity-50 text-[10px]">Optional</span></label>
+                  <label className="text-xs text-muted-foreground">
+                    Start Time (sec){" "}
+                    <span className="opacity-50 text-[10px]">Optional</span>
+                  </label>
                   <input
                     type="number"
                     min="0"
@@ -345,7 +381,10 @@ function FramesExtractorTool() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground">End Time (sec) <span className="opacity-50 text-[10px]">Optional</span></label>
+                  <label className="text-xs text-muted-foreground">
+                    End Time (sec){" "}
+                    <span className="opacity-50 text-[10px]">Optional</span>
+                  </label>
                   <input
                     type="number"
                     min="0"
@@ -449,4 +488,3 @@ function FramesExtractorTool() {
     </div>
   );
 }
-

@@ -1,8 +1,8 @@
 // Field.tsx
 // Utility wrapper for form fields combining a label and input element.
 
-import * as React from "react";
 import type { ComponentProps } from "react";
+import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export function FieldLabel({ className, ...props }: ComponentProps<"label">) {

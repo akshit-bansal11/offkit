@@ -1,36 +1,49 @@
 "use client";
 
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { getToolBySlug } from "@/config/tools";
-import React, { useState, useCallback, useEffect } from "react";
+import JSZip from "jszip";
 import {
-  Merge,
-  SplitSquareHorizontal,
-  Minimize2,
   ArrowUpDown,
-  File,
-  X,
-  GripVertical,
   Download,
-  Trash2,
+  File,
+  GripVertical,
+  Image as ImageIcon,
+  Merge,
+  Minimize2,
   RefreshCw,
   Settings,
-  Image as ImageIcon,
+  SplitSquareHorizontal,
+  Trash2,
+  X,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/form/Input";
-import { Badge } from "@/components/ui/feedback/Badge";
-import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
-import { Slider } from "@/components/ui/Slider";
-import { Progress } from "@/components/ui/feedback/Progress";
-import { Label } from "@/components/ui/form/Label";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { PDFDocument } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import JSZip from "jszip";
-import type { PdfFileItem, PdfPageThumbnail, TabType } from "@/lib/tools/pdf-toolkit/types";
-import { formatFileSize, generateId, parseRanges } from "@/lib/tools/pdf-toolkit/utils";
+import React, { useCallback, useEffect, useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/feedback/Badge";
+import { Progress } from "@/components/ui/feedback/Progress";
+import { Input } from "@/components/ui/form/Input";
+import { Label } from "@/components/ui/form/Label";
+import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Slider } from "@/components/ui/Slider";
+import { getToolBySlug } from "@/config/tools";
+import type {
+  PdfFileItem,
+  PdfPageThumbnail,
+  TabType,
+} from "@/lib/tools/pdf-toolkit/types";
+import {
+  formatFileSize,
+  generateId,
+  parseRanges,
+} from "@/lib/tools/pdf-toolkit/utils";
 
 const tool = getToolBySlug("pdf-toolkit");
 
@@ -40,21 +53,15 @@ export default function PdfToolkitPage() {
   }
 
   return (
-    <ToolPageShell
-      title={tool.name}
-      description={tool.description}
-     
-    >
+    <ToolPageShell title={tool.name} description={tool.description}>
       <PdfToolkitTool />
     </ToolPageShell>
   );
 }
 
-
 if (typeof window !== "undefined") {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
-
 
 function PdfToolkitTool() {
   const [activeTab, setActiveTab] = useState<TabType>("merge");
@@ -633,9 +640,7 @@ function PdfToolkitTool() {
               {activeTab === "split" && (
                 <>
                   <div className="space-y-3">
-                    <Label>
-                      Extraction Mode
-                    </Label>
+                    <Label>Extraction Mode</Label>
                     <SegmentedControl
                       fullWidth
                       variant="dark"
@@ -702,9 +707,7 @@ function PdfToolkitTool() {
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <Label>
-                        Rendering Scale
-                      </Label>
+                      <Label>Rendering Scale</Label>
                       <Badge variant="outline" className="font-mono">
                         {compressResolution.toFixed(1)}x
                       </Badge>
@@ -722,9 +725,7 @@ function PdfToolkitTool() {
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <Label>
-                        JPEG Image Quality
-                      </Label>
+                      <Label>JPEG Image Quality</Label>
                       <Badge variant="outline" className="font-mono">
                         {compressQuality}%
                       </Badge>

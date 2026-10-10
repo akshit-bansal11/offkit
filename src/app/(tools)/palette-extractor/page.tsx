@@ -1,14 +1,19 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { useState } from "react";
 import { CheckCircle2, Copy, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { Button } from "@/components/ui/Button";
 import { CopyButton } from "@/components/ui/design/CopyButton";
 import { Badge } from "@/components/ui/feedback/Badge";
-import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
 import { extractPalette } from "@/lib/design-tools/palette-extractor";
 
 const tool = getToolBySlug("palette-extractor");
@@ -24,7 +29,6 @@ export default function PaletteExtractorPage() {
     </ToolPageShell>
   );
 }
-
 
 function PaletteExtractorTool() {
   const [image, setImage] = useState<string | null>(null);
@@ -81,32 +85,33 @@ function PaletteExtractorTool() {
     <>
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="border-white/10 bg-card/70">
-        <CardHeader className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <CardTitle>Upload an Image</CardTitle>
+          <CardHeader className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Upload an Image</CardTitle>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  The extractor samples the image on your device and returns
-                  its most dominant, visibly distinct colors.
+                  The extractor samples the image on your device and returns its
+                  most dominant, visibly distinct colors.
                 </p>
               </div>
-          </div>
-        </CardHeader>
+            </div>
+          </CardHeader>
 
-        <CardContent className="space-y-4">
-          <FileDropZoneCard
-            fileTypeLabel="an image"
-            supportedFormats="PNG, JPG, JPEG, WEBP, and GIF"
-            accept="image/*"
-            disabled={isLoading}
-            onFilesSelected={(files) => {
-              void handleFile(files[0] ?? null);
-            }}
-          >
-            <p className="text-sm text-muted-foreground">
-              The image never leaves your browser. Colors are computed locally.
-            </p>
-          </FileDropZoneCard>
+          <CardContent className="space-y-4">
+            <FileDropZoneCard
+              fileTypeLabel="an image"
+              supportedFormats="PNG, JPG, JPEG, WEBP, and GIF"
+              accept="image/*"
+              disabled={isLoading}
+              onFilesSelected={(files) => {
+                void handleFile(files[0] ?? null);
+              }}
+            >
+              <p className="text-sm text-muted-foreground">
+                The image never leaves your browser. Colors are computed
+                locally.
+              </p>
+            </FileDropZoneCard>
 
             {image ? (
               <div className="overflow-hidden rounded-[2rem] border">
@@ -208,4 +213,3 @@ function PaletteExtractorTool() {
     </>
   );
 }
-

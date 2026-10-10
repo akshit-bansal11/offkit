@@ -1,30 +1,35 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { useState } from "react";
 import { Download, GripVertical, Layers3, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { Button } from "@/components/ui/Button";
 import { CopyButton } from "@/components/ui/design/CopyButton";
-import { Label } from "@/components/ui/form/Label";
-import { Input } from "@/components/ui/form/Input";
 import { OutputField } from "@/components/ui/design/OutputField";
 import { Badge } from "@/components/ui/feedback/Badge";
-import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
-import { Select } from "@/components/ui/form/Select";
-import { Slider } from "@/components/ui/Slider";
 import { ColorInput } from "@/components/ui/form/ColorInput";
+import { Input } from "@/components/ui/form/Input";
+import { Label } from "@/components/ui/form/Label";
+import { Select } from "@/components/ui/form/Select";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/layout/Card";
+import { Slider } from "@/components/ui/Slider";
+import { getToolBySlug } from "@/config/tools";
 import {
   addStop,
   buildGradientCss,
   createDefaultGradientStops,
   downloadGradientPng,
+  type GradientKind,
   gradientToBackgroundProperty,
   gradientToTailwindArbitrary,
   LINEAR_DIRECTION_PRESETS,
   moveStop,
   RADIAL_SHAPES,
-  type GradientKind,
 } from "@/lib/design-tools/gradients";
 
 const tool = getToolBySlug("gradient-maker");
@@ -40,7 +45,6 @@ export default function GradientMakerPage() {
     </ToolPageShell>
   );
 }
-
 
 function GradientMakerTool() {
   const [type, setType] = useState<GradientKind>("linear");
@@ -347,4 +351,3 @@ function GradientMakerTool() {
     </div>
   );
 }
-

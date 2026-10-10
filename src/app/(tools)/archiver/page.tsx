@@ -1,22 +1,17 @@
 "use client";
 
-import { getToolBySlug } from "@/config/tools";
-import { ToolPageShell } from "@/components/common/ToolPageShell";
+import JSZip from "jszip";
+import { Archive, FolderArchive, Loader2, X } from "lucide-react";
 import React, { useCallback, useState } from "react";
-import {
-  Archive,
-  FolderArchive,
-  Loader2,
-  X,
-} from "lucide-react";
+import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
-import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
-import { Card } from "@/components/ui/layout/Card";
 import { Input } from "@/components/ui/form/Input";
 import { Select } from "@/components/ui/form/Select";
-import JSZip from "jszip";
+import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
+import { Card } from "@/components/ui/layout/Card";
+import { getToolBySlug } from "@/config/tools";
 
 const tool = getToolBySlug("archiver");
 
@@ -50,12 +45,32 @@ function formatFileSize(bytes: number) {
 function getFileIcon(name: string) {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   const icons: Record<string, string> = {
-    pdf: "📄", jpg: "🖼️", jpeg: "🖼️", png: "🖼️", gif: "🖼️", webp: "🖼️",
-    mp4: "🎬", webm: "🎬", mov: "🎬", mkv: "🎬",
-    mp3: "🎵", wav: "🎵", flac: "🎵",
-    js: "📜", ts: "📜", jsx: "📜", tsx: "📜", py: "📜", json: "📋", html: "🌐", css: "🎨",
-    zip: "🗜️", tar: "🗜️", gz: "🗜️",
-    txt: "📝", md: "📝",
+    pdf: "📄",
+    jpg: "🖼️",
+    jpeg: "🖼️",
+    png: "🖼️",
+    gif: "🖼️",
+    webp: "🖼️",
+    mp4: "🎬",
+    webm: "🎬",
+    mov: "🎬",
+    mkv: "🎬",
+    mp3: "🎵",
+    wav: "🎵",
+    flac: "🎵",
+    js: "📜",
+    ts: "📜",
+    jsx: "📜",
+    tsx: "📜",
+    py: "📜",
+    json: "📋",
+    html: "🌐",
+    css: "🎨",
+    zip: "🗜️",
+    tar: "🗜️",
+    gz: "🗜️",
+    txt: "📝",
+    md: "📝",
   };
   return icons[ext] ?? "📁";
 }
@@ -84,9 +99,7 @@ function ArchiverTool() {
   };
 
   const updatePath = (id: string, path: string) => {
-    setFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, path } : f)),
-    );
+    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, path } : f)));
   };
 
   const createZip = async () => {
@@ -105,7 +118,18 @@ function ArchiverTool() {
         {
           type: "blob",
           compression: "DEFLATE",
-          compressionOptions: { level: parseInt(compression, 10) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 },
+          compressionOptions: {
+            level: parseInt(compression, 10) as
+              | 1
+              | 2
+              | 3
+              | 4
+              | 5
+              | 6
+              | 7
+              | 8
+              | 9,
+          },
         },
         (meta) => setProgress(Math.round(meta.percent)),
       );
@@ -139,10 +163,7 @@ function ArchiverTool() {
         <Card className="border-white/10 bg-white/[0.015]">
           <div className="divide-y divide-white/[0.06]">
             {files.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-3 px-4 py-3"
-              >
+              <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                 <span className="text-lg leading-none">
                   {getFileIcon(item.name)}
                 </span>
@@ -200,7 +221,9 @@ function ArchiverTool() {
                 placeholder="archive"
                 className="h-9 border-white/10 bg-white/[0.04] text-sm"
               />
-              <span className="shrink-0 text-xs text-muted-foreground">.zip</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                .zip
+              </span>
             </div>
           </div>
 
@@ -224,9 +247,7 @@ function ArchiverTool() {
           {isCreating && (
             <div className="flex flex-1 items-center gap-3">
               <Progress value={progress} className="h-1.5 flex-1 bg-white/10" />
-              <span className="text-xs text-muted-foreground">
-                {progress}%
-              </span>
+              <span className="text-xs text-muted-foreground">{progress}%</span>
             </div>
           )}
 

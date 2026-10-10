@@ -2,13 +2,12 @@
  * Patch all tool pages to pass accentColor to ToolPageShell.
  * Run: node scripts/patch-tool-accents.mjs
  */
-import { readFileSync, writeFileSync } from "fs";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { join } from "path";
-import { readdirSync, statSync } from "fs";
 
 const TOOLS_DIR = join(process.cwd(), "src/app/(tools)");
 const dirs = readdirSync(TOOLS_DIR).filter((d) =>
-  statSync(join(TOOLS_DIR, d)).isDirectory()
+  statSync(join(TOOLS_DIR, d)).isDirectory(),
 );
 
 let patched = 0;
@@ -47,14 +46,14 @@ for (const dir of dirs) {
     (match, inner) => {
       if (inner.includes("getToolAccentColor")) return match;
       return `import {${inner}, getToolAccentColor } from "@/config/tools"`;
-    }
+    },
   );
 
   // 2. Inject accentColor prop into <ToolPageShell ...>
   //    Matches: <ToolPageShell title={...} description={...}>
   next = next.replace(
     /(<ToolPageShell\s+title=\{[^}]+\}\s+description=\{[^}]+\})>/,
-    `$1\n      accentColor={getToolAccentColor("${slug}")}>`
+    `$1\n      accentColor={getToolAccentColor("${slug}")}>`,
   );
 
   if (next === src) {
