@@ -25,7 +25,9 @@ import { WaveformCanvas } from "@/components/ui/interaction/WaveformCanvas";
 import { Card } from "@/components/ui/layout/Card";
 import {
   formatFileSize,
+  audioCodecArgs,
   getFFmpeg,
+  runFFmpeg,
   getFileExtension,
   uid,
 } from "@/lib/ffmpeg/client";
@@ -64,7 +66,7 @@ const CODEC_FOR_FORMAT: Record<string, string> = {
   wav:  "pcm_s16le",
   flac: "flac",
   aac:  "aac",
-  opus: "libopus",
+  opus: "opus",
 };
 
 type JoinStatus = "idle" | "joining" | "done" | "error";
@@ -218,7 +220,7 @@ function AudioJoinerTool() {
           normalizedName,
         );
 
-        await ffmpeg.exec(args);
+        await runFFmpeg(ffmpeg, args);
         processedNames.push(normalizedName);
       }
 
@@ -244,7 +246,7 @@ function AudioJoinerTool() {
       animRaf = requestAnimationFrame(animate);
 
       // Step 3 — concat
-      await ffmpeg.exec(["-f", "concat", "-safe", "0", "-i", "concat.txt", "-c:a", codec, outputName]);
+      await runFFmpeg(ffmpeg, ["-f", "concat", "-safe", "0", "-i", "concat.txt", ...audioCodecArgs(codec), outputName]);
 
       cancelAnimationFrame(animRaf);
       ffmpeg.off("progress", onProgress);

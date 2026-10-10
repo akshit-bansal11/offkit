@@ -39,7 +39,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import {
   formatFileSize,
+  audioCodecArgs,
   getFFmpeg,
+  runFFmpeg,
   getFileExtension,
   getVideoAudioCodecsForFormat,
   getVideoCodecsForFormat,
@@ -205,17 +207,17 @@ function VideoConverterTool() {
           }
 
           // Apply CRF (Quality) for encoders that support it
-          if (["libx264", "libx265", "libvpx", "libvpx-vp9"].includes(item.videoCodec)) {
+          if (["libx264", "libvpx"].includes(item.videoCodec)) {
             ffmpegArgs.push("-crf", String(item.quality));
           }
         }
 
         // Audio codec
-        ffmpegArgs.push("-c:a", item.audioCodec);
+        ffmpegArgs.push(...audioCodecArgs(item.audioCodec));
 
         ffmpegArgs.push(outputName);
 
-        await ffmpeg.exec(ffmpegArgs);
+        await runFFmpeg(ffmpeg, ffmpegArgs);
 
         const output = await ffmpeg.readFile(outputName);
         const blob = new Blob([(output as Uint8Array).slice()], { type: `video/${item.targetFormat}` });

@@ -30,6 +30,8 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import {
   formatFileSize,
   getFFmpeg,
+  runFFmpeg,
+  videoContainerCodecArgs,
   getFileExtension,
   uid,
 } from "@/lib/ffmpeg/client";
@@ -208,9 +210,9 @@ function VideoEditorTool() {
       if (vf) args.push("-vf", vf);
       if (af) args.push("-af", af);
 
-      args.push("-c:v", "libx264", "-c:a", "aac", outputName);
+      args.push(...videoContainerCodecArgs(state.outputFormat), outputName);
 
-      await ffmpeg.exec(args);
+      await runFFmpeg(ffmpeg, args);
 
       cancelAnimationFrame(raf);
       ffmpeg.off("progress", onProgress);

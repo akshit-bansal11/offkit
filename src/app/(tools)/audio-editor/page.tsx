@@ -30,7 +30,9 @@ import { Card } from "@/components/ui/layout/Card";
 import { WaveformCanvas } from "@/components/ui/interaction/WaveformCanvas";
 import {
   formatFileSize,
+  audioCodecArgs,
   getFFmpeg,
+  runFFmpeg,
   getFileExtension,
   stripExtension,
   uid,
@@ -73,7 +75,7 @@ const CODEC_FOR_FORMAT: Record<string, string> = {
   wav:  "pcm_s16le",
   flac: "flac",
   aac:  "aac",
-  opus: "libopus",
+  opus: "opus",
 };
 
 type EditorStatus = "idle" | "loading" | "ready" | "exporting" | "done" | "error";
@@ -458,7 +460,7 @@ function AudioEditorTool() {
     }
     args.push("-c:a", "pcm_s16le", outputName);
 
-    await ffmpeg.exec(args);
+    await runFFmpeg(ffmpeg, args);
 
     const out = await ffmpeg.readFile(outputName);
     const blob = new Blob([(out as Uint8Array).slice()], {
@@ -582,9 +584,9 @@ function AudioEditorTool() {
         args.push("-filter:a", filterChain);
       }
 
-      args.push("-c:a", CODEC_FOR_FORMAT[outputFormat] ?? "libmp3lame", outputName);
+      args.push(...audioCodecArgs(CODEC_FOR_FORMAT[outputFormat] ?? "libmp3lame"), outputName);
 
-      await ffmpeg.exec(args);
+      await runFFmpeg(ffmpeg, args);
 
       const out = await ffmpeg.readFile(outputName);
       const blob = new Blob([(out as Uint8Array).slice()], {

@@ -22,6 +22,9 @@ import { Card } from "@/components/ui/layout/Card";
 import {
   formatFileSize,
   getFFmpeg,
+  runFFmpeg,
+  videoContainerCodecArgs,
+  type VideoOutputFormat,
   getFileExtension,
   uid,
 } from "@/lib/ffmpeg/client";
@@ -103,7 +106,7 @@ async function generateThumbnail(file: File): Promise<{ url: string; duration: n
 
 function VideoMergerTool() {
   const [tracks, setTracks] = useState<VideoTrack[]>([]);
-  const [outputFormat, setOutputFormat] = useState("mp4");
+  const [outputFormat, setOutputFormat] = useState<VideoOutputFormat>("mp4");
   const [normalizeRes, setNormalizeRes] = useState(false);
   const [status, setStatus] = useState<MergeStatus>("idle");
   const [progress, setProgress] = useState(0);
@@ -218,7 +221,7 @@ function VideoMergerTool() {
         try { await ffmpeg.exec(["-i", firstInput]); } catch {}
         ffmpeg.off("log", onLog);
 
-        const sizeMatch = logs.join("\n").match(/(\d{2,5})x(\d{2,5})/);
+        const sizeMatch = logs.join("\n").match(/Video:.*?\b(\d{2,5})x(\d{2,5})\b/);
         const targetW = sizeMatch ? parseInt(sizeMatch[1], 10) : 1280;
         const targetH = sizeMatch ? parseInt(sizeMatch[2], 10) : 720;
 
@@ -233,10 +236,13 @@ function VideoMergerTool() {
             await ffmpeg.writeFile(rawName, await fetchFile(tracks[i].file));
           }
 
-          await ffmpeg.exec([
+          // Concat needs identical stream parameters, so frame rate, pixel
+          // format and audio layout are pinned along with the frame size.
+          await runFFmpeg(ffmpeg, [
             "-i", rawName,
-            "-vf", `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2`,
-            "-c:v", "libx264", "-c:a", "aac",
+            "-vf", `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2,setsar=1`,
+            "-r", "30", "-pix_fmt", "yuv420p",
+            "-c:v", "libx264", "-c:a", "aac", "-ar", "44100", "-ac", "2",
             normName,
           ]);
           processedNames.push(normName);
@@ -274,9 +280,9 @@ function VideoMergerTool() {
       ffmpeg.on("progress", onProgress);
       raf = requestAnimationFrame(animate);
 
-      await ffmpeg.exec([
+      await runFFmpeg(ffmpeg, [
         "-f", "concat", "-safe", "0", "-i", "concat.txt",
-        "-c:v", "libx264", "-c:a", "aac",
+        ...videoContainerCodecArgs(outputFormat),
         outputName,
       ]);
 
@@ -451,7 +457,7 @@ function VideoMergerTool() {
               <Select
                 options={OUTPUT_FORMATS}
                 value={outputFormat}
-                onChange={(e) => setOutputFormat(e.target.value)}
+                onChange={(e) => setOutputFormat(e.target.value as VideoOutputFormat)}
                 disabled={status === "merging"}
                 className="h-8 w-24 border-white/10 bg-white/[0.04] text-xs shadow-none"
               />

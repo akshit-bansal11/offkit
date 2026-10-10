@@ -35,7 +35,10 @@ import {
   AUDIO_FORMAT_CODEC_MAP,
   type AudioOutputFormat,
   formatFileSize,
+  audioCodecArgs,
+  getAudioCodecsForFormat,
   getFFmpeg,
+  runFFmpeg,
   getFileExtension,
   stripExtension,
   uid,
@@ -96,14 +99,16 @@ function animateNumber(
       const nextValue = Math.round(start + (end - start) * progress);
       onFrame(nextValue);
 
+      // Timers, not animation frames: this promise is awaited by the
+      // conversion, and frames never fire while the tab is in the background.
       if (progress < 1) {
-        requestAnimationFrame(tick);
+        setTimeout(() => tick(performance.now()), 16);
       } else {
         resolve();
       }
     };
 
-    requestAnimationFrame(tick);
+    tick(startTime);
   });
 }
 
@@ -221,7 +226,13 @@ function AudioConverterTool() {
           updateFile(item.id, { progress: value }),
         );
 
-        await ffmpeg.exec(["-i", inputName, outputName]);
+        await runFFmpeg(ffmpeg, [
+          "-i",
+          inputName,
+          "-vn",
+          ...audioCodecArgs(getAudioCodecsForFormat(item.targetFormat)[0]),
+          outputName,
+        ]);
         progressState.target = 99;
 
         const output = await ffmpeg.readFile(outputName);

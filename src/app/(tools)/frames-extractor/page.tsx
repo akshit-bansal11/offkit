@@ -20,6 +20,7 @@ import { Progress } from "@/components/ui/feedback/Progress";
 import {
   formatFileSize,
   getFFmpeg,
+  runFFmpeg,
   getFileExtension,
   stripExtension,
   uid,
@@ -174,12 +175,14 @@ function FramesExtractorTool() {
       }
 
       if (targetFps !== "auto") {
-        args.push("-r", targetFps);
+        // An fps filter, not -r: with -vsync 0 the output rate is ignored
+        // and every source frame was written regardless of this setting.
+        args.push("-vf", `fps=${targetFps}`);
       }
 
       args.push(framePattern);
 
-      await ffmpeg.exec(args);
+      await runFFmpeg(ffmpeg, args);
 
       const extracted: ExtractedFrame[] = [];
 

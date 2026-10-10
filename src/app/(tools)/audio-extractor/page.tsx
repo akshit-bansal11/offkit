@@ -19,7 +19,9 @@ import {
   type AudioOutputFormat,
   formatFileSize,
   getAudioCodecsForFormat,
+  audioCodecArgs,
   getFFmpeg,
+  runFFmpeg,
   getFileExtension,
   stripExtension,
   uid,
@@ -135,7 +137,13 @@ function AudioExtractorTool() {
 
     try {
       await ffmpeg.writeFile(inputName, await fetchFile(inputFile));
-      await ffmpeg.exec(["-i", inputName, "-vn", "-c:a", codec, outputName]);
+      await runFFmpeg(ffmpeg, [
+        "-i",
+        inputName,
+        "-vn",
+        ...audioCodecArgs(codec),
+        outputName,
+      ]);
 
       const output = await ffmpeg.readFile(outputName);
       const blob = new Blob([(output as Uint8Array).slice()], {
