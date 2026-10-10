@@ -107,7 +107,9 @@ async function generateThumbnail(file: File): Promise<{ url: string; duration: n
 function VideoMergerTool() {
   const [tracks, setTracks] = useState<VideoTrack[]>([]);
   const [outputFormat, setOutputFormat] = useState<VideoOutputFormat>("mp4");
-  const [normalizeRes, setNormalizeRes] = useState(false);
+  // On by default: concatenating clips whose size, frame rate or codecs
+  // differ without normalising them yields a truncated or corrupt file.
+  const [normalizeRes, setNormalizeRes] = useState(true);
   const [status, setStatus] = useState<MergeStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
