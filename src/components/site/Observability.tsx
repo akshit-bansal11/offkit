@@ -7,9 +7,9 @@ import Script from "next/script";
 const ERRORS_TOKEN = process.env.NEXT_PUBLIC_BETTER_STACK_ERRORS_TOKEN ?? "";
 
 /**
- * Reports uncaught errors only. Files a visitor opens in a tool are never read
- * by this script. Renders nothing without a token, so local runs and CI stay
- * silent.
+ * Sends uncaught errors and page-level telemetry (page URL, timing) to Better
+ * Stack. It does not read files a visitor opens in a tool, which stay on the
+ * device. Renders nothing without a token, so local runs and CI stay silent.
  */
 export function Observability() {
   if (!ERRORS_TOKEN) return null;
