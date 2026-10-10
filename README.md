@@ -18,40 +18,47 @@ Each tool lives at its own route under `app/(tools)/`. Adding a new tool is as s
 
 ### ✅ Currently Available
 
-| Tool | Category | Description |
-|------|----------|-------------|
-| Audio Converter | AUDIO | Convert audio files between formats and codecs locally using ffmpeg.wasm |
-| Audio Extractor | AUDIO | Extract the audio track from any video file in your chosen format and codec |
-| Git Scaffold | DEV | Paste a public GitHub repo URL and instantly visualize its full directory structure |
-| SVG Border Animator | DESIGN | Upload any SVG and animate each path border with stroke-dashoffset controls |
-| SVG Pattern Generator | DESIGN | Create beautiful, scalable vector patterns — export as CSS backgrounds or SVG data URIs |
-| CSS Blob Generator | DESIGN | Create intricate organic shapes by independently customizing 8 anchor points |
-| Glassmorphism Generator | DESIGN | Design frosted-glass UI elements with real-time backdrop filtering |
-| Box Shadow Generator | DESIGN | Create layered CSS shadows natively and export the exact styling string |
-| PDF Toolkit | DOCUMENTS | Merge, split by page, reorder, or compress PDFs directly in the browser |
-| Lorem Generator | TEXT | Generate customized placeholder text using classic Latin or random English prose |
-| Diff Checker | TEXT | Find inline character-level or line-level text differences with robust ignoring options |
-| SVG Optimizer | DESIGN | Clean up messy SVGs, strip metadata, dial in decimal precision, and convert to JSX |
-| PDF ↔ Image | DOCUMENTS | Merge images into a PDF, batch convert them, or extract pages as images |
-| Image Converter | IMAGES | Convert popular image formats locally with batch downloads and quality controls |
-| JSON Formatter | TEXT | Pretty-print, minify, validate, and copy JSON without leaving the browser |
-| Gradient Maker | DESIGN | Build multi-stop gradients with live previews, PNG exports, and Tailwind arbitrary values |
-| Gradient Library | DESIGN | Browse curated named gradients and copy them as CSS or Tailwind-ready arbitrary values |
-| Palette Library | DESIGN | Explore curated color palettes, copy swatches, or export full palettes as JSON |
-| Palette Extractor | DESIGN | Upload an image and extract its dominant colors into a copyable palette, computed locally in the browser |
-| Gradient Converter | DESIGN | Convert CSS gradients into Tailwind arbitrary values or switch between linear/radial/conic |
-| Color Converter | DESIGN | Convert HEX, RGB, HSL, HSV, OKLCH, and named colors into every other format at once |
-| Base64 | ENCODING | Encode and decode text with a clean local workflow that stays entirely in the browser |
-
----
-
-### 🚧 In Development
+All 37 tools run entirely in the browser. Files are never uploaded.
 
 | Tool | Category | Description |
 |------|----------|-------------|
-| Video Converter | VIDEO | Convert videos between formats and codecs directly in the browser using ffmpeg.wasm |
-| Frame Extractor | VIDEO | Upload a GIF or video and extract every frame as individual PNG images, then download as a ZIP |
-| Image Cropper | IMAGES | Crop and apply individual crops per image or a single crop to all at once in the browser |
+| Audio Converter | Audio | Convert audio files between formats and codecs entirely in the browser using ffmpeg.wasm. |
+| Audio Editor | Audio | Trim, adjust speed, shift pitch, and apply EQ to any audio file — all in the browser. |
+| Audio Extractor | Audio | Extract the audio track from any video file and download it in your chosen format and codec. |
+| Audio Joiner | Audio | Drag-and-drop multiple audio files and join them into a single file in your chosen format. |
+| Frames Extractor | Video | Upload a GIF or video and extract every frame as individual PNG images, then download them as a ZIP. |
+| Video Converter | Video | Convert videos between formats and codecs directly in the browser using ffmpeg.wasm. |
+| Video Editor | Video | Trim, crop, rotate, resize, flip, adjust speed and volume for any video — entirely in the browser. |
+| Video Merger | Video | Drag-and-drop multiple video files, reorder them, and merge into a single video. |
+| Image Converter | Images | Convert popular image formats locally with batch downloads, quality controls, and upload guardrails. |
+| Image Cropper | Images | Crop one or many images in the browser - apply individual crops per image or a single crop to all at once. |
+| Convert from PDF | PDF | Extract PDF pages as PNG or JPEG images and download them as a ZIP. |
+| Convert to PDF | PDF | Convert images to PDF — drop multiple images and combine them into a single document. |
+| PDF Compressor | PDF | Reduce PDF file size by rasterizing pages at adjustable quality and resolution. |
+| PDF Merger | PDF | Combine multiple PDF documents into one file with drag-to-reorder. |
+| PDF Splitter | PDF | Break a PDF into individual pages or extract specific page ranges. |
+| PDF Toolkit | PDF | Merge multiple files, break PDFs apart by page, reorder structure, or compress files directly in your browser. |
+| PDF ↔ Image Converter | PDF | Merge images into a single PDF, batch convert them, or extract pages from existing PDFs as images. |
+| SVG Border Animator | SVG | Upload any SVG and animate each path border locally with stroke-dashoffset controls and export-ready output. |
+| SVG Optimizer | SVG | Clean up messy SVGs, strip metadata, dial in decimal precision, and convert to JSX directly in the browser. |
+| SVG Pattern Generator | SVG | Create beautiful, scalable vector patterns directly in your browser. Export native CSS backgrounds or raw SVG data URIs instantly. |
+| Color Converter | Colors | Convert HEX, RGB, HSL, HSV, OKLCH, and named colors into every other format at once. |
+| Gradient Converter | Colors | Convert CSS gradients into Tailwind arbitrary values or switch between linear, radial, and conic syntax. |
+| Gradient Library | Colors | Browse curated named gradients and copy them as CSS or Tailwind-ready arbitrary values. |
+| Gradient Maker | Colors | Build multi-stop gradients with live previews, PNG exports, CSS output, and Tailwind arbitrary values. |
+| Palette Extractor | Colors | Upload an image and extract its dominant colors into a copyable palette, computed locally in your browser. |
+| Palette Library | Colors | Explore curated color palettes, copy individual swatches, or export full palettes as JSON. |
+| Box Shadow Generator | CSS | Create layered CSS shadows natively through visual controls and export the exact styling string for your projects. |
+| CSS Blob Generator | CSS | Create intricate, organic shapes natively by independently customizing the 8 anchor points of the border-radius property. |
+| Glassmorphism Generator | CSS | Design stunning frosted-glass UI elements with real-time backdrop filtering and export the CSS directly. |
+| Base64 | Text | Encode and decode text with a clean local workflow that stays entirely in the browser. |
+| Diff Checker | Text | Find inline character-level or line-level text differences with robust ignoring whitespace and case sensitivity. |
+| JSON Formatter | Text | Pretty-print, minify, validate, and copy JSON without leaving the browser. |
+| Lorem Generator | Text | Generate customized placeholder text instantly for your mockups, using either classic Latin or random English prose. |
+| Markdown Editor | Text | Write Markdown with a live split-pane preview, toolbar shortcuts, and export to .md or PDF. |
+| Archive Extractor | Dev | Upload a ZIP archive, preview its file tree, and extract individual files or download everything. |
+| Archiver | Dev | Drop files to create a ZIP archive instantly in the browser. |
+| Git Scaffold | Dev | Paste a public GitHub repository URL and instantly visualize its full directory structure including all filenames. |
 
 ---
 
@@ -78,165 +85,30 @@ Each tool lives at its own route under `app/(tools)/`. Adding a new tool is as s
 
 ## Directory Structure
 
-Tool-based architecture: each utility has its own route in `src/app/(tools)/<tool-name>/` with a local `_components` folder.
+Each tool has its own route under `src/app/(tools)/<slug>/`, made of a `layout.tsx` (metadata) and a `page.tsx` (the tool).
 
 ```
 src/
 ├── app/
-│   ├── globals.css
-│   ├── layout.tsx
-│   ├── page.tsx
-│   ├── (tools)/
-│   │   ├── audio-converter/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── AudioConverterTool.tsx
-│   │   ├── audio-extractor/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── AudioExtractorTool.tsx
-│   │   ├── base64/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── Base64Tool.tsx
-│   │   ├── blob-generator/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── BlobGeneratorTool.tsx
-│   │   ├── box-shadow/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── BoxShadowTool.tsx
-│   │   ├── color-converter/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── ColorConverterTool.tsx
-│   │   ├── diff-checker/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── DiffCheckerTool.tsx
-│   │   ├── frames-extractor/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── FramesExtractorTool.tsx
-│   │   ├── git-scaffold/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── GitScaffoldTool.tsx
-│   │   ├── glassmorphism/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── GlassmorphismTool.tsx
-│   │   ├── gradient-converter/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── GradientConverterTool.tsx
-│   │   ├── gradient-library/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── GradientLibraryTool.tsx
-│   │   ├── gradient-maker/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── GradientMakerTool.tsx
-│   │   ├── image-converter/
-│   │   │   ├── layout.tsx
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── ImageConverter.tsx
-│   │   ├── image-cropper/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── ImageCropperTool.tsx
-│   │   ├── json-formatter/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── JsonFormatter.tsx
-│   │   ├── lorem-generator/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── LoremGeneratorTool.tsx
-│   │   ├── palette-extractor/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── PaletteExtractorTool.tsx
-│   │   ├── palette-library/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── PaletteLibraryTool.tsx
-│   │   ├── pdf-converter/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── PdfConverterTool.tsx
-│   │   ├── pdf-toolkit/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── PdfToolkitTool.tsx
-│   │   ├── svg-animator/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── SvgAnimatorTool.tsx
-│   │   ├── svg-optimizer/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── SvgOptimizerTool.tsx
-│   │   ├── svg-pattern/
-│   │   │   ├── page.tsx
-│   │   │   └── _components/
-│   │   │       └── SvgPatternTool.tsx
-│   │   └── video-converter/
-│   │       ├── page.tsx
-│   │       └── _components/
-│   │           └── VideoConverterTool.tsx
-│   └── api/
-│       └── magick-wasm/
-│           └── route.ts
+│   ├── (tools)/<slug>/        one folder per tool: layout.tsx + page.tsx
+│   ├── api/magick-wasm/       serves the ImageMagick wasm binary
+│   ├── layout.tsx             root layout
+│   └── page.tsx               home page, generated from the registry
 ├── components/
-│   ├── repository-corner.tsx
-│   ├── site-footer.tsx
-│   ├── tool-page-shell.tsx
-│   ├── design-tools/
-│   │   ├── copy-button.tsx
-│   │   ├── field.tsx
-│   │   ├── gemini-api-key-dialog.tsx
-│   │   └── output-field.tsx
-│   └── ui/
-│       ├── badge.tsx
-│       ├── button.tsx
-│       ├── card.tsx
-│       ├── input.tsx
-│       ├── label.tsx
-│       ├── progress.tsx
-│       ├── select.tsx
-│       ├── separator.tsx
-│       ├── slider.tsx
-│       ├── textarea.tsx
-│       └── tooltip.tsx
-├── config/
-│   ├── site.ts
-│   └── tools.ts
+│   ├── common/                page shell, category cards, tool cards
+│   ├── tools/<slug>/          components specific to one tool
+│   └── ui/                    shared primitives (form, feedback, layout, interaction)
+├── config/tools.ts            the tool registry: every tool and category
+├── data/inDevelopmentSlugs.ts slugs hidden from the home page
 ├── lib/
-│   ├── utils.ts
-│   ├── converters/
-│   │   └── image-converter/
-│   │       ├── converter.ts
-│   │       └── engine.ts
-│   ├── design-tools/
-│   │   ├── colors.ts
-│   │   ├── constants.ts
-│   │   ├── gradients.ts
-│   │   ├── palette-extractor.ts
-│   │   └── data/
-│   │       ├── gradient-presets.ts
-│   │       └── palette-presets.ts
-│   └── ffmpeg/
-│       └── client.ts
-└── types/
-    └── tool.ts
-
+│   ├── ffmpeg/client.ts       ffmpeg.wasm loader, checked runner, codec tables
+│   ├── converters/            ImageMagick conversion engine
+│   ├── design-tools/          colour, gradient and palette logic
+│   └── tools/<slug>/          logic specific to one tool
+└── types/tool.ts
 ```
 
-The homepage is fully driven by `config/tools.ts`. New tools auto-appear on the landing page once registered — no scattered metadata.
+The homepage is fully driven by `config/tools.ts`. A tool appears on the landing page once it is registered there.
 
 ---
 
@@ -255,8 +127,11 @@ npm run build
 # 4) Start production server
 npm run start
 
-# 5) Run lint checks
-npm run lint
+# 5) Lint and type-check (writes fixes)
+npm run check
+
+# 6) Unit tests
+npm test
 ```
 
 Open [http://localhost:3000](http://localhost:3000).

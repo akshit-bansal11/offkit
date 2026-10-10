@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Observability } from "@/components/site/Observability";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | open-tools",
   },
   description:
-    "Open-source browser utilities for image conversion, JSON formatting, and base64 encoding.",
+    "Open-source browser utilities for images, video, audio, PDFs, SVG, colors and text. Files are processed on your device and never uploaded.",
   icons: {
     icon: "/favicon.ico",
   },
@@ -44,6 +46,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <Analytics />
+        <Observability />
       </body>
     </html>
   );
