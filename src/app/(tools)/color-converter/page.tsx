@@ -28,7 +28,9 @@ export default function ColorConverterPage() {
   );
 }
 
-const SAMPLE_COLOR = "rebeccapurple";
+// A hex value, not a named colour: names are resolved through the DOM, so
+// the server could not parse the sample and hydration mismatched.
+const SAMPLE_COLOR = "#663399";
 
 // ─── Tailwind color palette (v3) ─────────────────────────────────────────────
 // hex → tailwind class name
