@@ -38,7 +38,7 @@ Each tool lives at its own route under `app/(tools)/`. Adding a new tool is as s
 | Gradient Maker | DESIGN | Build multi-stop gradients with live previews, PNG exports, and Tailwind arbitrary values |
 | Gradient Library | DESIGN | Browse curated named gradients and copy them as CSS or Tailwind-ready arbitrary values |
 | Palette Library | DESIGN | Explore curated color palettes, copy swatches, or export full palettes as JSON |
-| Palette Extractor | DESIGN | Upload an image and use Gemini vision to extract dominant colors into a copyable palette |
+| Palette Extractor | DESIGN | Upload an image and extract its dominant colors into a copyable palette, computed locally in the browser |
 | Gradient Converter | DESIGN | Convert CSS gradients into Tailwind arbitrary values or switch between linear/radial/conic |
 | Color Converter | DESIGN | Convert HEX, RGB, HSL, HSV, OKLCH, and named colors into every other format at once |
 | Base64 | ENCODING | Encode and decode text with a clean local workflow that stays entirely in the browser |

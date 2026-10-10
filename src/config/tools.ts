@@ -332,9 +332,9 @@ export const tools: ToolDefinition[] = [
     name: "Palette Extractor",
     shortName: "Extract",
     description:
-      "Upload an image and use Gemini vision to extract dominant colors into a copyable palette.",
+      "Upload an image and extract its dominant colors into a copyable palette, computed locally in your browser.",
     category: "Colors",
-    highlights: ["Gemini-powered image palette extraction"],
+    highlights: ["On-device dominant color extraction"],
     icon: ImageUp,
   },
   {

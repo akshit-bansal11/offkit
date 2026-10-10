@@ -2,19 +2,14 @@
 
 import { getToolBySlug } from "@/config/tools";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { useEffect, useState } from "react";
-import { CheckCircle2, Copy, KeyRound, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle2, Copy, Loader2 } from "lucide-react";
 import { CopyButton } from "@/components/ui/design/CopyButton";
-import { GeminiApiKeyDialog } from "@/components/ui/design/GeminiApiKeyDialog";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/layout/Card";
 import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
-import { GEMINI_API_KEY_STORAGE_KEY } from "@/lib/design-tools/constants";
-import {
-  extractPaletteWithGemini,
-  getStoredGeminiApiKey,
-} from "@/lib/design-tools/palette-extractor";
+import { extractPalette } from "@/lib/design-tools/palette-extractor";
 
 const tool = getToolBySlug("palette-extractor");
 
@@ -37,14 +32,6 @@ function PaletteExtractorTool() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedColor, setCopiedColor] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  useEffect(() => {
-    const storedKey = getStoredGeminiApiKey();
-    setApiKey(storedKey);
-    setDialogOpen(!storedKey);
-  }, []);
 
   async function handleFile(file: File | null) {
     if (!file) {
@@ -58,17 +45,9 @@ function PaletteExtractorTool() {
       setColors([]);
       setError(null);
 
-      const currentKey = getStoredGeminiApiKey();
-
-      if (!currentKey) {
-        setApiKey(null);
-        setDialogOpen(true);
-        return;
-      }
-
       try {
         setIsLoading(true);
-        const palette = await extractPaletteWithGemini(result, currentKey);
+        const palette = await extractPalette(result);
         setColors(palette.colors);
       } catch (paletteError) {
         setError(
@@ -100,16 +79,6 @@ function PaletteExtractorTool() {
 
   return (
     <>
-      <GeminiApiKeyDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onSave={(value) => {
-          window.localStorage.setItem(GEMINI_API_KEY_STORAGE_KEY, value);
-          setApiKey(value);
-          setDialogOpen(false);
-        }}
-      />
-
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="border-white/10 bg-card/70">
         <CardHeader className="space-y-4">
@@ -117,19 +86,10 @@ function PaletteExtractorTool() {
             <div>
               <CardTitle>Upload an Image</CardTitle>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  The extractor uses Gemini vision to return the dominant
-                  palette from your uploaded image.
+                  The extractor samples the image on your device and returns
+                  its most dominant, visibly distinct colors.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="gap-2"
-                onClick={() => setDialogOpen(true)}
-              >
-                <KeyRound className="size-4" />
-              {apiKey ? "Change Key" : "Add Key"}
-            </Button>
           </div>
         </CardHeader>
 
@@ -138,21 +98,14 @@ function PaletteExtractorTool() {
             fileTypeLabel="an image"
             supportedFormats="PNG, JPG, JPEG, WEBP, and GIF"
             accept="image/*"
-            disabled={!apiKey || isLoading}
+            disabled={isLoading}
             onFilesSelected={(files) => {
               void handleFile(files[0] ?? null);
             }}
           >
-            {!apiKey ? (
-              <p className="text-sm text-muted-foreground">
-                Add a Gemini API key to enable uploads.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                The file never touches your server. The request goes directly
-                from your browser to Gemini when extraction starts.
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              The image never leaves your browser. Colors are computed locally.
+            </p>
           </FileDropZoneCard>
 
             {image ? (
@@ -192,7 +145,7 @@ function PaletteExtractorTool() {
               <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-[2rem] border bg-background/50">
                 <Loader2 className="size-8 animate-spin" />
                 <p className="text-sm text-muted-foreground">
-                  Gemini is extracting dominant colors...
+                  Extracting dominant colors...
                 </p>
               </div>
             ) : null}
