@@ -8,9 +8,12 @@ import { OutputField } from "@/components/ui/design/OutputField";
 import { Textarea } from "@/components/ui/form/Textarea";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/layout/Card";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import {
+  convertGradientSyntax,
   normalizeGradientInput,
   parseGradientString,
+  type GradientKind,
   type ParsedGradient,
 } from "@/lib/design-tools/gradients";
 
@@ -231,9 +234,25 @@ function GradientConverterTool() {
         <Card className="border-white/10 bg-card/70 overflow-hidden">
           <div className="flex items-center justify-between px-6 py-3 border-b border-white/5">
             <CardTitle className="text-sm font-medium">Live Preview</CardTitle>
-            <span className="text-xs text-muted-foreground font-mono">
-              {parsed.type}-gradient · {parsed.stops.length} stops
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs text-muted-foreground font-mono">
+                {parsed.stops.length} stops
+              </span>
+              <SegmentedControl
+                variant="dark"
+                size="sm"
+                aria-label="Gradient type"
+                value={parsed.type}
+                onValueChange={(value) =>
+                  setInput(convertGradientSyntax(parsed, value as GradientKind))
+                }
+                options={[
+                  { label: "Linear", value: "linear" },
+                  { label: "Radial", value: "radial" },
+                  { label: "Conic", value: "conic" },
+                ]}
+              />
+            </div>
           </div>
           <div
             className="h-40 w-full transition-all duration-500"

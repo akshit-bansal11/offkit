@@ -84,6 +84,7 @@ function formatFileSize(bytes: number) {
 
 function PdfConverterTool() {
   const [activeTab, setActiveTab] = useState<TabType>("img-to-pdf");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // --- Img -> PDF State ---
   const [imgFiles, setImgFiles] = useState<ImgFileItem[]>([]);
@@ -172,6 +173,7 @@ function PdfConverterTool() {
   const processImageToPdf = async () => {
     if (imgFiles.length === 0) return;
     setIsProcessingImgToPdf(true);
+    setErrorMessage(null);
     setImgProgress(0);
 
     try {
@@ -280,7 +282,7 @@ function PdfConverterTool() {
       }
     } catch (e) {
       console.error(e);
-      alert("An error occurred during PDF generation.");
+      setErrorMessage("An error occurred during PDF generation.");
     }
 
     setIsProcessingImgToPdf(false);
@@ -292,6 +294,7 @@ function PdfConverterTool() {
   const processPdfToImg = async () => {
     if (!pdfFile) return;
     setIsProcessingPdfToImg(true);
+    setErrorMessage(null);
     setPdfProgress(0);
     setPdfPages([]);
 
@@ -333,7 +336,7 @@ function PdfConverterTool() {
       setPdfPages((prev) => [...prev, ...extractedPages]);
     } catch (e) {
       console.error(e);
-      alert("An error occurred while reading the PDF.");
+      setErrorMessage("An error occurred while reading the PDF.");
     }
 
     setIsProcessingPdfToImg(false);
@@ -397,6 +400,15 @@ function PdfConverterTool() {
           ]}
         />
       </div>
+
+      {errorMessage ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+        >
+          {errorMessage}
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_360px]">
         {/* Main Interface Area */}

@@ -61,6 +61,7 @@ function PdfToolkitTool() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // --- MERGE STATE ---
   const [mergeFiles, setMergeFiles] = useState<PdfFileItem[]>([]);
@@ -178,6 +179,7 @@ function PdfToolkitTool() {
     if (mergeFiles.length === 0) return;
     setIsProcessing(true);
     setProgress(0);
+    setErrorMessage(null);
     try {
       const mergedPdf = await PDFDocument.create();
       for (let i = 0; i < mergeFiles.length; i++) {
@@ -198,7 +200,7 @@ function PdfToolkitTool() {
       );
     } catch (e) {
       console.error(e);
-      alert("Error merging documents.");
+      setErrorMessage("Error merging documents.");
     }
     setIsProcessing(false);
     setProgress(0);
@@ -208,6 +210,7 @@ function PdfToolkitTool() {
     if (!splitFile) return;
     setIsProcessing(true);
     setProgress(0);
+    setErrorMessage(null);
     try {
       const fileBuffer = await splitFile.arrayBuffer();
       const pdf = await PDFDocument.load(fileBuffer);
@@ -227,7 +230,7 @@ function PdfToolkitTool() {
       } else {
         const indices = parseRanges(splitRange, total);
         if (indices.length === 0) {
-          alert("Invalid or empty range.");
+          setErrorMessage("Invalid or empty range.");
           setIsProcessing(false);
           return;
         }
@@ -243,7 +246,7 @@ function PdfToolkitTool() {
       }
     } catch (e) {
       console.error(e);
-      alert("Failed to split document.");
+      setErrorMessage("Failed to split document.");
     }
     setIsProcessing(false);
     setProgress(0);
@@ -253,6 +256,7 @@ function PdfToolkitTool() {
     if (!compressFile) return;
     setIsProcessing(true);
     setProgress(0);
+    setErrorMessage(null);
     try {
       // Rasterization approach (Flattens PDF but significantly drops sizes of image-heavy docs safely)
       const fileBuffer = await compressFile.arrayBuffer();
@@ -294,7 +298,7 @@ function PdfToolkitTool() {
       );
     } catch (e) {
       console.error(e);
-      alert("Failed to compress document.");
+      setErrorMessage("Failed to compress document.");
     }
     setIsProcessing(false);
     setProgress(0);
@@ -304,6 +308,7 @@ function PdfToolkitTool() {
     if (!reorderFile || reorderPages.length === 0) return;
     setIsProcessing(true);
     setProgress(0);
+    setErrorMessage(null);
     try {
       const fileBuffer = await reorderFile.arrayBuffer();
       const pdf = await PDFDocument.load(fileBuffer);
@@ -321,7 +326,7 @@ function PdfToolkitTool() {
       );
     } catch (e) {
       console.error(e);
-      alert("Failed to reorder document.");
+      setErrorMessage("Failed to reorder document.");
     }
     setIsProcessing(false);
     setProgress(0);
@@ -334,7 +339,10 @@ function PdfToolkitTool() {
         <SegmentedControl
           variant="dark"
           value={activeTab}
-          onValueChange={(value) => setActiveTab(value as TabType)}
+          onValueChange={(value) => {
+            setActiveTab(value as TabType);
+            setErrorMessage(null);
+          }}
           className="max-w-full rounded-full border bg-card/60 p-1.5 shadow-sm backdrop-blur-md"
           optionClassName="rounded-full whitespace-nowrap px-5 py-2.5 text-sm"
           options={[
@@ -373,6 +381,15 @@ function PdfToolkitTool() {
           ]}
         />
       </div>
+
+      {errorMessage ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+        >
+          {errorMessage}
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_360px]">
         {/* Main Interface Area */}
