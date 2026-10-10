@@ -185,14 +185,16 @@ function ImageConverter() {
             const current = Math.round(from + (to - from) * progress);
             updateFile(id, { progress: current });
 
+            // Timers, not animation frames: the conversion awaits this
+            // promise, and frames never fire in a background tab.
             if (progress < 1) {
-              requestAnimationFrame(tick);
+              setTimeout(tick, 16);
             } else {
               resolve();
             }
           };
 
-          requestAnimationFrame(tick);
+          tick();
         });
 
       try {

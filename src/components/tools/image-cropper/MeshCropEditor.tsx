@@ -5,7 +5,7 @@ import {
   clampRect,
   getHandleAtPoint,
   loadImage,
-  pointToCanvasSpace,
+  pointToImageSpace,
   resizeRect,
 } from "@/lib/tools/image-cropper/utils";
 import type {
@@ -147,7 +147,12 @@ export function MeshCropEditor({
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const point = pointToCanvasSpace(canvas, event.clientX, event.clientY);
+      const point = pointToImageSpace(
+        canvas,
+        event.clientX,
+        event.clientY,
+        scale,
+      );
       const pointer = pointerStateRef.current;
 
       if (pointer.handle === "move") {
@@ -181,7 +186,7 @@ export function MeshCropEditor({
         ),
       );
     },
-    [aspectRatio, image.height, image.width, onCropChange],
+    [aspectRatio, image.height, image.width, onCropChange, scale],
   );
 
   return (
@@ -192,7 +197,12 @@ export function MeshCropEditor({
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const point = pointToCanvasSpace(canvas, event.clientX, event.clientY);
+        const point = pointToImageSpace(
+        canvas,
+        event.clientX,
+        event.clientY,
+        scale,
+      );
         const handle = getHandleAtPoint(point, crop, 12 / scale) ?? "move";
 
         pointerStateRef.current = {

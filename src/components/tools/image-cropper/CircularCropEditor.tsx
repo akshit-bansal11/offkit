@@ -5,7 +5,7 @@ import {
   clampRect,
   getCenterAndRadiusFromBounds,
   loadImage,
-  pointToCanvasSpace,
+  pointToImageSpace,
 } from "@/lib/tools/image-cropper/utils";
 import type {
   CropRect,
@@ -130,7 +130,12 @@ export function CircularCropEditor({
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const point = pointToCanvasSpace(canvas, event.clientX, event.clientY);
+      const point = pointToImageSpace(
+        canvas,
+        event.clientX,
+        event.clientY,
+        scale,
+      );
       const pointer = pointerStateRef.current;
       const startCenterRadius = getCenterAndRadiusFromBounds(pointer.startRect);
 
@@ -176,7 +181,7 @@ export function CircularCropEditor({
 
       onCropChange(clampRect(newBounds, image.width, image.height));
     },
-    [image.height, image.width, onCropChange],
+    [image.height, image.width, onCropChange, scale],
   );
 
   const getHandleAtPoint = useCallback(
@@ -213,7 +218,12 @@ export function CircularCropEditor({
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const point = pointToCanvasSpace(canvas, event.clientX, event.clientY);
+        const point = pointToImageSpace(
+        canvas,
+        event.clientX,
+        event.clientY,
+        scale,
+      );
         const handle = getHandleAtPoint(point, 12 / scale) ?? "move";
 
         pointerStateRef.current = {

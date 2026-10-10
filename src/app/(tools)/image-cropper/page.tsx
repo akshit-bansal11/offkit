@@ -2,7 +2,7 @@
 
 import { getToolBySlug } from "@/config/tools";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import NextImage from "next/image";
 import JSZip from "jszip";
 import { Crop, Download, Loader2, Scissors, X } from "lucide-react";
@@ -28,6 +28,7 @@ import {
   createDefaultCircularCrop,
   cropToBlob,
   cropToCircularBlob,
+  fitCropToAspect,
   getAspectRatio,
   loadImage,
 } from "@/lib/tools/image-cropper/utils";
@@ -58,14 +59,20 @@ function ImageCropperTool() {
 
   const aspectRatio = useMemo(() => getAspectRatio(aspect), [aspect]);
 
+  // Revoke on unmount only. Keying this cleanup on `images` revoked every
+  // source URL on the first state update, breaking all later previews.
+  const imagesRef = useRef(images);
+  useEffect(() => {
+    imagesRef.current = images;
+  }, [images]);
   useEffect(() => {
     return () => {
-      images.forEach((image) => {
+      imagesRef.current.forEach((image) => {
         URL.revokeObjectURL(image.srcUrl);
         if (image.outputUrl) URL.revokeObjectURL(image.outputUrl);
       });
     };
-  }, [images]);
+  }, []);
 
   const addFiles = useCallback(
     async (incoming: File[]) => {
@@ -252,10 +259,41 @@ function ImageCropperTool() {
           };
         }),
       );
-      setBatchCrop(null); // Reset batch crop on shape change
+      const first = images[0];
+      setBatchCrop(
+        first
+          ? newShape === "circular"
+            ? createDefaultCircularCrop(first.width, first.height)
+            : createDefaultCrop(first.width, first.height)
+          : null,
+      );
     },
-    [],
+    [images],
   );
+
+  const changeAspect = useCallback((next: AspectValue) => {
+    setAspect(next);
+    const ratio = getAspectRatio(next);
+    if (!ratio) return;
+
+    setImages((prev) =>
+      prev.map((image) => {
+        if (image.outputUrl) URL.revokeObjectURL(image.outputUrl);
+        return {
+          ...image,
+          crop: fitCropToAspect(image.crop, ratio, image.width, image.height),
+          outputBlob: undefined,
+          outputUrl: undefined,
+        };
+      }),
+    );
+    setBatchCrop((prev) => {
+      const first = imagesRef.current[0];
+      return prev && first
+        ? fitCropToAspect(prev, ratio, first.width, first.height)
+        : prev;
+    });
+  }, []);
 
   const referenceImage = images[0] ?? null;
 
@@ -317,7 +355,7 @@ function ImageCropperTool() {
                   }))}
                   value={aspect}
                   onChange={(event) =>
-                    setAspect(event.target.value as AspectValue)
+                    changeAspect(event.target.value as AspectValue)
                   }
                 />
               </div>

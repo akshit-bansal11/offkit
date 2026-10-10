@@ -80,16 +80,43 @@ export function createDefaultCircularCrop(width: number, height: number): CropRe
   };
 }
 
-export function pointToCanvasSpace(
+/**
+ * Convert a pointer position to original-image pixels. `scale` is the factor
+ * the canvas was drawn at; crop rectangles are stored in image pixels, so
+ * comparing them against raw canvas coordinates is wrong for scaled images.
+ */
+export function pointToImageSpace(
   canvas: HTMLCanvasElement,
   clientX: number,
   clientY: number,
+  scale: number,
 ) {
   const rect = canvas.getBoundingClientRect();
   return {
-    x: ((clientX - rect.left) * canvas.width) / rect.width,
-    y: ((clientY - rect.top) * canvas.height) / rect.height,
+    x: ((clientX - rect.left) * canvas.width) / rect.width / scale,
+    y: ((clientY - rect.top) * canvas.height) / rect.height / scale,
   };
+}
+
+/** Largest rectangle of the given ratio centred inside `crop`, kept in bounds. */
+export function fitCropToAspect(
+  crop: CropRect,
+  ratio: number,
+  width: number,
+  height: number,
+): CropRect {
+  const w = Math.min(crop.w, crop.h * ratio);
+  const h = w / ratio;
+  return clampRect(
+    {
+      x: Math.round(crop.x + (crop.w - w) / 2),
+      y: Math.round(crop.y + (crop.h - h) / 2),
+      w: Math.round(w),
+      h: Math.round(h),
+    },
+    width,
+    height,
+  );
 }
 
 export function getHandleAtPoint(
