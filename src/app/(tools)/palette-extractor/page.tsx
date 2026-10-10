@@ -47,7 +47,7 @@ function PaletteExtractorTool() {
 
       try {
         setIsLoading(true);
-        const palette = await extractPalette(result);
+        const palette = await extractPalette(file);
         setColors(palette.colors);
       } catch (paletteError) {
         setError(

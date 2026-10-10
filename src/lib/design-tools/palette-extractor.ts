@@ -68,12 +68,12 @@ export function quantizePixels(
 
 /** Extract up to `count` dominant colours from an image, entirely on-device. */
 export async function extractPalette(
-  imageUrl: string,
+  file: Blob,
   count = 10,
 ): Promise<ExtractedPaletteResponse> {
-  const image = new Image();
-  image.src = imageUrl;
-  await image.decode();
+  // createImageBitmap, not HTMLImageElement.decode(): the latter never
+  // resolves while the tab is in the background.
+  const image = await createImageBitmap(file);
 
   const scale = Math.min(1, SAMPLE_SIZE / Math.max(image.width, image.height));
   const canvas = document.createElement("canvas");
@@ -86,6 +86,7 @@ export async function extractPalette(
   }
 
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  image.close();
   const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
   const colors = quantizePixels(data, count);
 
