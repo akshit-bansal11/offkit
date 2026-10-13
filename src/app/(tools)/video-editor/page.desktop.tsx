@@ -294,8 +294,8 @@ function VideoEditorTool() {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-3 text-amber-400">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <p className="text-xs leading-relaxed">
-            File is larger than 50 MB. ffmpeg.wasm runs in-browser and will be
-            slow for large files.
+            File is larger than 50 MB. The bundled FFmpeg runs in memory and
+            will be slow for large files.
           </p>
         </div>
       )}

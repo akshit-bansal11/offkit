@@ -365,8 +365,8 @@ function VideoMergerTool() {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-3 text-amber-400">
           <AlertTriangle className="size-4 mt-0.5 shrink-0" />
           <p className="text-xs leading-relaxed">
-            Large files detected (&gt;200MB). ffmpeg.wasm runs in-browser and
-            may be slow or run out of memory with very large inputs.
+            Large files detected (&gt;200MB). The bundled FFmpeg runs in memory
+            and may be slow or run out of memory with very large inputs.
           </p>
         </div>
       )}

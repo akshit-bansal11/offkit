@@ -1,0 +1,19 @@
+appId: me.akshitbansal.open-tools
+productName: Open Tools
+directories:
+  output: release
+# The main process needs nothing from node_modules: the renderer is the prebuilt static export.
+files:
+  - electron/**
+  - out/**
+  - package.json
+  - "!node_modules"
+win:
+  target:
+    - nsis
+    - portable
+# Fixed names keep the website's releases/latest/download links stable across versions.
+nsis:
+  artifactName: Open-Tools-Setup.exe
+portable:
+  artifactName: Open-Tools-Portable.exe

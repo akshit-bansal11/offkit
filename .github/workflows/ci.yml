@@ -23,11 +23,14 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+        env:
+          # These jobs never launch the desktop app, so skip Electron's large binary download.
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npm run check:ci
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
 
-  e2e:
+  e2e-web:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -37,11 +40,33 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+        env:
+          # These jobs never launch the desktop app, so skip Electron's large binary download.
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - run: npm run test:e2e:web
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-web
+          path: playwright-report
+          retention-days: 7
+
+  # The desktop app only ships for Windows, so its tests run there against the real Electron binary.
+  e2e-desktop:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:e2e:desktop
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-desktop
           path: playwright-report
           retention-days: 7

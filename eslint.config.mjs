@@ -10,6 +10,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "public/vendor/**",
+    "release/**",
     "next-env.d.ts",
     "color-space/**",
   ]),

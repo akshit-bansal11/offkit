@@ -8,13 +8,18 @@ interface CategoryCardProps {
   category: ToolCategoryDefinition;
   tools: ToolDefinition[];
   inDevelopmentSlugs?: Set<string>;
+  toolHref?: (tool: ToolDefinition) => string;
+  headingLevel?: "h2" | "h3";
 }
 
 export function CategoryCard({
   category,
   tools,
   inDevelopmentSlugs,
+  toolHref,
+  headingLevel = "h2",
 }: CategoryCardProps) {
+  const Heading = headingLevel;
   const CategoryIcon = category.icon;
   const accent = category.accentColor ?? "#ffffff";
 
@@ -40,9 +45,9 @@ export function CategoryCard({
 
         <div className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(44,44,44,0.52)_0%,rgba(31,31,31,0.38)_100%)] p-2">
           <div className="flex justify-between items-center relative rounded-2xl border border-white/8 bg-white/[0.015] lg:p-4 md:p-3 sm:p-2 p-2">
-            <h2 className="lg:text-4xl md:text-3xl sm:text-2xl text-xl font-medium tracking-[-0.04em] text-foreground">
+            <Heading className="lg:text-4xl md:text-3xl sm:text-2xl text-xl font-medium tracking-[-0.04em] text-foreground">
               {category.name}
-            </h2>
+            </Heading>
 
             <div
               className="w-min rounded-2xl border p-3 transition-all duration-300
@@ -84,6 +89,7 @@ export function CategoryCard({
                 tool={tool}
                 isInDevelopment={inDevelopmentSlugs?.has(tool.slug)}
                 accentColor={accent}
+                href={toolHref?.(tool)}
               />
             ))}
           </div>
