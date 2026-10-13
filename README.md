@@ -1,162 +1,149 @@
-# open-tools
+# Open Tools
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
+[![Electron](https://img.shields.io/badge/Electron-44-47848f)](https://www.electronjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org)
 [![React](https://img.shields.io/badge/React-19-149eca)](https://react.dev)
-[![Local-first](https://img.shields.io/badge/Platform-Local--first-22c55e)](https://github.com/akshit-bansal11/open-tools)
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows-22c55e)](https://github.com/akshit-bansal11/open-tools/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Project Name + Description
+Open Tools is a Windows desktop app with 37 file tools for images, video, audio, PDFs, SVG, colors and text. Everything runs on your PC. Nothing is uploaded. There is no account and no telemetry.
 
-**open-tools** is a growing collection of fast, local-first browser utilities for developers and designers — no logins, no uploads to servers, no fluff.
+## Install
 
-Each tool lives at its own route under `app/(tools)/`. Adding a new tool is as simple as dropping a route and registering it in the central tool registry.
+Download `Open-Tools-Setup.exe` from the [latest release](https://github.com/akshit-bansal11/open-tools/releases/latest), or `Open-Tools-Portable.exe` to run without installing.
 
----
+- The installer is not code-signed, so Windows SmartScreen may warn. Choose More info, then Run anyway.
+- The app does not update itself.
 
-## Features
+Documentation: [open-tools.akshitbansal.me/docs](https://open-tools.akshitbansal.me/docs)
 
-### ✅ Currently Available
+## Tools
 
-All 37 tools run entirely in the browser. Files are never uploaded.
+- **Audio:** Audio Converter, Audio Extractor, Audio Editor, Audio Joiner.
+- **Video:** Video Converter, Frames Extractor, Video Editor, Video Merger.
+- **Dev:** Git Scaffold, Archive Extractor, Archiver.
+- **Images:** Image Cropper, Image Converter.
+- **SVG:** SVG Border Animator, SVG Pattern Generator, SVG Optimizer.
+- **Colors:** Gradient Maker, Gradient Library, Palette Library, Palette Extractor, Gradient Converter, Color Converter.
+- **CSS:** CSS Blob Generator, Glassmorphism Generator, Box Shadow Generator.
+- **PDF:** PDF Toolkit, PDF ↔ Image Converter, PDF Merger, PDF Splitter, PDF Compressor, Convert to PDF, Convert from PDF.
+- **Text:** Lorem Generator, Diff Checker, JSON Formatter, Base64, Markdown Editor.
 
-| Tool | Category | Description |
-|------|----------|-------------|
-| Audio Converter | Audio | Convert audio files between formats and codecs entirely in the browser using ffmpeg.wasm. |
-| Audio Editor | Audio | Trim, adjust speed, shift pitch, and apply EQ to any audio file — all in the browser. |
-| Audio Extractor | Audio | Extract the audio track from any video file and download it in your chosen format and codec. |
-| Audio Joiner | Audio | Drag-and-drop multiple audio files and join them into a single file in your chosen format. |
-| Frames Extractor | Video | Upload a GIF or video and extract every frame as individual PNG images, then download them as a ZIP. |
-| Video Converter | Video | Convert videos between formats and codecs directly in the browser using ffmpeg.wasm. |
-| Video Editor | Video | Trim, crop, rotate, resize, flip, adjust speed and volume for any video — entirely in the browser. |
-| Video Merger | Video | Drag-and-drop multiple video files, reorder them, and merge into a single video. |
-| Image Converter | Images | Convert popular image formats locally with batch downloads, quality controls, and upload guardrails. |
-| Image Cropper | Images | Crop one or many images in the browser - apply individual crops per image or a single crop to all at once. |
-| Convert from PDF | PDF | Extract PDF pages as PNG or JPEG images and download them as a ZIP. |
-| Convert to PDF | PDF | Convert images to PDF — drop multiple images and combine them into a single document. |
-| PDF Compressor | PDF | Reduce PDF file size by rasterizing pages at adjustable quality and resolution. |
-| PDF Merger | PDF | Combine multiple PDF documents into one file with drag-to-reorder. |
-| PDF Splitter | PDF | Break a PDF into individual pages or extract specific page ranges. |
-| PDF Toolkit | PDF | Merge multiple files, break PDFs apart by page, reorder structure, or compress files directly in your browser. |
-| PDF ↔ Image Converter | PDF | Merge images into a single PDF, batch convert them, or extract pages from existing PDFs as images. |
-| SVG Border Animator | SVG | Upload any SVG and animate each path border locally with stroke-dashoffset controls and export-ready output. |
-| SVG Optimizer | SVG | Clean up messy SVGs, strip metadata, dial in decimal precision, and convert to JSX directly in the browser. |
-| SVG Pattern Generator | SVG | Create beautiful, scalable vector patterns directly in your browser. Export native CSS backgrounds or raw SVG data URIs instantly. |
-| Color Converter | Colors | Convert HEX, RGB, HSL, HSV, OKLCH, and named colors into every other format at once. |
-| Gradient Converter | Colors | Convert CSS gradients into Tailwind arbitrary values or switch between linear, radial, and conic syntax. |
-| Gradient Library | Colors | Browse curated named gradients and copy them as CSS or Tailwind-ready arbitrary values. |
-| Gradient Maker | Colors | Build multi-stop gradients with live previews, PNG exports, CSS output, and Tailwind arbitrary values. |
-| Palette Extractor | Colors | Upload an image and extract its dominant colors into a copyable palette, computed locally in your browser. |
-| Palette Library | Colors | Explore curated color palettes, copy individual swatches, or export full palettes as JSON. |
-| Box Shadow Generator | CSS | Create layered CSS shadows natively through visual controls and export the exact styling string for your projects. |
-| CSS Blob Generator | CSS | Create intricate, organic shapes natively by independently customizing the 8 anchor points of the border-radius property. |
-| Glassmorphism Generator | CSS | Design stunning frosted-glass UI elements with real-time backdrop filtering and export the CSS directly. |
-| Base64 | Text | Encode and decode text with a clean local workflow that stays entirely in the browser. |
-| Diff Checker | Text | Find inline character-level or line-level text differences with robust ignoring whitespace and case sensitivity. |
-| JSON Formatter | Text | Pretty-print, minify, validate, and copy JSON without leaving the browser. |
-| Lorem Generator | Text | Generate customized placeholder text instantly for your mockups, using either classic Latin or random English prose. |
-| Markdown Editor | Text | Write Markdown with a live split-pane preview, toolbar shortcuts, and export to .md or PDF. |
-| Archive Extractor | Dev | Upload a ZIP archive, preview its file tree, and extract individual files or download everything. |
-| Archiver | Dev | Drop files to create a ZIP archive instantly in the browser. |
-| Git Scaffold | Dev | Paste a public GitHub repository URL and instantly visualize its full directory structure including all filenames. |
+The full reference is on the docs page, which is generated from `src/config/tools.ts`.
 
----
-
-### 🗓 Planned
+### Planned
 
 | Tool | Category | Description |
 |------|----------|-------------|
-| PDF Background Remover & Changer | DOCUMENTS | Remove or swap backgrounds from PDFs directly in the browser |
+| PDF Background Remover & Changer | DOCUMENTS | Remove or swap backgrounds from PDFs |
 | OCR | DOCUMENTS | Extract text from images and PDFs using optical character recognition |
-| Subtitle Generator & Burner | VIDEO | Generate subtitles and burn them into video — powered by Trupeer |
+| Subtitle Generator & Burner | VIDEO | Generate subtitles and burn them into video, powered by Trupeer |
 
----
+## Privacy
 
-## Tech Stack
+- Files are processed on the device.
+- The app cancels requests a page makes to the network. The one exception is a read of a repository's file tree from `api.github.com`, which Git Scaffold makes when you use it.
+- Permissions are refused, except clipboard write, and clipboard read on the Diff Checker.
+- Links open in your default browser only when they point at GitHub, where the source lives.
+- The app has no analytics or error reporting. Those exist only on the website.
 
-- **Framework/App Runtime:** Next.js 16, React 19
+## How it is built
+
+One Next.js codebase, two build targets chosen by `BUILD_TARGET`.
+
+| Target | Routes | Output | Ships as |
+|--------|--------|--------|----------|
+| desktop | `page.desktop.tsx` files: launcher and tools | static export in `out/` | Electron app, NSIS installer and portable exe on GitHub Releases |
+| web | `page.web.tsx` files: landing page and docs | normal Next build | the website |
+
+The wasm engines and the pdf.js worker are copied from `node_modules` into `public/vendor/` by `scripts/copy-vendor.mjs`, so the app never fetches them from a CDN.
+
+- **App shell:** Electron, electron-builder
+- **Framework:** Next.js 16, React 19
 - **Language:** TypeScript
 - **Styling/UI:** Tailwind CSS, shadcn/ui (Radix UI primitives + `class-variance-authority` + `tailwind-merge`)
-- **Media processing:** FFmpeg.wasm (`@ffmpeg/ffmpeg`, `@ffmpeg/util`), ImageMagick (`@imagemagick/magick-wasm`)
+- **Media processing:** FFmpeg (WebAssembly build, `@ffmpeg/ffmpeg` + `@ffmpeg/core`), ImageMagick (`@imagemagick/magick-wasm`)
 - **Document/Image tooling:** `pdf-lib`, `pdfjs-dist`, `jszip`, `svgo`
 - **Text/utility tooling:** `diff`, `marked`, `dompurify`
 
----
-
-## Directory Structure
-
-Each tool has its own route under `src/app/(tools)/<slug>/`, made of a `layout.tsx` (metadata) and a `page.tsx` (the tool).
+## Directory structure
 
 ```
 src/
 ├── app/
-│   ├── (tools)/<slug>/        one folder per tool: layout.tsx + page.tsx
+│   ├── (tools)/<slug>/        one folder per tool: layout.tsx + page.desktop.tsx
+│   ├── docs/page.web.tsx      docs page (website)
 │   ├── layout.tsx             root layout
-│   └── page.tsx               home page, generated from the registry
+│   ├── page.desktop.tsx       launcher (app)
+│   ├── page.web.tsx           landing page (website)
+│   ├── not-found.web.tsx
+│   ├── opengraph-image.tsx
+│   ├── robots.ts
+│   └── sitemap.ts
 ├── components/
 │   ├── common/                page shell, category cards, tool cards
+│   ├── site/                  website shell and observability
 │   ├── tools/<slug>/          components specific to one tool
-│   └── ui/                    shared primitives (form, feedback, layout, interaction)
-├── config/tools.ts            the tool registry: every tool and category
-├── data/inDevelopmentSlugs.ts slugs hidden from the home page
+│   └── ui/                    shared primitives
+├── config/
+│   ├── site.ts                website constants
+│   ├── target.ts              build target
+│   └── tools.ts               the tool registry: every tool and category
+├── data/inDevelopmentSlugs.ts slugs hidden from the launcher
 ├── lib/
-│   ├── ffmpeg/client.ts       ffmpeg.wasm loader, checked runner, codec tables
+│   ├── ffmpeg/client.ts       FFmpeg loader, checked runner, codec tables
 │   ├── converters/            ImageMagick conversion engine
 │   ├── design-tools/          colour, gradient and palette logic
+│   ├── pdf/pdfjs.ts           pdf.js loader
 │   └── tools/<slug>/          logic specific to one tool
 └── types/tool.ts
+electron/main.mjs              Electron main process
+electron-builder.yml           installer config
+scripts/                       copy-vendor, next-desktop
+e2e/                           Playwright specs
 ```
 
-The homepage is fully driven by `config/tools.ts`. A tool appears on the landing page once it is registered there.
-
----
-
-## Running Steps
+## Development
 
 ```bash
-# 1) Install dependencies
-npm install
-
-# 2) Start development server
-npm run dev
-
-# 3) Build for production
-npm run build
-
-# 4) Start production server
-npm run start
-
-# 5) Lint and type-check (writes fixes)
-npm run check
-
-# 6) Unit tests
-npm test
+npm install                 # install dependencies
+npm run dev:desktop         # the tools, in a browser at http://localhost:3000
+npm run dev                 # the website
+npm run build:desktop       # build the static export into out/
+npm run app                 # run the desktop app from the export
+npm run dist                # build the installers into release/
+npm run check               # format, lint, typecheck (writes fixes)
+npm test                    # unit tests
+npm run test:e2e:desktop    # browser tests against the desktop build
+npm run test:e2e:web        # browser tests against the website
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+## Releasing
 
----
+Bump `version` in `package.json`, commit, then push a tag `v<version>`. `.github/workflows/release.yml` builds on Windows, runs the unit tests and the tool tests against the packaged app, attaches build provenance and publishes both exe files to a GitHub Release. The tag must match the `package.json` version or the workflow stops.
 
 ## Contributing
- 
-Contributions are welcome — PRs and issues both.
- 
+
+Contributions are welcome, as PRs and issues.
+
 **To add a tool:**
- 
-1. Create a route under `src/app/(tools)/your-tool/`
-2. Register it in `src/config/tools.ts`
-3. Use `ToolPageShell` as the layout wrapper for consistency
- 
-Keep tools self-contained and client-side where possible.
- 
-**To report a bug or request a feature:**
- 
-Open an issue with a clear title and description. For bugs, include steps to reproduce and your browser/OS. For feature requests, describe the use case — not just the solution.
- 
----
+
+1. Create `src/app/(tools)/your-tool/` with `layout.tsx` and `page.desktop.tsx`.
+2. Register it in `src/config/tools.ts`. The launcher and the docs page both pick it up from there.
+3. Use `ToolPageShell` as the layout wrapper.
+
+Tools must work offline: no CDN, no network requests.
+
+**To report a bug or request a feature:** open an issue with a clear title and description. For bugs, include steps to reproduce and your Windows version. For feature requests, describe the use case, not just the solution.
+
+## Licence
+
+The project's code is MIT, see [LICENSE](LICENSE). The packaged app bundles third-party engines under their own licences, including FFmpeg (`@ffmpeg/core`, GPL-2.0-or-later) and ImageMagick.
 
 ## Links
 
-- **Live:** [use-open-tools.vercel.app](https://use-open-tools.vercel.app)
+- **Website:** [open-tools.akshitbansal.me](https://open-tools.akshitbansal.me)
+- **Docs:** [open-tools.akshitbansal.me/docs](https://open-tools.akshitbansal.me/docs)
 - **GitHub:** [github.com/akshit-bansal11](https://github.com/akshit-bansal11)
 - **LinkedIn:** [linkedin.com/in/akshit-bansal11](https://linkedin.com/in/akshit-bansal11)
