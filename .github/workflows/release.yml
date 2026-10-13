@@ -34,7 +34,7 @@ jobs:
       - run: npm run test:e2e:packaged
         env:
           OPEN_TOOLS_EXE: release/win-unpacked/Open Tools.exe
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             release/Open-Tools-Setup.exe
