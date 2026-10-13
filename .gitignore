@@ -44,3 +44,6 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+
+# wasm engines copied from node_modules by scripts/copy-vendor.mjs
+/public/vendor/

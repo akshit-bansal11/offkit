@@ -17,7 +17,6 @@ import {
   X,
 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import React, { useCallback, useEffect, useState } from "react";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
@@ -34,6 +33,7 @@ import {
 } from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { getToolBySlug } from "@/config/tools";
+import { pdfjsLib } from "@/lib/pdf/pdfjs";
 
 const tool = getToolBySlug("pdf-converter");
 
@@ -47,11 +47,6 @@ export default function PdfConverterPage() {
       <PdfConverterTool />
     </ToolPageShell>
   );
-}
-
-// Set worker source for PDF.js safely in Next.js client
-if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
 
 type TabType = "img-to-pdf" | "pdf-to-img";

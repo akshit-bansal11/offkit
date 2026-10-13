@@ -91,7 +91,6 @@ Each tool has its own route under `src/app/(tools)/<slug>/`, made of a `layout.t
 src/
 ├── app/
 │   ├── (tools)/<slug>/        one folder per tool: layout.tsx + page.tsx
-│   ├── api/magick-wasm/       serves the ImageMagick wasm binary
 │   ├── layout.tsx             root layout
 │   └── page.tsx               home page, generated from the registry
 ├── components/

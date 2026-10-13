@@ -4,6 +4,23 @@ import { pdf, png, wav } from "./fixtures";
 
 const upload = "input[type=file]";
 
+// Every tool has to work with the network unplugged, so nothing may leave the origin.
+const offOrigin: string[] = [];
+
+test.beforeEach(({ page }) => {
+  offOrigin.length = 0;
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.protocol.startsWith("http") && url.hostname !== "localhost") {
+      offOrigin.push(request.url());
+    }
+  });
+});
+
+test.afterEach(() => {
+  expect(offOrigin).toEqual([]);
+});
+
 test("every tool on the home page renders without throwing", async ({
   page,
 }) => {

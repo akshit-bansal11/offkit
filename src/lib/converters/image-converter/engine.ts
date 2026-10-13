@@ -39,7 +39,7 @@ async function getMagickModule(): Promise<MagickModule> {
   if (!magickModulePromise) {
     magickModulePromise = (async () => {
       const magickModule = await import("@imagemagick/magick-wasm");
-      const response = await fetch("/api/magick-wasm");
+      const response = await fetch("/vendor/magick.wasm");
 
       if (!response.ok) {
         throw new Error("Failed to load the ImageMagick runtime.");

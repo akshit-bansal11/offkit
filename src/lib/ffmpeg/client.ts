@@ -4,8 +4,8 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
 
-const FFMPEG_CORE_VERSION = "0.12.10";
-const CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${FFMPEG_CORE_VERSION}/dist/umd`;
+// Copied from @ffmpeg/core by scripts/copy-vendor.mjs.
+const CORE_BASE_URL = "/vendor/ffmpeg";
 
 let ffmpegInstance: FFmpeg | null = null;
 let ffmpegLoadPromise: Promise<FFmpeg> | null = null;
