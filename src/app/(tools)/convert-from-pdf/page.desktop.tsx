@@ -2,7 +2,6 @@
 
 import JSZip from "jszip";
 import { Download, File, FileInput, Loader2, X } from "lucide-react";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import React, { useState } from "react";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
@@ -13,10 +12,7 @@ import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Card } from "@/components/ui/layout/Card";
 import { Slider } from "@/components/ui/Slider";
 import { getToolBySlug } from "@/config/tools";
-
-if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-}
+import { pdfjsLib } from "@/lib/pdf/pdfjs";
 
 const tool = getToolBySlug("convert-from-pdf");
 

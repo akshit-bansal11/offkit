@@ -175,7 +175,7 @@ function GlassmorphismTool() {
                 </h2>
                 <p className="text-white/80 text-center text-sm font-medium leading-relaxed drop-shadow-md">
                   Beautiful frosted visual hierarchies that securely refract
-                  light directly inside your browser.
+                  light directly on your device.
                 </p>
               </div>
             </CardContent>

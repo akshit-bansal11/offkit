@@ -108,8 +108,7 @@ function PaletteExtractorTool() {
               }}
             >
               <p className="text-sm text-muted-foreground">
-                The image never leaves your browser. Colors are computed
-                locally.
+                The image never leaves your device. Colors are computed locally.
               </p>
             </FileDropZoneCard>
 

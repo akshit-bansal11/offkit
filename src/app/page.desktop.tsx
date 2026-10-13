@@ -1,4 +1,4 @@
-// page.tsx
+// page.desktop.tsx
 // Home page displaying all tool categories in a card grid layout.
 
 import { Sparkles } from "lucide-react";
@@ -30,7 +30,7 @@ export default function Home() {
             className="flex mb-3 rounded-full gap-2 items-center badge-emerald px-4 py-2"
           >
             <Sparkles className="size-3.5 text-blue-400" />
-            Open-source browser utilities
+            Runs on your PC
           </Badge>
 
           <div className="relative flex flex-col gap-5 items-center">
@@ -38,22 +38,12 @@ export default function Home() {
               aria-hidden="true"
               className="pointer-events-none absolute left-1/2 top-[44%] h-28 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/15 blur-[100px] sm:h-40 sm:w-[26rem]"
             />
-            <h1
-              className="relative z-10 text-4xl font-semibold tracking-tight sm:text-8xl"
-              style={{
-                background:
-                  "linear-gradient(135deg, #fff 0%, #84b9fbff 30%, #ffa9a9ff 70%, #fff 90%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                textShadow: "none",
-              }}
-            >
+            <h1 className="brand-title relative z-10 text-4xl font-semibold tracking-tight sm:text-8xl">
               Open Tools
             </h1>
             <p className="relative z-10 mt-4 max-w-2xl text-center text-base leading-7 text-muted-foreground sm:text-lg">
-              A growing collection of focused, local-first utilities for image,
-              text, and design workflows. Each tool lives on its own route.
+              A growing collection of focused utilities for image, video, audio,
+              PDF and design work. Everything runs on your PC.
             </p>
           </div>
         </section>

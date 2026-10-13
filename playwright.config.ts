@@ -1,7 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// The website suite: landing page and docs, served by `next start`.
 export default defineConfig({
   testDir: "e2e",
+  testMatch: "site.spec.ts",
   timeout: 120_000,
   expect: { timeout: 20_000 },
   fullyParallel: true,
@@ -12,7 +14,7 @@ export default defineConfig({
     baseURL: "http://localhost:3000",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [{ name: "web", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command: "npm run build && npm run start",
     url: "http://localhost:3000",

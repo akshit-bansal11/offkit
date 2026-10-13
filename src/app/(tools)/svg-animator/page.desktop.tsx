@@ -1,5 +1,6 @@
 "use client";
 
+import DOMPurify from "dompurify";
 import { Download, Play } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
@@ -266,6 +267,16 @@ function SvgAnimatorTool() {
       if (!svg) {
         throw new Error("No <svg> root element was found.");
       }
+
+      // The file is untrusted and its markup ends up in the page, so scripts, event handlers and
+      // javascript: links are stripped before anything measures or renders it. Sanitising the parsed
+      // tree in place avoids an HTML round trip, which would break valid XML such as &#160;.
+      // <use> is kept: icon files rely on it, and the app cannot load external references anyway.
+      DOMPurify.sanitize(svg, {
+        USE_PROFILES: { svg: true, svgFilters: true },
+        ADD_TAGS: ["use"],
+        IN_PLACE: true,
+      });
 
       const pathElements = Array.from(svg.querySelectorAll("path"));
       if (pathElements.length === 0) {

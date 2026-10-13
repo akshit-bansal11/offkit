@@ -150,6 +150,13 @@
     @apply bg-white/[0.03] backdrop-blur-sm border-white/10 hover:bg-white/[0.06] hover:border-white/15 transition-all;
   }
 
+  /* Gradient fill for the product name on the launcher and the landing page */
+  .brand-title {
+    background: linear-gradient(135deg, #fff 0%, #84b9fbff 30%, #ffa9a9ff 70%, #fff 90%);
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
   /* Consistent tool card — used inside each tool component */
   .tool-card {
     @apply rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm;

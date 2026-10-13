@@ -16,7 +16,6 @@ import {
   X,
 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import React, { useCallback, useEffect, useState } from "react";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
@@ -34,6 +33,7 @@ import {
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Slider } from "@/components/ui/Slider";
 import { getToolBySlug } from "@/config/tools";
+import { pdfjsLib } from "@/lib/pdf/pdfjs";
 import type {
   PdfFileItem,
   PdfPageThumbnail,
@@ -57,10 +57,6 @@ export default function PdfToolkitPage() {
       <PdfToolkitTool />
     </ToolPageShell>
   );
-}
-
-if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
 
 function PdfToolkitTool() {

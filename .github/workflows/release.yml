@@ -1,0 +1,46 @@
+name: Release
+
+# Pushing a tag like v0.2.0 builds, tests and publishes the Windows installers.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Refuse a tag that does not match package.json
+        shell: bash
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - run: npm test
+      - run: npm run dist
+      # The same files that get published are the ones under test.
+      - run: npm run test:e2e:packaged
+        env:
+          OPEN_TOOLS_EXE: release/win-unpacked/Open Tools.exe
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            release/Open-Tools-Setup.exe
+            release/Open-Tools-Portable.exe
+      - name: Publish the release
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" release/Open-Tools-Setup.exe release/Open-Tools-Portable.exe --verify-tag --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
