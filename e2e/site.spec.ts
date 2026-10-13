@@ -32,7 +32,11 @@ test("an old tool URL lands on its docs entry", async ({ page }) => {
   await page.goto("/image-converter");
   await expect(page).toHaveURL(/\/docs#image-converter$/);
   await expect(
-    page.getByRole("heading", { level: 4, name: "Image Converter" }),
+    page.getByRole("heading", {
+      level: 4,
+      name: "Image Converter",
+      exact: true,
+    }),
   ).toBeVisible();
 });
 
@@ -47,13 +51,18 @@ test("an unknown path returns 404 with a way back", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("robots.txt and sitemap.xml are served", async ({ request }) => {
+test("robots.txt, sitemap.xml and the social image are served", async ({
+  request,
+}) => {
   const robots = await request.get("/robots.txt");
   expect(robots.status()).toBe(200);
   expect(await robots.text()).toContain("Sitemap:");
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
   expect(await sitemap.text()).toContain("/docs");
+  const image = await request.get("/opengraph-image");
+  expect(image.status()).toBe(200);
+  expect(image.headers()["content-type"]).toContain("image/png");
 });
 
 test("the skip link is the first focusable element", async ({ page }) => {

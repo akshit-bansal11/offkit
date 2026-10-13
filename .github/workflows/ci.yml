@@ -63,7 +63,18 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run test:e2e:desktop
+      # Package first, then test the packaged app: it reads its files out of app.asar, which the dev tree does not.
+      - run: npm run dist
+      - run: npm run test:e2e:packaged
+        env:
+          OPEN_TOOLS_EXE: release/win-unpacked/Open Tools.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-tools-windows
+          path: |
+            release/Open-Tools-Setup.exe
+            release/Open-Tools-Portable.exe
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

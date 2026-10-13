@@ -15,7 +15,7 @@ const desktopConfig: NextConfig = {
 
 // The tools left the website; their old URLs land on the matching docs entry.
 const webConfig: NextConfig = {
-  pageExtensions: ["web.tsx", "web.ts", "tsx", "ts"],
+  pageExtensions: ["web.tsx", "tsx", "ts"],
   redirects: async () =>
     tools.map((tool) => ({
       source: tool.href,
@@ -25,7 +25,9 @@ const webConfig: NextConfig = {
 };
 
 // One codebase, two route sets: the desktop build only sees page.desktop.tsx
-// files and the web build only sees *.web.tsx / *.web.ts files.
+// files and the web build only sees page.web.tsx / not-found.web.tsx.
+// Metadata files (robots, sitemap, social image) keep plain names: Next did
+// not pick them up under a compound extension.
 const nextConfig: NextConfig = {
   reactCompiler: true,
   ...(IS_DESKTOP ? desktopConfig : webConfig),

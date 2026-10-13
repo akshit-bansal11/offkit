@@ -19,6 +19,7 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "test:e2e": "npm run test:e2e:desktop && npm run test:e2e:web",
     "test:e2e:desktop": "npm run build:desktop && playwright test -c playwright.desktop.config.ts",
+    "test:e2e:packaged": "playwright test -c playwright.desktop.config.ts",
     "test:e2e:web": "playwright test"
   },
   "dependencies": {

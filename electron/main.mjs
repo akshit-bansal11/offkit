@@ -1,5 +1,5 @@
 // main.mjs
-// Electron entry point: serves the static export in out/ over app:// and keeps the window off the network.
+// Electron entry point: serves the static export in out/ over app:// and filters what the window may load or open.
 
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
@@ -10,17 +10,22 @@ import { app, BrowserWindow, net, protocol, session, shell } from "electron";
 const ORIGIN = "app://open-tools";
 const ROOT = path.join(app.getAppPath(), "out");
 
-const LOCAL_SCHEMES = new Set(["app:", "file:", "blob:", "data:", "devtools:"]);
-// Git Scaffold reads a repository's file list from GitHub. It is the only tool allowed online.
-const ALLOWED_REMOTE_ORIGINS = ["https://api.github.com"];
-// Copy buttons, and the Diff Checker's paste buttons. Every other permission is refused.
-const ALLOWED_PERMISSIONS = new Set([
-  "clipboard-sanitized-write",
-  "clipboard-read",
-]);
+// Schemes a page may load from. file: is deliberately absent: only this process reads the export from disk.
+const PAGE_SCHEMES = new Set(["app:", "blob:", "data:", "devtools:"]);
+// Git Scaffold reads a repository's file list from GitHub. It is the only tool allowed online,
+// and only for that one read: allowing all of api.github.com would let injected script post data out.
+const GITHUB_API = "https://api.github.com";
+// /repositories/<id>/… is where GitHub redirects a renamed or transferred repository.
+const GITHUB_TREE_PATH =
+  /^\/(repos\/[^/]+\/[^/]+|repositories\/\d+)\/git\/trees\//;
+// OPTIONS is the preflight the browser sends before a request that carries a token.
+const GITHUB_METHODS = new Set(["GET", "OPTIONS"]);
+// The app links to its own repository and nowhere else. Opening arbitrary URLs would let
+// injected script hand data to the default browser, which this process cannot filter.
+const EXTERNAL_LINK_PREFIX = "https://github.com/";
 
 // A static export inlines its bootstrap scripts, so a nonce-based policy is not possible here.
-// The request filter in lockDown() is what actually keeps the app offline; this narrows the rest.
+// The request filter in lockDown() is the main control on what a page can load; this narrows the rest.
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:",
@@ -29,7 +34,7 @@ const CSP = [
   "img-src 'self' blob: data:",
   "media-src 'self' blob: data:",
   "font-src 'self' data:",
-  `connect-src 'self' blob: data: ${ALLOWED_REMOTE_ORIGINS.join(" ")}`,
+  `connect-src 'self' blob: data: ${GITHUB_API}`,
   "frame-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'none'",
@@ -77,26 +82,44 @@ async function serve(request) {
   return new Response(response.body, { status: file ? 200 : 404, headers });
 }
 
+/** Copy buttons exist on most tools; only the Diff Checker pastes, so only it may read the clipboard. */
+function isAllowedPermission(permission, requestingUrl) {
+  if (!requestingUrl?.startsWith(`${ORIGIN}/`)) return false;
+  if (permission === "clipboard-sanitized-write") return true;
+  return (
+    permission === "clipboard-read" &&
+    requestingUrl.startsWith(`${ORIGIN}/diff-checker`)
+  );
+}
+
+function isAllowedRequest(details) {
+  const url = new URL(details.url);
+  // This process's own reads of the export carry no webContents; a page asking for file: is refused.
+  if (url.protocol === "file:") return !details.webContents;
+  if (PAGE_SCHEMES.has(url.protocol)) return true;
+  return (
+    GITHUB_METHODS.has(details.method) &&
+    url.origin === GITHUB_API &&
+    GITHUB_TREE_PATH.test(url.pathname)
+  );
+}
+
 function lockDown() {
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
-    const url = new URL(details.url);
-    callback({
-      cancel:
-        !LOCAL_SCHEMES.has(url.protocol) &&
-        !ALLOWED_REMOTE_ORIGINS.includes(url.origin),
-    });
+    callback({ cancel: !isAllowedRequest(details) });
   });
   session.defaultSession.setPermissionRequestHandler(
-    (_contents, permission, callback) =>
-      callback(ALLOWED_PERMISSIONS.has(permission)),
+    (_contents, permission, callback, details) =>
+      callback(isAllowedPermission(permission, details.requestingUrl)),
   );
-  session.defaultSession.setPermissionCheckHandler((_contents, permission) =>
-    ALLOWED_PERMISSIONS.has(permission),
+  session.defaultSession.setPermissionCheckHandler(
+    (_contents, permission, _origin, details) =>
+      isAllowedPermission(permission, details.requestingUrl),
   );
 }
 
 function openInBrowser(url) {
-  if (url.startsWith("https://")) shell.openExternal(url);
+  if (url.startsWith(EXTERNAL_LINK_PREFIX)) shell.openExternal(url);
 }
 
 function createWindow() {
@@ -112,6 +135,9 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+
+  // WebRTC traffic does not go through the request filter, and no tool uses it.
+  window.webContents.setWebRTCIPHandlingPolicy("disable_non_proxied_udp");
 
   // Links that leave the app open in the default browser; the window itself never navigates away.
   window.webContents.setWindowOpenHandler(({ url }) => {

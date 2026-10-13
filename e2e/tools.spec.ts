@@ -11,7 +11,7 @@ import { pdf, png, wav } from "./fixtures";
 const APP = "app://open-tools";
 const upload = "input[type=file]";
 
-let app: ElectronApplication;
+let app: ElectronApplication | undefined;
 let page: Page;
 
 // Things the app must never do: reach the network, or trip its own content security policy.
@@ -19,11 +19,18 @@ const violations: string[] = [];
 
 test.beforeEach(async ({}, testInfo) => {
   violations.length = 0;
+  app = undefined;
   // A throwaway profile per test, so runs never share state or touch a real one.
-  app = await electron.launch({
-    args: [".", `--user-data-dir=${testInfo.outputPath("profile")}`],
-  });
-  page = await app.firstWindow();
+  const profile = `--user-data-dir=${testInfo.outputPath("profile")}`;
+  // CI sets this to the packaged app, so the tests cover what ships (served out of app.asar), not only the dev tree.
+  const packaged = process.env.OPEN_TOOLS_EXE;
+  const launched = await electron.launch(
+    packaged
+      ? { executablePath: packaged, args: [profile] }
+      : { args: [".", profile] },
+  );
+  app = launched;
+  page = await launched.firstWindow();
   page.on("request", (request) => {
     if (request.url().startsWith("http")) violations.push(request.url());
   });
@@ -35,7 +42,7 @@ test.beforeEach(async ({}, testInfo) => {
 });
 
 test.afterEach(async () => {
-  await app.close();
+  await app?.close();
   expect(violations).toEqual([]);
 });
 
@@ -140,4 +147,68 @@ test("the app refuses to reach the network", async () => {
   expect(outcome).toBe("blocked");
   // This test provokes the violation on purpose.
   violations.length = 0;
+});
+
+test("only the diff checker may read the clipboard", async () => {
+  // A string expression, because TypeScript's PermissionName does not list clipboard-read.
+  const clipboardRead =
+    "navigator.permissions.query({ name: 'clipboard-read' }).then((status) => status.state)";
+
+  await page.goto(`${APP}/`);
+  await page.getByRole("link", { name: "Diff", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Diff Checker" }),
+  ).toBeVisible();
+  expect(await page.evaluate(clipboardRead)).toBe("granted");
+
+  await page.goto(`${APP}/base64`);
+  expect(await page.evaluate(clipboardRead)).toBe("denied");
+});
+
+test("GitHub is reachable only for a repository tree read", async () => {
+  await page.goto(`${APP}/`);
+  // Runs in the page: resolves "reached" for any HTTP answer and "blocked" when the request is cancelled.
+  const attempt = (url: string, method: string) =>
+    page.evaluate(
+      ([target, verb]) =>
+        fetch(target, { method: verb }).then(
+          () => "reached",
+          () => "blocked",
+        ),
+      [url, method],
+    );
+
+  // Live integration: this one call really goes to GitHub.
+  expect(
+    await attempt(
+      "https://api.github.com/repos/akshit-bansal11/open-tools/git/trees/HEAD",
+      "GET",
+    ),
+  ).toBe("reached");
+  expect(await attempt("https://api.github.com/gists", "POST")).toBe("blocked");
+  expect(await attempt("https://api.github.com/user", "GET")).toBe("blocked");
+  // This test provokes the violations on purpose.
+  violations.length = 0;
+});
+
+test("svg animator strips script from an untrusted file", async () => {
+  const hostile = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" onload="window.__hostile = 1">',
+    "<script>window.__hostile = 1</script>",
+    '<path d="M1 1 L9 9" onclick="window.__hostile = 1"/>',
+    "<title>a&#160;b</title>",
+    "</svg>",
+  ].join("");
+
+  await page.goto(`${APP}/svg-animator`);
+  await page.setInputFiles(upload, {
+    name: "hostile.svg",
+    mimeType: "image/svg+xml",
+    buffer: Buffer.from(hostile),
+  });
+
+  // The file still loads: sanitising must not break valid XML.
+  await expect(page.getByText("Preview", { exact: true })).toBeVisible();
+  await expect(page.getByText("This SVG could not be parsed.")).toHaveCount(0);
+  expect(await page.evaluate("window.__hostile")).toBeUndefined();
 });

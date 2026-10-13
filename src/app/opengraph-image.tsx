@@ -1,7 +1,10 @@
-// opengraph-image.web.tsx
-// Social card for the website build, generated at build time.
+// opengraph-image.tsx
+// Social card, generated at build time. Also emitted, unused, by the desktop export.
 
 import { ImageResponse } from "next/og";
+
+// The desktop build is a static export, which only accepts metadata routes that are fully static.
+export const dynamic = "force-static";
 
 export const alt = "Open Tools: file tools that run on your PC";
 export const size = { width: 1200, height: 630 };
