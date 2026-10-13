@@ -45,7 +45,7 @@ The full reference is on the docs page, which is generated from `src/config/tool
 - Files are processed on the device.
 - The app cancels requests a page makes to the network. The one exception is a read of a repository's file tree from `api.github.com`, which Git Scaffold makes when you use it.
 - Permissions are refused, except clipboard write, and clipboard read on the Diff Checker.
-- Links open in your default browser only when they point at GitHub, where the source lives.
+- Links open in your default browser only when they point at this project's GitHub repository.
 - The app has no analytics or error reporting. Those exist only on the website.
 
 ## How it is built

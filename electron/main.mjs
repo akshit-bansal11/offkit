@@ -2,15 +2,15 @@
 // Electron entry point: serves the static export in out/ over app:// and filters what the window may load or open.
 
 import { existsSync, statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { app, BrowserWindow, net, protocol, session, shell } from "electron";
+import { app, BrowserWindow, protocol, session, shell } from "electron";
 
 // `new URL("app://…").origin` is "null" for a non-special scheme, so origins are compared as string prefixes.
 const ORIGIN = "app://open-tools";
 const ROOT = path.join(app.getAppPath(), "out");
 
-// Schemes a page may load from. file: is deliberately absent: only this process reads the export from disk.
+// Schemes a page may load from. file: is absent: this process reads the export from disk itself, so nothing ever needs it.
 const PAGE_SCHEMES = new Set(["app:", "blob:", "data:", "devtools:"]);
 // Git Scaffold reads a repository's file list from GitHub. It is the only tool allowed online,
 // and only for that one read: allowing all of api.github.com would let injected script post data out.
@@ -20,9 +20,28 @@ const GITHUB_TREE_PATH =
   /^\/(repos\/[^/]+\/[^/]+|repositories\/\d+)\/git\/trees\//;
 // OPTIONS is the preflight the browser sends before a request that carries a token.
 const GITHUB_METHODS = new Set(["GET", "OPTIONS"]);
+// A free-form query string would be a place to put data, so only the one Git Scaffold sends is accepted.
+const GITHUB_TREE_QUERIES = new Set(["", "?recursive=1"]);
 // The app links to its own repository and nowhere else. Opening arbitrary URLs would let
 // injected script hand data to the default browser, which this process cannot filter.
-const EXTERNAL_LINK_PREFIX = "https://github.com/";
+// Same value as siteConfig.repositoryUrl; this file cannot import the TypeScript config.
+const REPOSITORY_URL = "https://github.com/akshit-bansal11/open-tools";
+
+// The response's type has to come from here: files are read straight from disk, so nothing else supplies it.
+const CONTENT_TYPES = new Map([
+  [".html", "text/html; charset=utf-8"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".mjs", "text/javascript; charset=utf-8"],
+  [".css", "text/css; charset=utf-8"],
+  [".json", "application/json"],
+  [".txt", "text/plain; charset=utf-8"],
+  [".xml", "application/xml"],
+  [".svg", "image/svg+xml"],
+  [".png", "image/png"],
+  [".ico", "image/x-icon"],
+  [".woff2", "font/woff2"],
+  [".wasm", "application/wasm"],
+]);
 
 // A static export inlines its bootstrap scripts, so a nonce-based policy is not possible here.
 // The request filter in lockDown() is the main control on what a page can load; this narrows the rest.
@@ -74,12 +93,16 @@ function resolveFile(pathname) {
 
 async function serve(request) {
   const file = resolveFile(new URL(request.url).pathname);
-  const response = await net.fetch(
-    pathToFileURL(file ?? path.join(ROOT, "404.html")).toString(),
-  );
-  const headers = new Headers(response.headers);
-  headers.set("Content-Security-Policy", CSP);
-  return new Response(response.body, { status: file ? 200 : 404, headers });
+  const target = file ?? path.join(ROOT, "404.html");
+  return new Response(await readFile(target), {
+    status: file ? 200 : 404,
+    headers: {
+      "Content-Type":
+        CONTENT_TYPES.get(path.extname(target)) ?? "application/octet-stream",
+      "Content-Security-Policy": CSP,
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }
 
 /** Copy buttons exist on most tools; only the Diff Checker pastes, so only it may read the clipboard. */
@@ -94,13 +117,12 @@ function isAllowedPermission(permission, requestingUrl) {
 
 function isAllowedRequest(details) {
   const url = new URL(details.url);
-  // This process's own reads of the export carry no webContents; a page asking for file: is refused.
-  if (url.protocol === "file:") return !details.webContents;
   if (PAGE_SCHEMES.has(url.protocol)) return true;
   return (
     GITHUB_METHODS.has(details.method) &&
     url.origin === GITHUB_API &&
-    GITHUB_TREE_PATH.test(url.pathname)
+    GITHUB_TREE_PATH.test(url.pathname) &&
+    GITHUB_TREE_QUERIES.has(url.search)
   );
 }
 
@@ -119,7 +141,9 @@ function lockDown() {
 }
 
 function openInBrowser(url) {
-  if (url.startsWith(EXTERNAL_LINK_PREFIX)) shell.openExternal(url);
+  if (url === REPOSITORY_URL || url.startsWith(`${REPOSITORY_URL}/`)) {
+    shell.openExternal(url);
+  }
 }
 
 function createWindow() {
