@@ -1,9 +1,9 @@
 import {
   FORMAT_LABELS,
   FORMAT_MIME_MAP,
+  type ImageFormat,
   LOSSY_FORMATS,
   SUPPORTED_OUTPUT_FORMATS,
-  type ImageFormat,
 } from "./converter";
 
 type MagickModule = typeof import("@imagemagick/magick-wasm");
@@ -39,7 +39,7 @@ async function getMagickModule(): Promise<MagickModule> {
   if (!magickModulePromise) {
     magickModulePromise = (async () => {
       const magickModule = await import("@imagemagick/magick-wasm");
-      const response = await fetch("/api/magick-wasm");
+      const response = await fetch("/vendor/magick.wasm");
 
       if (!response.ok) {
         throw new Error("Failed to load the ImageMagick runtime.");

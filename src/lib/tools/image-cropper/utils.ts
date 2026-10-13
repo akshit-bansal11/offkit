@@ -1,4 +1,4 @@
-import { MIN_CROP_SIZE, type AspectValue, ASPECT_PRESETS } from "./constants";
+import { ASPECT_PRESETS, type AspectValue, MIN_CROP_SIZE } from "./constants";
 import type { CropRect, Handle, UploadedImage } from "./types";
 
 export function createDefaultCrop(width: number, height: number): CropRect {
@@ -9,7 +9,11 @@ export function createDefaultCrop(width: number, height: number): CropRect {
   return { x, y, w: targetW, h: targetH };
 }
 
-export function clampRect(rect: CropRect, width: number, height: number): CropRect {
+export function clampRect(
+  rect: CropRect,
+  width: number,
+  height: number,
+): CropRect {
   const w = Math.max(MIN_CROP_SIZE, Math.min(rect.w, width));
   const h = Math.max(MIN_CROP_SIZE, Math.min(rect.h, height));
   const x = Math.max(0, Math.min(rect.x, width - w));
@@ -30,7 +34,10 @@ export async function loadImage(url: string): Promise<HTMLImageElement> {
   return image;
 }
 
-export async function cropToBlob(image: UploadedImage, crop: CropRect): Promise<Blob> {
+export async function cropToBlob(
+  image: UploadedImage,
+  crop: CropRect,
+): Promise<Blob> {
   const source = await loadImage(image.srcUrl);
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(crop.w));
@@ -59,7 +66,10 @@ export async function cropToBlob(image: UploadedImage, crop: CropRect): Promise<
   return blob;
 }
 
-export function clampBatchCropToImage(batchCrop: CropRect, image: UploadedImage): CropRect {
+export function clampBatchCropToImage(
+  batchCrop: CropRect,
+  image: UploadedImage,
+): CropRect {
   return clampRect(batchCrop, image.width, image.height);
 }
 
@@ -67,7 +77,10 @@ export function getAspectRatio(value: AspectValue): number | null {
   return ASPECT_PRESETS.find((preset) => preset.value === value)?.ratio ?? null;
 }
 
-export function createDefaultCircularCrop(width: number, height: number): CropRect {
+export function createDefaultCircularCrop(
+  width: number,
+  height: number,
+): CropRect {
   const minDim = Math.min(width, height);
   const radius = Math.round(minDim * 0.3);
   const centerX = Math.round(width / 2);
@@ -80,16 +93,43 @@ export function createDefaultCircularCrop(width: number, height: number): CropRe
   };
 }
 
-export function pointToCanvasSpace(
+/**
+ * Convert a pointer position to original-image pixels. `scale` is the factor
+ * the canvas was drawn at; crop rectangles are stored in image pixels, so
+ * comparing them against raw canvas coordinates is wrong for scaled images.
+ */
+export function pointToImageSpace(
   canvas: HTMLCanvasElement,
   clientX: number,
   clientY: number,
+  scale: number,
 ) {
   const rect = canvas.getBoundingClientRect();
   return {
-    x: ((clientX - rect.left) * canvas.width) / rect.width,
-    y: ((clientY - rect.top) * canvas.height) / rect.height,
+    x: ((clientX - rect.left) * canvas.width) / rect.width / scale,
+    y: ((clientY - rect.top) * canvas.height) / rect.height / scale,
   };
+}
+
+/** Largest rectangle of the given ratio centred inside `crop`, kept in bounds. */
+export function fitCropToAspect(
+  crop: CropRect,
+  ratio: number,
+  width: number,
+  height: number,
+): CropRect {
+  const w = Math.min(crop.w, crop.h * ratio);
+  const h = w / ratio;
+  return clampRect(
+    {
+      x: Math.round(crop.x + (crop.w - w) / 2),
+      y: Math.round(crop.y + (crop.h - h) / 2),
+      w: Math.round(w),
+      h: Math.round(h),
+    },
+    width,
+    height,
+  );
 }
 
 export function getHandleAtPoint(
@@ -179,14 +219,21 @@ export function resizeRect(
   return next;
 }
 
-export function getCenterAndRadiusFromBounds(bounds: CropRect): { cx: number; cy: number; r: number } {
+export function getCenterAndRadiusFromBounds(bounds: CropRect): {
+  cx: number;
+  cy: number;
+  r: number;
+} {
   const cx = bounds.x + bounds.w / 2;
   const cy = bounds.y + bounds.h / 2;
   const r = bounds.w / 2;
   return { cx, cy, r };
 }
 
-export async function cropToCircularBlob(image: UploadedImage, crop: CropRect): Promise<Blob> {
+export async function cropToCircularBlob(
+  image: UploadedImage,
+  crop: CropRect,
+): Promise<Blob> {
   const source = await loadImage(image.srcUrl);
   const { r } = getCenterAndRadiusFromBounds(crop);
 
@@ -222,5 +269,3 @@ export async function cropToCircularBlob(image: UploadedImage, crop: CropRect): 
   if (!blob) throw new Error("Failed to export cropped image.");
   return blob;
 }
-
-

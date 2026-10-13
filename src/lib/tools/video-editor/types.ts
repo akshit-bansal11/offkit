@@ -1,4 +1,11 @@
-export type VideoTabId = "trim" | "crop" | "rotate" | "resize" | "speed" | "volume" | "flip";
+export type VideoTabId =
+  | "trim"
+  | "crop"
+  | "rotate"
+  | "resize"
+  | "speed"
+  | "volume"
+  | "flip";
 export type RotateAngle = 0 | 90 | 180 | 270;
 export type VideoOutputFormat = "mp4" | "webm" | "mkv";
 

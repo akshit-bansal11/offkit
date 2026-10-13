@@ -1,18 +1,18 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  clampRect,
-  getCenterAndRadiusFromBounds,
-  loadImage,
-  pointToCanvasSpace,
-} from "@/lib/tools/image-cropper/utils";
 import type {
   CropRect,
   Handle,
   PointerState,
   UploadedImage,
 } from "@/lib/tools/image-cropper/types";
+import {
+  clampRect,
+  getCenterAndRadiusFromBounds,
+  loadImage,
+  pointToImageSpace,
+} from "@/lib/tools/image-cropper/utils";
 
 interface CircularCropEditorProps {
   image: UploadedImage;
@@ -130,7 +130,12 @@ export function CircularCropEditor({
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const point = pointToCanvasSpace(canvas, event.clientX, event.clientY);
+      const point = pointToImageSpace(
+        canvas,
+        event.clientX,
+        event.clientY,
+        scale,
+      );
       const pointer = pointerStateRef.current;
       const startCenterRadius = getCenterAndRadiusFromBounds(pointer.startRect);
 
@@ -165,7 +170,10 @@ export function CircularCropEditor({
       else if (pointer.handle === "e") newR = startR + dx;
       else if (pointer.handle === "w") newR = startR - dx;
 
-      newR = Math.max(10, Math.min(newR, Math.min(image.width, image.height) / 2));
+      newR = Math.max(
+        10,
+        Math.min(newR, Math.min(image.width, image.height) / 2),
+      );
 
       const newBounds = {
         x: Math.round(startCx - newR),
@@ -176,7 +184,7 @@ export function CircularCropEditor({
 
       onCropChange(clampRect(newBounds, image.width, image.height));
     },
-    [image.height, image.width, onCropChange],
+    [image.height, image.width, onCropChange, scale],
   );
 
   const getHandleAtPoint = useCallback(
@@ -213,7 +221,12 @@ export function CircularCropEditor({
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const point = pointToCanvasSpace(canvas, event.clientX, event.clientY);
+        const point = pointToImageSpace(
+          canvas,
+          event.clientX,
+          event.clientY,
+          scale,
+        );
         const handle = getHandleAtPoint(point, 12 / scale) ?? "move";
 
         pointerStateRef.current = {

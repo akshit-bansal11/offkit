@@ -1,6 +1,6 @@
 export {
   SegmentedControl,
+  type SegmentedControlOption,
   segmentedControlItemVariants,
   segmentedControlVariants,
-  type SegmentedControlOption,
 } from "@/components/ui/interaction/SegmentedControl";

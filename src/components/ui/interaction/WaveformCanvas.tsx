@@ -119,7 +119,14 @@ export function WaveformCanvas({
       ctx.lineTo(px, H);
       ctx.stroke();
     }
-  }, [audioBuffer, canvasWidth, startRatio, endRatio, playheadRatio, hasRegion]);
+  }, [
+    audioBuffer,
+    canvasWidth,
+    startRatio,
+    endRatio,
+    playheadRatio,
+    hasRegion,
+  ]);
 
   const ratioFromEvent = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {

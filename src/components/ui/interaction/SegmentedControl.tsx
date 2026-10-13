@@ -3,8 +3,8 @@
 
 "use client";
 
-import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -47,8 +47,7 @@ const segmentedControlItemVariants = cva(
       variant: {
         default:
           "text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
-        dark:
-          "text-muted-foreground hover:bg-background/80 hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
+        dark: "text-muted-foreground hover:bg-background/80 hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
       },
       size: {
         sm: "h-7 px-2.5 text-xs",
@@ -126,7 +125,7 @@ function SegmentedControl({
 
 export {
   SegmentedControl,
+  type SegmentedControlOption,
   segmentedControlItemVariants,
   segmentedControlVariants,
-  type SegmentedControlOption,
 };

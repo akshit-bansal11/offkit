@@ -1,9 +1,4 @@
-import type {
-  GitTreeEntry,
-  NodeType,
-  RepoIdentity,
-  TreeNode,
-} from "./types";
+import type { GitTreeEntry, NodeType, RepoIdentity, TreeNode } from "./types";
 
 export function parseRepoIdentity(input: string): RepoIdentity | null {
   const trimmed = input.trim();
@@ -23,7 +18,12 @@ export function parseRepoIdentity(input: string): RepoIdentity | null {
 }
 
 export function buildTree(entries: GitTreeEntry[]): TreeNode {
-  const root: TreeNode = { name: "root", path: "", type: "folder", children: [] };
+  const root: TreeNode = {
+    name: "root",
+    path: "",
+    type: "folder",
+    children: [],
+  };
 
   for (const entry of entries) {
     const segments = entry.path.split("/").filter(Boolean);
@@ -95,4 +95,3 @@ export function treeToAscii(root: TreeNode): string {
   walk(root.children, "");
   return lines.join("\n");
 }
-

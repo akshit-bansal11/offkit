@@ -7,6 +7,7 @@ import {
   Binary,
   Blend,
   Box,
+  Code2,
   Crop,
   Droplet,
   FileCode2,
@@ -32,8 +33,8 @@ import {
   Palette,
   Pipette,
   Scissors,
-  SlidersHorizontal,
   Shapes,
+  SlidersHorizontal,
   Sparkles,
   SplitSquareHorizontal,
   SwatchBook,
@@ -41,20 +42,19 @@ import {
   VectorSquare,
   Video,
   Wand2,
-  Code2,
 } from "lucide-react";
 import type { ToolCategoryDefinition, ToolDefinition } from "@/types/tool";
 
 export const toolCategories: ToolCategoryDefinition[] = [
-  { name: "Audio",     icon: AudioLines,   accentColor: "#60a5fa" },
-  { name: "Video",     icon: Video,        accentColor: "#facc15" },
-  { name: "Dev",       icon: Code2,        accentColor: "#4ade80" },
-  { name: "Images",    icon: ImageIcon,    accentColor: "#f87171" },
-  { name: "SVG",       icon: VectorSquare, accentColor: "#f472b6" },
-  { name: "Colors",    icon: SwatchBook,   accentColor: "#a78bfa" },
-  { name: "CSS",       icon: FileCode2,    accentColor: "#fb923c" },
-  { name: "PDF",       icon: FileText,     accentColor: "#34d399" },
-  { name: "Text",      icon: Type,         accentColor: "#38bdf8" },
+  { name: "Audio", icon: AudioLines, accentColor: "#60a5fa" },
+  { name: "Video", icon: Video, accentColor: "#facc15" },
+  { name: "Dev", icon: Code2, accentColor: "#4ade80" },
+  { name: "Images", icon: ImageIcon, accentColor: "#f87171" },
+  { name: "SVG", icon: VectorSquare, accentColor: "#f472b6" },
+  { name: "Colors", icon: SwatchBook, accentColor: "#a78bfa" },
+  { name: "CSS", icon: FileCode2, accentColor: "#fb923c" },
+  { name: "PDF", icon: FileText, accentColor: "#34d399" },
+  { name: "Text", icon: Type, accentColor: "#38bdf8" },
 ];
 
 export const tools: ToolDefinition[] = [
@@ -64,7 +64,7 @@ export const tools: ToolDefinition[] = [
     name: "Audio Converter",
     shortName: "Convert",
     description:
-      "Convert audio files between formats and codecs entirely in the browser using ffmpeg.wasm.",
+      "Convert audio files between formats and codecs entirely on your device using FFmpeg.",
     category: "Audio",
     highlights: [
       "Per-file format + codec controls",
@@ -89,7 +89,7 @@ export const tools: ToolDefinition[] = [
     name: "Audio Editor",
     shortName: "Edit",
     description:
-      "Trim, adjust speed, shift pitch, and apply EQ to any audio file — all in the browser.",
+      "Trim, adjust speed, shift pitch, and apply EQ to any audio file, all on your device.",
     category: "Audio",
     highlights: ["Waveform trim handles", "Speed, pitch & EQ controls"],
     icon: SlidersHorizontal,
@@ -111,7 +111,7 @@ export const tools: ToolDefinition[] = [
     name: "Video Converter",
     shortName: "Convert",
     description:
-      "Convert videos between formats and codecs directly in the browser using ffmpeg.wasm.",
+      "Convert videos between formats and codecs directly on your device using FFmpeg.",
     category: "Video",
     highlights: [
       "Per-file video and audio codec mapping",
@@ -147,7 +147,7 @@ export const tools: ToolDefinition[] = [
     name: "Image Cropper",
     shortName: "Crop",
     description:
-      "Crop one or many images in the browser - apply individual crops per image or a single crop to all at once.",
+      "Crop one or many images on your device - apply individual crops per image or a single crop to all at once.",
     category: "Images",
     highlights: [
       "Individual and batch crop modes",
@@ -175,7 +175,7 @@ export const tools: ToolDefinition[] = [
     name: "SVG Pattern Generator",
     shortName: "Pattern",
     description:
-      "Create beautiful, scalable vector patterns directly in your browser. Export native CSS backgrounds or raw SVG data URIs instantly.",
+      "Create beautiful, scalable vector patterns directly on your device. Export native CSS backgrounds or raw SVG data URIs instantly.",
     category: "SVG",
     highlights: [
       "Injected vector properties directly generated",
@@ -222,7 +222,7 @@ export const tools: ToolDefinition[] = [
     name: "PDF Toolkit",
     shortName: "Toolkit",
     description:
-      "Merge multiple files, break PDFs apart by page, reorder structure, or compress files directly in your browser.",
+      "Merge multiple files, break PDFs apart by page, reorder structure, or compress files directly on your device.",
     category: "PDF",
     highlights: ["Compress documents securely natively"],
     icon: FileText,
@@ -255,7 +255,7 @@ export const tools: ToolDefinition[] = [
     name: "SVG Optimizer",
     shortName: "Optimize",
     description:
-      "Clean up messy SVGs, strip metadata, dial in decimal precision, and convert to JSX directly in the browser.",
+      "Clean up messy SVGs, strip metadata, dial in decimal precision, and convert to JSX directly on your device.",
     category: "SVG",
     highlights: ["Live visual preview with JSX conversion"],
     icon: Sparkles,
@@ -288,7 +288,7 @@ export const tools: ToolDefinition[] = [
     name: "JSON Formatter",
     shortName: "Format",
     description:
-      "Pretty-print, minify, validate, and copy JSON without leaving the browser.",
+      "Pretty-print, minify, validate, and copy JSON on your device.",
     category: "Text",
     highlights: ["Pretty print or minify in one click"],
     icon: FileJson,
@@ -332,9 +332,9 @@ export const tools: ToolDefinition[] = [
     name: "Palette Extractor",
     shortName: "Extract",
     description:
-      "Upload an image and use Gemini vision to extract dominant colors into a copyable palette.",
+      "Upload an image and extract its dominant colors into a copyable palette, computed locally on your device.",
     category: "Colors",
-    highlights: ["Gemini-powered image palette extraction"],
+    highlights: ["On-device dominant color extraction"],
     icon: ImageUp,
   },
   {
@@ -365,7 +365,7 @@ export const tools: ToolDefinition[] = [
     name: "Base64",
     shortName: "Base64",
     description:
-      "Encode and decode text with a clean local workflow that stays entirely in the browser.",
+      "Encode and decode text with a clean local workflow that stays entirely on your device.",
     category: "Text",
     highlights: ["Unicode-safe encode and decode"],
     icon: Binary,
@@ -377,7 +377,7 @@ export const tools: ToolDefinition[] = [
     name: "Video Editor",
     shortName: "Edit",
     description:
-      "Trim, crop, rotate, resize, flip, adjust speed and volume for any video — entirely in the browser.",
+      "Trim, crop, rotate, resize, flip, adjust speed and volume for any video, entirely on your device.",
     category: "Video",
     highlights: ["Trim, crop, rotate & resize", "Speed & volume adjustment"],
     icon: Film,
@@ -424,7 +424,10 @@ export const tools: ToolDefinition[] = [
     description:
       "Reduce PDF file size by rasterizing pages at adjustable quality and resolution.",
     category: "PDF",
-    highlights: ["Adjustable render scale & quality", "Size comparison preview"],
+    highlights: [
+      "Adjustable render scale & quality",
+      "Size comparison preview",
+    ],
     icon: Minimize2,
   },
   {
@@ -433,7 +436,7 @@ export const tools: ToolDefinition[] = [
     name: "Convert to PDF",
     shortName: "To PDF",
     description:
-      "Convert images to PDF — drop multiple images and combine them into a single document.",
+      "Convert images to PDF. Drop multiple images and combine them into a single document.",
     category: "PDF",
     highlights: ["Drag-to-reorder images", "Fit, A4, or Letter page sizes"],
     icon: FileOutput,
@@ -478,8 +481,7 @@ export const tools: ToolDefinition[] = [
     href: "/archiver",
     name: "Archiver",
     shortName: "Archive",
-    description:
-      "Drop files to create a ZIP archive instantly in the browser.",
+    description: "Drop files to create a ZIP archive instantly on your device.",
     category: "Dev",
     highlights: ["Editable file paths", "DEFLATE compression"],
     icon: FolderArchive,
@@ -495,11 +497,9 @@ export const toolsByCategory = toolCategories.map((category) => ({
   tools: tools.filter((tool) => tool.category === category.name),
 }));
 
-
 export function getToolAccentColor(slug: string): string {
   const tool = getToolBySlug(slug);
   if (!tool) return "#60a5fa";
   const category = toolCategories.find((c) => c.name === tool.category);
   return category?.accentColor ?? "#60a5fa";
 }
-
