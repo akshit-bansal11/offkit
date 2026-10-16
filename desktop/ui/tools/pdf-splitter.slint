@@ -1,8 +1,185 @@
-// PDF Splitter: a placeholder until the pdf family builds it. Its state will live in the
-// `PdfSplitter` global, driven by src/tools/pdf_splitter.rs.
+// PDF Splitter view: one PDF's pages as thumbnails, split by page, by runs or by typed ranges,
+// or narrowed to the pages wanted or not wanted. State lives in the `PdfSplitter` global,
+// driven by src/tools/pdf_splitter.rs.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, Select } from "../components/controls.slint";
+import { NumberField, TextField } from "../components/fields.slint";
+import { DropZone } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
+import { PageGrid, PdfiumMissing, PdfPageTile, PdfTaskState, PdfTaskStatus, TaskLine } from "pdf-toolkit.slint";
 
-export global PdfSplitter { }
+export global PdfSplitter {
+    in property <bool> pdfium-found: true;
+    in property <bool> drop-hover;
+    in property <bool> has-file;
+    in property <string> file-name;
+    in property <string> file-detail; // "12 pages · 1.2 MB", or why it can't be read
+    in property <bool> file-failed;
+    in property <[PdfPageTile]> pages;
+    in-out property <int> cursor;
+    in property <[string]> modes;
+    in-out property <int> mode-index;
+    // The mode works on typed ranges, which clicking pages fills in.
+    in property <bool> uses-ranges;
+    in property <bool> uses-chunks;
+    in-out property <string> ranges: "1-3";
+    in property <string> ranges-error;
+    in-out property <float> chunk-size: 5;
+    in property <string> mode-note;
+    in property <string> action-text: "Split";
+    in property <bool> can-split;
+    in property <bool> running;
+    in property <PdfTaskStatus> status;
+    in property <string> output-folder;
+    in property <bool> custom-output;
 
-export component PdfSplitterView inherits PlaceholderView { }
+    callback choose-file();
+    callback toggle(int);
+    callback select-all(bool);
+    callback settings-changed();
+    callback split();
+    callback cancel();
+    callback reveal();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback get-pdfium();
+}
+
+component Settings inherits Inspector {
+    action-text: PdfSplitter.action-text;
+    stop-text: "Stop";
+    can-run: PdfSplitter.can-split;
+    running: PdfSplitter.running;
+    run => { PdfSplitter.split(); }
+    stop => { PdfSplitter.cancel(); }
+
+    InspectorSection {
+        title: "Split";
+        footnote: PdfSplitter.ranges-error != "" && PdfSplitter.uses-ranges ? PdfSplitter.ranges-error : PdfSplitter.mode-note;
+
+        InspectorRow {
+            label: "Mode";
+            first: true;
+
+            Select {
+                label: "Mode";
+                options: PdfSplitter.modes;
+                current-index <=> PdfSplitter.mode-index;
+                enabled: !PdfSplitter.running;
+                selected => { PdfSplitter.settings-changed(); }
+            }
+        }
+        if PdfSplitter.uses-chunks: InspectorRow {
+            label: "Pages per file";
+
+            NumberField {
+                label: "Pages per file";
+                minimum: 1;
+                maximum: 9999;
+                value <=> PdfSplitter.chunk-size;
+                changed => { PdfSplitter.settings-changed(); }
+            }
+        }
+        if PdfSplitter.uses-ranges: VerticalLayout {
+            padding: Theme.space-2;
+
+            TextField {
+                label: "Pages";
+                placeholder: "e.g. 1-3, 5, 8-10";
+                text <=> PdfSplitter.ranges;
+                invalid: PdfSplitter.ranges-error != "";
+                edited => { PdfSplitter.settings-changed(); }
+            }
+        }
+    }
+
+    OutputFolderSection {
+        folder: PdfSplitter.output-folder;
+        custom: PdfSplitter.custom-output;
+        choose => { PdfSplitter.choose-output-folder(); }
+        reset => { PdfSplitter.reset-output-folder(); }
+    }
+}
+
+export component PdfSplitterView inherits VerticalLayout {
+    if !PdfSplitter.pdfium-found: PdfiumMissing {
+        action => { PdfSplitter.get-pdfium(); }
+    }
+
+    if PdfSplitter.pdfium-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-2;
+
+                if !PdfSplitter.has-file: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: PdfSplitter.drop-hover;
+                    icon: AppIcons.tool("square-split-horizontal");
+                    title: "Drop a PDF here";
+                    hint: "Split it into single pages or runs of pages, or keep only the pages you want.";
+                    button-text: "Choose File…";
+                    choose => { PdfSplitter.choose-file(); }
+                }
+
+                if PdfSplitter.has-file: HorizontalLayout {
+                    spacing: Theme.space-2;
+
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+
+                        Text {
+                            text: PdfSplitter.file-name;
+                            color: Theme.text-primary;
+                            font-size: Theme.size-body;
+                            font-weight: Theme.weight-medium;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: PdfSplitter.file-detail;
+                            color: PdfSplitter.file-failed ? Theme.danger : Theme.text-secondary;
+                            font-size: Theme.size-footnote;
+                            overflow: elide;
+                        }
+                    }
+                    if PdfSplitter.uses-ranges: Button {
+                        text: "Clear Selection";
+                        kind: ButtonKind.plain;
+                        enabled: PdfSplitter.ranges != "" && !PdfSplitter.running;
+                        clicked => { PdfSplitter.select-all(false); }
+                    }
+                    Button {
+                        text: "Choose Another…";
+                        kind: ButtonKind.plain;
+                        enabled: !PdfSplitter.running;
+                        clicked => { PdfSplitter.choose-file(); }
+                    }
+                }
+                if PdfSplitter.has-file: PageGrid {
+                    vertical-stretch: 1;
+                    tiles: PdfSplitter.pages;
+                    drop-hover: PdfSplitter.drop-hover;
+                    selectable: PdfSplitter.uses-ranges && !PdfSplitter.running;
+                    label: "Pages of " + PdfSplitter.file-name;
+                    cursor <=> PdfSplitter.cursor;
+                    toggle(i) => { PdfSplitter.toggle(i); }
+                    select-all(on) => { PdfSplitter.select-all(on); }
+                }
+                if PdfSplitter.status.state != PdfTaskState.idle: TaskLine {
+                    status: PdfSplitter.status;
+                    reveal => { PdfSplitter.reveal(); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

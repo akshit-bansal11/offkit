@@ -187,6 +187,13 @@ export global Theme {
     // --- end images ---
 
     // --- pdf ---
+    // A page thumbnail's square in the page grids (it fits any rotation), the gap between
+    // tiles, and a thumbnail's square in an image list row.
+    out property <length> pdf-tile-size: 128px;
+    out property <length> pdf-tile-gap: 16px;
+    out property <length> pdf-row-thumb: 36px;
+    // The selected tile's outline, drawn inside its square so selecting moves nothing.
+    out property <length> pdf-selected-width: 3px;
     // --- end pdf ---
 
     // --- svg ---

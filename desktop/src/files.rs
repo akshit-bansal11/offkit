@@ -165,6 +165,65 @@ pub fn reserve_replacing(target: &Path) -> io::Result<Reserved> {
 }
 
 // --- reserve_dir: pasted verbatim by families that need it ---
+/// A folder created for one job's many outputs (frames, pages, an extracted archive). Write
+/// inside `path()`, then call `keep()` once the job has succeeded. Dropping it without
+/// `keep()` deletes the folder and everything the job wrote into it (`remove_dir_all` removes
+/// symlinks inside without following them).
+#[must_use = "dropping a ReservedDir deletes the folder"]
+pub struct ReservedDir {
+    path: PathBuf,
+    kept: bool,
+}
+
+impl ReservedDir {
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Keeps the finished folder and returns where it is.
+    pub fn keep(mut self) -> PathBuf {
+        self.kept = true;
+        self.path.clone()
+    }
+}
+
+impl Drop for ReservedDir {
+    fn drop(&mut self) {
+        if self.kept {
+            return;
+        }
+        match fs::remove_dir_all(&self.path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => eprintln!(
+                "couldn't remove the unfinished {}: {e}",
+                self.path.display()
+            ),
+        }
+    }
+}
+
+/// Reserves a new, empty folder `<input stem><suffix>` in `dir` (default: the input's folder),
+/// numbered `… (1)`, `… (2)` when taken. `create_dir` fails on an existing folder, so a job
+/// never writes into one it didn't create.
+pub fn reserve_dir(input: &Path, dir: Option<&Path>, suffix: &str) -> io::Result<ReservedDir> {
+    let dir = dir.or_else(|| input.parent()).unwrap_or(Path::new("."));
+    let name = format!("{}{suffix}", stem_of(input));
+    for n in 0..10_000 {
+        let candidate = dir.join(candidate_name(&name, "", n));
+        match fs::create_dir(&candidate) {
+            Ok(()) => {
+                return Ok(ReservedDir {
+                    path: candidate,
+                    kept: false,
+                });
+            }
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(io::Error::other("no free folder name"))
+}
 
 pub fn file_name(path: &Path) -> String {
     path.file_name()
@@ -345,4 +404,40 @@ mod tests {
     }
 
     // --- reserve_dir tests: pasted verbatim by families that need it ---
+    #[test]
+    fn reserved_dirs_are_new_and_numbered() {
+        let dir = temp_dir("dirs");
+        fs::create_dir(dir.join("clip frames")).unwrap();
+
+        let reserved = reserve_dir(&dir.join("clip.mp4"), None, " frames").unwrap();
+
+        assert_eq!(reserved.path(), dir.join("clip frames (1)"));
+        assert!(reserved.path().is_dir());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_reserved_dir_dropped_without_keep_is_deleted_with_its_contents() {
+        let dir = temp_dir("dir-dropped");
+        let reserved = reserve_dir(&dir.join("doc.pdf"), None, " pages").unwrap();
+        fs::write(reserved.path().join("page 1.png"), b"x").unwrap();
+        let path = reserved.path().to_path_buf();
+
+        drop(reserved);
+
+        assert!(!path.exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_kept_dir_stays() {
+        let dir = temp_dir("dir-kept");
+        let reserved = reserve_dir(&dir.join("a.zip"), None, "").unwrap();
+
+        let kept = reserved.keep();
+
+        assert_eq!(kept, dir.join("a"));
+        assert!(kept.is_dir());
+        fs::remove_dir_all(&dir).unwrap();
+    }
 }

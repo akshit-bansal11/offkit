@@ -1,8 +1,36 @@
-// PDF ↔ Image Converter: a placeholder until the pdf family builds it. Its state will live in the
-// `PdfConverter` global, driven by src/tools/pdf_converter.rs.
+// PDF ↔ Image Converter view: Convert to PDF and Convert from PDF behind one switch. It shows
+// their own views, so both directions behave (and keep their files) exactly as those tools do.
+// Driven by src/tools/pdf_converter.rs.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { SegmentedControl } from "../components/fields.slint";
+import { ConvertToPdfView } from "convert-to-pdf.slint";
+import { ConvertFromPdfView } from "convert-from-pdf.slint";
 
-export global PdfConverter { }
+export global PdfConverter {
+    // 0: images to PDF; 1: PDF to images. Dropping a file switches to the side that takes it.
+    in-out property <int> direction;
+}
 
-export component PdfConverterView inherits PlaceholderView { }
+export component PdfConverterView inherits VerticalLayout {
+    HorizontalLayout {
+        padding-left: Theme.space-6;
+        padding-right: Theme.space-6;
+        padding-bottom: Theme.space-4;
+        alignment: start;
+
+        SegmentedControl {
+            label: "Direction";
+            options: ["Images to PDF", "PDF to Images"];
+            current-index: PdfConverter.direction;
+            selected(i) => { PdfConverter.direction = i; }
+        }
+    }
+
+    if PdfConverter.direction == 0: ConvertToPdfView {
+        vertical-stretch: 1;
+    }
+    if PdfConverter.direction == 1: ConvertFromPdfView {
+        vertical-stretch: 1;
+    }
+}
