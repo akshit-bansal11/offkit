@@ -1,8 +1,771 @@
-// Image Cropper: a placeholder until the images family builds it. Its state will live in the
-// `ImageCropper` global, driven by src/tools/image_cropper.rs.
+// Image Cropper view: the crop editor over a strip of the listed images, beside the settings.
+// All state lives in the `ImageCropper` global, which Rust drives (src/tools/image_cropper.rs);
+// the crop is in source pixels, and this file only maps it to the screen and back.
 
-import { PlaceholderView } from "placeholder.slint";
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { DropOutline, FocusRing, IconButton, ProgressBar, Select, Slider, Switch } from "../components/controls.slint";
+import { NumberField, SegmentedControl } from "../components/fields.slint";
+import { DropZone, FileItem, FileStatus } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
 
-export global ImageCropper { }
+export enum CropShape { rectangle, circle }
+// What a pointer drag holds: the whole crop, or an edge or corner.
+export enum CropHandle { move, n, ne, e, se, s, sw, w, nw }
+// One crop per image, or one shared by all of them.
+export enum CropScope { each, all }
+export enum CropField { x, y, width, height }
 
-export component ImageCropperView inherits PlaceholderView { }
+export global ImageCropper {
+    // The image types it opens, for the drop zone (Rust: `engine::image::FORMATS_HINT`).
+    in property <string> formats-hint;
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    // One preview per row of `files`, for the strip.
+    in property <[image]> thumbs;
+    // The row in the editor; -1 for none.
+    in property <int> current: -1;
+    in property <image> preview;
+    // The current image's size, upright, in pixels.
+    in property <float> source-width;
+    in property <float> source-height;
+    // Whether the current image has been read and can be cropped.
+    in property <bool> editable;
+    in-out property <float> crop-x;
+    in-out property <float> crop-y;
+    in-out property <float> crop-w;
+    in-out property <float> crop-h;
+
+    in-out property <CropShape> shape;
+    in property <[string]> aspects;
+    in-out property <int> aspect-index;
+    in-out property <bool> grid;
+    in-out property <CropScope> scope;
+    in property <[string]> formats;
+    in-out property <int> format-index;
+    in property <bool> quality-applies;
+    in property <string> format-note;
+    in-out property <float> quality: 85;
+
+    in property <bool> running;
+    in property <bool> can-crop;
+    in property <string> list-summary;
+    in property <string> output-folder;
+    in property <bool> custom-output;
+
+    callback choose-files();
+    callback select(int);
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    // A pointer drag, in source pixels: where it started and where it is.
+    callback begin-drag(CropHandle, float, float);
+    callback drag-to(float, float);
+    callback end-drag();
+    callback nudge(float, float);
+    callback field-edited(CropField, float);
+    callback shape-changed();
+    callback aspect-changed();
+    callback scope-changed();
+    callback output-settings-changed();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback crop-all();
+    callback cancel-all();
+}
+
+// A drag handle: a white knob, with a larger hit area. Reports the pointer in window
+// coordinates (its own position plus the pointer's), which stay right while it moves.
+component CropKnob {
+    in property <CropHandle> handle;
+    in property <MouseCursor> cursor;
+    // The knob's centre, in the editor's coordinates.
+    in property <length> cx;
+    in property <length> cy;
+    callback begin(CropHandle, length, length);
+    callback drag(length, length);
+
+    x: root.cx - self.width / 2;
+    y: root.cy - self.height / 2;
+    width: Theme.crop-hit-size;
+    height: Theme.crop-hit-size;
+
+    Rectangle {
+        width: Theme.crop-handle-size;
+        height: Theme.crop-handle-size;
+        border-radius: self.width / 2;
+        background: Theme.crop-line;
+        border-width: 1px;
+        border-color: Theme.crop-shadow;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: root.cursor;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                root.begin(root.handle, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+            }
+            if (event.kind == PointerEventKind.up) {
+                ImageCropper.end-drag();
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                root.drag(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+            }
+        }
+    }
+}
+
+// The current image, fitted inside, with the crop drawn over it: the outside dimmed, a white
+// frame, the thirds grid and the handles. Arrow keys move the crop (Shift: 10 pixels).
+component CropEditor {
+    private property <length> inset: Theme.space-4;
+    private property <float> sw: max(1, ImageCropper.source-width);
+    private property <float> sh: max(1, ImageCropper.source-height);
+    private property <float> scale: min((root.width - 2 * root.inset) / 1px / root.sw, (root.height - 2 * root.inset) / 1px / root.sh);
+    private property <length> iw: root.sw * root.scale * 1px;
+    private property <length> ih: root.sh * root.scale * 1px;
+    private property <length> ox: (root.width - root.iw) / 2;
+    private property <length> oy: (root.height - root.ih) / 2;
+    // The crop on screen, relative to the image's top-left corner.
+    private property <length> fx: ImageCropper.crop-x * root.scale * 1px;
+    private property <length> fy: ImageCropper.crop-y * root.scale * 1px;
+    private property <length> fw: ImageCropper.crop-w * root.scale * 1px;
+    private property <length> fh: ImageCropper.crop-h * root.scale * 1px;
+    private property <bool> circle: ImageCropper.shape == CropShape.circle;
+
+    // Window coordinates to source pixels.
+    function to-x(ax: length) -> float {
+        return (ax - root.absolute-position.x - root.ox) / 1px / root.scale;
+    }
+    function to-y(ay: length) -> float {
+        return (ay - root.absolute-position.y - root.oy) / 1px / root.scale;
+    }
+    function begin(handle: CropHandle, ax: length, ay: length) {
+        fs.focus();
+        ImageCropper.begin-drag(handle, root.to-x(ax), root.to-y(ay));
+    }
+    function drag(ax: length, ay: length) {
+        ImageCropper.drag-to(root.to-x(ax), root.to-y(ay));
+    }
+
+    fs := FocusScope {
+        enabled: ImageCropper.editable;
+        accessible-role: groupbox;
+        accessible-label: "Crop";
+        accessible-description: "X " + round(ImageCropper.crop-x) + ", Y " + round(ImageCropper.crop-y) + ", " + round(ImageCropper.crop-w) + " by " + round(ImageCropper.crop-h) + " pixels. Arrow keys move the crop; hold Shift to move it 10 pixels.";
+        key-pressed(event) => {
+            let step = event.modifiers.shift ? 10 : 1;
+            if (event.text == Key.LeftArrow) {
+                ImageCropper.nudge(-step, 0);
+                return accept;
+            }
+            if (event.text == Key.RightArrow) {
+                ImageCropper.nudge(step, 0);
+                return accept;
+            }
+            if (event.text == Key.UpArrow) {
+                ImageCropper.nudge(0, -step);
+                return accept;
+            }
+            if (event.text == Key.DownArrow) {
+                ImageCropper.nudge(0, step);
+                return accept;
+            }
+            reject
+        }
+    }
+
+    Rectangle {
+        border-radius: Theme.radius-group;
+        background: Theme.bg-grouped;
+        clip: true;
+
+        Image {
+            x: root.ox;
+            y: root.oy;
+            width: root.iw;
+            height: root.ih;
+            source: ImageCropper.preview;
+            image-fit: fill;
+            accessible-role: none;
+        }
+
+        if !ImageCropper.editable: Text {
+            text: "Reading…";
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        if ImageCropper.editable: Rectangle {
+            x: root.ox;
+            y: root.oy;
+            width: root.iw;
+            height: root.ih;
+
+            // The dimmed outside: the image's rectangle with the crop cut out (even-odd fill).
+            if !root.circle: Path {
+                viewbox-width: self.width / 1px;
+                viewbox-height: self.height / 1px;
+                fill: Theme.crop-scrim;
+                fill-rule: evenodd;
+
+                MoveTo { x: 0; y: 0; }
+                LineTo { x: root.iw / 1px; y: 0; }
+                LineTo { x: root.iw / 1px; y: root.ih / 1px; }
+                LineTo { x: 0; y: root.ih / 1px; }
+                Close { }
+                MoveTo { x: root.fx / 1px; y: root.fy / 1px; }
+                LineTo { x: (root.fx + root.fw) / 1px; y: root.fy / 1px; }
+                LineTo { x: (root.fx + root.fw) / 1px; y: (root.fy + root.fh) / 1px; }
+                LineTo { x: root.fx / 1px; y: (root.fy + root.fh) / 1px; }
+                Close { }
+            }
+            if root.circle: Path {
+                viewbox-width: self.width / 1px;
+                viewbox-height: self.height / 1px;
+                fill: Theme.crop-scrim;
+                fill-rule: evenodd;
+
+                MoveTo { x: 0; y: 0; }
+                LineTo { x: root.iw / 1px; y: 0; }
+                LineTo { x: root.iw / 1px; y: root.ih / 1px; }
+                LineTo { x: 0; y: root.ih / 1px; }
+                Close { }
+                MoveTo { x: root.fx / 1px; y: (root.fy + root.fh / 2) / 1px; }
+                ArcTo {
+                    x: (root.fx + root.fw) / 1px;
+                    y: (root.fy + root.fh / 2) / 1px;
+                    radius-x: root.fw / 2px;
+                    radius-y: root.fh / 2px;
+                    sweep: true;
+                }
+                ArcTo {
+                    x: root.fx / 1px;
+                    y: (root.fy + root.fh / 2) / 1px;
+                    radius-x: root.fw / 2px;
+                    radius-y: root.fh / 2px;
+                    sweep: true;
+                }
+                Close { }
+            }
+
+            if ImageCropper.grid && !root.circle: Rectangle {
+                x: root.fx + root.fw / 3;
+                y: root.fy;
+                width: 1px;
+                height: root.fh;
+                background: Theme.crop-grid;
+            }
+            if ImageCropper.grid && !root.circle: Rectangle {
+                x: root.fx + root.fw * 2 / 3;
+                y: root.fy;
+                width: 1px;
+                height: root.fh;
+                background: Theme.crop-grid;
+            }
+            if ImageCropper.grid && !root.circle: Rectangle {
+                x: root.fx;
+                y: root.fy + root.fh / 3;
+                width: root.fw;
+                height: 1px;
+                background: Theme.crop-grid;
+            }
+            if ImageCropper.grid && !root.circle: Rectangle {
+                x: root.fx;
+                y: root.fy + root.fh * 2 / 3;
+                width: root.fw;
+                height: 1px;
+                background: Theme.crop-grid;
+            }
+
+            // The frame: white, with a dark hairline outside so it reads on light images too.
+            Rectangle {
+                x: root.fx - 1px;
+                y: root.fy - 1px;
+                width: root.fw + 2px;
+                height: root.fh + 2px;
+                border-width: 1px;
+                border-color: Theme.crop-shadow;
+                border-radius: root.circle ? self.width / 2 : 0;
+            }
+            Rectangle {
+                x: root.fx;
+                y: root.fy;
+                width: root.fw;
+                height: root.fh;
+                border-width: 1px;
+                border-color: Theme.crop-line;
+                border-radius: root.circle ? self.width / 2 : 0;
+            }
+
+            TouchArea {
+                x: root.fx;
+                y: root.fy;
+                width: root.fw;
+                height: root.fh;
+                mouse-cursor: move;
+                pointer-event(event) => {
+                    if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                        root.begin(CropHandle.move, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                    }
+                    if (event.kind == PointerEventKind.up) {
+                        ImageCropper.end-drag();
+                    }
+                }
+                moved => {
+                    if (self.pressed) {
+                        root.drag(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                    }
+                }
+            }
+
+            // Edge handles (a circle's radius handles), then corners for a rectangle.
+            CropKnob {
+                handle: CropHandle.n;
+                cursor: ns-resize;
+                cx: root.fx + root.fw / 2;
+                cy: root.fy;
+                begin(h, ax, ay) => { root.begin(h, ax, ay); }
+                drag(ax, ay) => { root.drag(ax, ay); }
+            }
+            CropKnob {
+                handle: CropHandle.s;
+                cursor: ns-resize;
+                cx: root.fx + root.fw / 2;
+                cy: root.fy + root.fh;
+                begin(h, ax, ay) => { root.begin(h, ax, ay); }
+                drag(ax, ay) => { root.drag(ax, ay); }
+            }
+            CropKnob {
+                handle: CropHandle.w;
+                cursor: ew-resize;
+                cx: root.fx;
+                cy: root.fy + root.fh / 2;
+                begin(h, ax, ay) => { root.begin(h, ax, ay); }
+                drag(ax, ay) => { root.drag(ax, ay); }
+            }
+            CropKnob {
+                handle: CropHandle.e;
+                cursor: ew-resize;
+                cx: root.fx + root.fw;
+                cy: root.fy + root.fh / 2;
+                begin(h, ax, ay) => { root.begin(h, ax, ay); }
+                drag(ax, ay) => { root.drag(ax, ay); }
+            }
+            if !root.circle: CropKnob {
+                handle: CropHandle.nw;
+                cursor: nwse-resize;
+                cx: root.fx;
+                cy: root.fy;
+                begin(h, ax, ay) => { root.begin(h, ax, ay); }
+                drag(ax, ay) => { root.drag(ax, ay); }
+            }
+            if !root.circle: CropKnob {
+                handle: CropHandle.ne;
+                cursor: nesw-resize;
+                cx: root.fx + root.fw;
+                cy: root.fy;
+                begin(h, ax, ay) => { root.begin(h, ax, ay); }
+                drag(ax, ay) => { root.drag(ax, ay); }
+            }
+            if !root.circle: CropKnob {
+                handle: CropHandle.sw;
+                cursor: nesw-resize;
+                cx: root.fx;
+                cy: root.fy + root.fh;
+                begin(h, ax, ay) => { root.begin(h, ax, ay); }
+                drag(ax, ay) => { root.drag(ax, ay); }
+            }
+            if !root.circle: CropKnob {
+                handle: CropHandle.se;
+                cursor: nwse-resize;
+                cx: root.fx + root.fw;
+                cy: root.fy + root.fh;
+                begin(h, ax, ay) => { root.begin(h, ax, ay); }
+                drag(ax, ay) => { root.drag(ax, ay); }
+            }
+        }
+    }
+
+    FocusRing {
+        has-focus: fs.has-focus;
+        radius: Theme.radius-group;
+    }
+}
+
+// One image in the strip: its preview, ringed when it's in the editor, with its status.
+component Thumb {
+    in property <image> source;
+    in property <FileItem> item;
+    in property <bool> selected;
+    callback clicked();
+
+    width: Theme.thumb-size;
+    height: Theme.thumb-size;
+    accessible-role: list-item;
+    accessible-label: root.item.name;
+    accessible-item-selectable: true;
+    accessible-item-selected: root.selected;
+    accessible-action-default => { root.clicked(); }
+
+    Rectangle {
+        border-radius: Theme.radius-control;
+        background: Theme.bg-grouped;
+        clip: true;
+
+        Image {
+            width: 100%;
+            height: 100%;
+            source: root.source;
+            image-fit: cover;
+        }
+        if root.item.status == FileStatus.running: ProgressBar {
+            x: Theme.space-1;
+            y: parent.height - self.height - Theme.space-1;
+            width: parent.width - 2 * Theme.space-1;
+            progress: root.item.progress;
+        }
+    }
+    if root.item.status == FileStatus.done || root.item.status == FileStatus.failed: Rectangle {
+        x: parent.width - self.width - 2px;
+        y: 2px;
+        width: Theme.icon-size;
+        height: Theme.icon-size;
+        border-radius: self.width / 2;
+        background: Theme.bg-surface-raised;
+
+        Image {
+            source: root.item.status == FileStatus.done ? AppIcons.done : AppIcons.alert;
+            colorize: root.item.status == FileStatus.done ? Theme.success : Theme.danger;
+            width: Theme.icon-size-small;
+            height: Theme.icon-size-small;
+        }
+    }
+    Rectangle {
+        border-radius: Theme.radius-control;
+        border-width: root.selected ? Theme.drop-outline-width : 1px;
+        border-color: root.selected ? Theme.accent-text : Theme.separator;
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// The listed images in a row; Left and Right pick the previous or next one.
+component Strip inherits DropOutline {
+    border-radius: Theme.radius-group;
+    background: Theme.bg-surface-raised;
+    drop-hover: ImageCropper.drop-hover;
+    resting: Theme.separator;
+    height: Theme.thumb-size + 2 * Theme.space-2;
+    forward-focus: fs;
+    accessible-role: list;
+    accessible-label: "Images";
+
+    fs := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.LeftArrow && ImageCropper.current > 0) {
+                ImageCropper.select(ImageCropper.current - 1);
+                return accept;
+            }
+            if (event.text == Key.RightArrow && ImageCropper.current < ImageCropper.files.length - 1) {
+                ImageCropper.select(ImageCropper.current + 1);
+                return accept;
+            }
+            reject
+        }
+    }
+
+    ScrollView {
+        x: Theme.space-2;
+        width: parent.width - 2 * Theme.space-2;
+
+        HorizontalLayout {
+            spacing: Theme.space-2;
+            alignment: start;
+            padding-top: Theme.space-2;
+            padding-bottom: Theme.space-2;
+
+            for item[i] in ImageCropper.files: Thumb {
+                source: ImageCropper.thumbs[i];
+                item: item;
+                selected: i == ImageCropper.current;
+                clicked => {
+                    fs.focus();
+                    ImageCropper.select(i);
+                }
+            }
+            Rectangle {
+                width: Theme.thumb-size;
+                height: Theme.thumb-size;
+
+                IconButton {
+                    icon: AppIcons.plus;
+                    label: "Add images";
+                    clicked => { ImageCropper.choose-files(); }
+                }
+            }
+        }
+    }
+
+    FocusRing {
+        has-focus: fs.has-focus;
+        radius: Theme.radius-group;
+    }
+}
+
+// The current image's name and state under the editor, with Show in Folder and Remove.
+component CurrentRow inherits HorizontalLayout {
+    property <FileItem> item: ImageCropper.files[ImageCropper.current];
+    property <bool> active: root.item.status == FileStatus.running || root.item.status == FileStatus.queued;
+
+    spacing: Theme.space-2;
+    min-height: Theme.control-height;
+
+    VerticalLayout {
+        alignment: center;
+        horizontal-stretch: 1;
+
+        Text {
+            text: root.item.name + " · " + (root.item.status == FileStatus.reading ? "Reading…" : root.item.message != "" ? root.item.message : root.item.detail);
+            color: root.item.status == FileStatus.failed ? Theme.danger : Theme.text-secondary;
+            font-size: Theme.size-callout;
+            overflow: elide;
+        }
+    }
+    if root.item.status == FileStatus.done: IconButton {
+        icon: AppIcons.folder;
+        label: "Show in folder";
+        clicked => { ImageCropper.reveal(ImageCropper.current); }
+    }
+    if root.active: IconButton {
+        icon: AppIcons.close;
+        label: "Cancel crop";
+        clicked => { ImageCropper.cancel(ImageCropper.current); }
+    }
+    if !root.active: IconButton {
+        icon: AppIcons.trash;
+        label: "Remove from list";
+        clicked => { ImageCropper.remove(ImageCropper.current); }
+    }
+}
+
+component Settings inherits Inspector {
+    property <bool> circle: ImageCropper.shape == CropShape.circle;
+
+    action-text: ImageCropper.files.length > 1 ? "Crop All" : "Crop";
+    can-run: ImageCropper.can-crop;
+    running: ImageCropper.running;
+    run => { ImageCropper.crop-all(); }
+    stop => { ImageCropper.cancel-all(); }
+
+    InspectorSection {
+        title: "Crop";
+
+        InspectorRow {
+            label: "Shape";
+            first: true;
+
+            SegmentedControl {
+                label: "Shape";
+                options: ["Rectangle", "Circle"];
+                current-index: root.circle ? 1 : 0;
+                selected(i) => {
+                    ImageCropper.shape = i == 1 ? CropShape.circle : CropShape.rectangle;
+                    ImageCropper.shape-changed();
+                }
+            }
+        }
+        if !root.circle: InspectorRow {
+            label: "Aspect ratio";
+
+            Select {
+                label: "Aspect ratio";
+                options: ImageCropper.aspects;
+                current-index <=> ImageCropper.aspect-index;
+                selected => { ImageCropper.aspect-changed(); }
+            }
+        }
+        if !root.circle: InspectorRow {
+            label: "Thirds grid";
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Thirds grid";
+                    checked <=> ImageCropper.grid;
+                }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Position and size";
+
+        InspectorRow {
+            label: "X";
+            first: true;
+
+            NumberField {
+                label: "X";
+                unit: "px";
+                enabled: ImageCropper.editable;
+                maximum: ImageCropper.source-width;
+                value <=> ImageCropper.crop-x;
+                changed(v) => { ImageCropper.field-edited(CropField.x, v); }
+            }
+        }
+        InspectorRow {
+            label: "Y";
+
+            NumberField {
+                label: "Y";
+                unit: "px";
+                enabled: ImageCropper.editable;
+                maximum: ImageCropper.source-height;
+                value <=> ImageCropper.crop-y;
+                changed(v) => { ImageCropper.field-edited(CropField.y, v); }
+            }
+        }
+        InspectorRow {
+            label: root.circle ? "Diameter" : "Width";
+
+            NumberField {
+                label: root.circle ? "Diameter" : "Width";
+                unit: "px";
+                enabled: ImageCropper.editable;
+                minimum: 1;
+                maximum: ImageCropper.source-width;
+                value <=> ImageCropper.crop-w;
+                changed(v) => { ImageCropper.field-edited(CropField.width, v); }
+            }
+        }
+        if !root.circle: InspectorRow {
+            label: "Height";
+
+            NumberField {
+                label: "Height";
+                unit: "px";
+                enabled: ImageCropper.editable;
+                minimum: 1;
+                maximum: ImageCropper.source-height;
+                value <=> ImageCropper.crop-h;
+                changed(v) => { ImageCropper.field-edited(CropField.height, v); }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Apply to";
+        footnote: ImageCropper.scope == CropScope.all ? "Every image gets the same crop, scaled to its own size, so images of different sizes are cropped alike." : "Each image keeps its own crop. Pick an image in the strip to edit it.";
+
+        InspectorRow {
+            label: "Crop";
+            first: true;
+
+            SegmentedControl {
+                label: "Apply crop to";
+                options: ["Each Image", "All Images"];
+                current-index: ImageCropper.scope == CropScope.all ? 1 : 0;
+                selected(i) => {
+                    ImageCropper.scope = i == 1 ? CropScope.all : CropScope.each;
+                    ImageCropper.scope-changed();
+                }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Format";
+        footnote: ImageCropper.format-note;
+
+        InspectorRow {
+            label: "Save as";
+            first: true;
+
+            Select {
+                label: "Save as";
+                options: ImageCropper.formats;
+                current-index <=> ImageCropper.format-index;
+                selected => { ImageCropper.output-settings-changed(); }
+            }
+        }
+    }
+
+    if ImageCropper.quality-applies: InspectorSection {
+        title: "Quality";
+
+        VerticalLayout {
+            padding: Theme.space-3;
+            spacing: Theme.space-2;
+
+            Slider {
+                label: "Quality";
+                minimum: 10;
+                value <=> ImageCropper.quality;
+                changed => { ImageCropper.output-settings-changed(); }
+            }
+            HorizontalLayout {
+                Text {
+                    text: "Smaller file";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: "Better quality";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                }
+            }
+        }
+    }
+
+    OutputFolderSection {
+        folder: ImageCropper.output-folder;
+        custom: ImageCropper.custom-output;
+        footnote: "Cropped images leave out EXIF data: location, camera details and colour profile.";
+        choose => { ImageCropper.choose-output-folder(); }
+        reset => { ImageCropper.reset-output-folder(); }
+    }
+}
+
+export component ImageCropperView inherits VerticalLayout {
+    HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-3;
+
+                if ImageCropper.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: ImageCropper.drop-hover;
+                    icon: AppIcons.crop;
+                    title: "Drop images here";
+                    hint: ImageCropper.formats-hint;
+                    choose => { ImageCropper.choose-files(); }
+                }
+                if ImageCropper.files.length > 0: CropEditor {
+                    vertical-stretch: 1;
+                }
+                if ImageCropper.files.length > 0: CurrentRow { }
+                if ImageCropper.files.length > 0: Strip { }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

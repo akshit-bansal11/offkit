@@ -30,8 +30,12 @@ arboard = "=3.7.0"
 
 # --- images ---
 # Codecs listed explicitly, without the default `rayon` feature (the AVIF encoder, rav1e, still
-# pulls rayon in). AVIF is encode-only: decoding needs the dav1d C library.
+# pulls rayon in). AVIF is encode-only here: decoding needs the dav1d C library, so AVIF and
+# HEIC input goes through FFmpeg instead.
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "avif"] }
+# Lossy WebP (image-webp encodes lossless only). Builds libwebp's vendored C sources with cc;
+# the default `img` feature would add a second `image` dependency, so it stays off.
+webp = { version = "=0.3.1", default-features = false }
 
 # --- pdf ---
 # Binds the pdfium library at run time; the binary itself is not part of this build
@@ -69,3 +73,8 @@ slint-build = "=1.18.1"
 lto = "thin"
 codegen-units = 1
 strip = "debuginfo"
+
+# The AVIF encoder (rav1e) is far too slow unoptimised, so it is optimised even in debug builds
+# and tests.
+[profile.dev.package.rav1e]
+opt-level = 3

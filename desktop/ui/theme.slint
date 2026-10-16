@@ -201,6 +201,21 @@ export global Theme {
     // --- end video ---
 
     // --- images ---
+    // Palette Extractor: a swatch row (chip, hex, rgb · hsl, copy buttons); the export pane.
+    out property <length> palette-row-height: 48px;
+    out property <length> palette-export-height: 132px;
+    // Image Cropper. The crop frame is drawn over the photo, not over app chrome, so these are
+    // the same in both schemes: white lines and handles with a dark shadow read on any image,
+    // and the dimmed outside is the website's 48% black.
+    out property <color> crop-scrim: #0000007a;
+    out property <color> crop-line: #ffffff;
+    out property <color> crop-grid: #ffffff8c;
+    out property <color> crop-shadow: #000000a6;
+    out property <length> crop-handle-size: 10px;
+    // The handle's hit area, larger than what's drawn.
+    out property <length> crop-hit-size: 24px;
+    // Thumbnails in the cropper's image strip.
+    out property <length> thumb-size: 64px;
     // --- end images ---
 
     // --- pdf ---
