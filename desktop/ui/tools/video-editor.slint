@@ -1,8 +1,1000 @@
-// Video Editor: a placeholder until the video family builds it. Its state will live in the
-// `VideoEditor` global, driven by src/tools/video_editor.rs.
+// Video Editor view: a frame of the video with the crop drawn over it, a trim timeline under it,
+// and the edit's settings in the inspector. All state lives in the `VideoEditor` global, which
+// Rust drives (src/tools/video_editor.rs); this file only lays it out and handles dragging.
+// `VideoEditorExportStatus` is shared with the Video Merger.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, FocusRing, IconButton, ProgressBar, Select, Slider, Switch } from "../components/controls.slint";
+import { Checkbox, NumberField, SegmentedControl } from "../components/fields.slint";
+import { DropZone } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { EmptyState } from "../components/empty-state.slint";
+import { Notice, NoticeTone } from "../components/editor.slint";
 
-export global VideoEditor { }
+export enum VideoEditorRotation { none, quarter, half, three-quarters }
 
-export component VideoEditorView inherits PlaceholderView { }
+export global VideoEditor {
+    in property <bool> ffmpeg-found: true;
+    in property <bool> drop-hover;
+    // A video is being read, or is open.
+    in property <bool> loading;
+    in property <bool> loaded;
+    in property <string> load-error;
+    in property <string> file-name;
+    in property <string> file-detail;
+
+    // The frame at `position`, and the video's size as displayed (rotation applied).
+    in property <image> preview;
+    in property <float> source-width: 16;
+    in property <float> source-height: 9;
+    in property <float> duration;
+    in-out property <float> position;
+    in-out property <float> trim-start;
+    in-out property <float> trim-end;
+    in property <string> position-label;
+    in property <string> start-label;
+    in property <string> end-label;
+    in property <string> clip-label;
+
+    // The crop, in source pixels.
+    in-out property <bool> crop-enabled;
+    in-out property <float> crop-x;
+    in-out property <float> crop-y;
+    in-out property <float> crop-w;
+    in-out property <float> crop-h;
+
+    in-out property <VideoEditorRotation> rotation;
+    in-out property <bool> flip-h;
+    in-out property <bool> flip-v;
+    in property <[string]> sizes;
+    in-out property <int> size-index;
+    in property <bool> custom-size;
+    in-out property <float> custom-width;
+    in-out property <float> custom-height;
+    // Percent: 25..400 is 0.25×..4×.
+    in-out property <float> speed: 100;
+    in property <bool> has-audio;
+    in-out property <float> volume: 100;
+    in property <[string]> formats;
+    in-out property <int> format-index;
+    in property <string> hw-name;
+    in property <string> hw-detail;
+    in-out property <bool> hw-enabled;
+    // "1080×1920 · 0:12.4 · MP4"
+    in property <string> output-summary;
+
+    in property <bool> can-export;
+    in property <string> blocked-reason;
+    in property <bool> exporting;
+    in property <float> export-progress;
+    in property <string> export-message;
+    in property <bool> export-failed;
+    in property <bool> can-reveal;
+
+    callback choose-file();
+    callback close-file();
+    callback scrubbed();
+    callback trimmed();
+    callback crop-changed();
+    callback settings-changed();
+    callback nudge-start(float);
+    callback nudge-end(float);
+    callback export();
+    callback cancel-export();
+    callback reveal();
+    callback get-ffmpeg();
+}
+
+// Under the editor or the merger's list: progress while exporting, then where the file went,
+// or why it failed.
+export component VideoEditorExportStatus inherits HorizontalLayout {
+    in property <bool> running;
+    in property <float> progress;
+    in property <string> activity; // "Exporting"
+    in property <string> message;
+    in property <bool> failed;
+    in property <bool> can-reveal;
+    callback reveal();
+
+    spacing: Theme.space-2;
+    min-height: Theme.control-height;
+
+    if root.running: VerticalLayout {
+        alignment: center;
+        spacing: Theme.space-2;
+        horizontal-stretch: 1;
+
+        Text {
+            text: root.activity + " · " + round(root.progress * 100) + "%";
+            color: Theme.text-secondary;
+            font-size: Theme.size-footnote;
+        }
+        ProgressBar { progress: root.progress; }
+    }
+    if !root.running && root.failed: Notice {
+        text: root.message;
+        tone: NoticeTone.error;
+    }
+    if !root.running && !root.failed && root.message != "": HorizontalLayout {
+        spacing: Theme.space-1;
+        horizontal-stretch: 1;
+
+        Image {
+            source: AppIcons.done;
+            colorize: Theme.success;
+            width: Theme.icon-size-small;
+            height: Theme.icon-size-small;
+            y: (parent.height - self.height) / 2;
+        }
+        Text {
+            text: root.message;
+            color: Theme.text-primary;
+            font-size: Theme.size-callout;
+            vertical-alignment: center;
+            overflow: elide;
+            horizontal-stretch: 1;
+        }
+        if root.can-reveal: Button {
+            text: "Show in Folder";
+            icon: AppIcons.folder;
+            kind: ButtonKind.plain;
+            clicked => { root.reveal(); }
+        }
+    }
+}
+
+enum TimelineGrab { none, start, end, playhead }
+
+// The trim range over the whole video, with the playhead. Drag a handle to trim, anywhere else
+// to scrub. Each handle and the playhead is a focus stop: Left/Right move it 0.1 s, with Shift 1 s.
+component Timeline {
+    in property <float> duration;
+    in-out property <float> position;
+    in-out property <float> start;
+    in-out property <float> end;
+    in property <string> position-label;
+    in property <string> start-label;
+    in property <string> end-label;
+    callback scrubbed();
+    callback trimmed();
+
+    private property <float> min-gap: 0.1;
+    private property <length> handle: Theme.video-trim-handle-width;
+    private property <length> span: root.width - 2 * root.handle;
+    private property <TimelineGrab> grab;
+
+    pure function x-of(t: float) -> length {
+        root.handle + root.span * clamp(t / max(root.duration, 0.001), 0, 1)
+    }
+    pure function t-of(x: length) -> float {
+        clamp((x - root.handle) / root.span, 0, 1) * root.duration
+    }
+    function set-start(t: float) {
+        root.start = clamp(t, 0, root.end - root.min-gap);
+        root.position = root.start;
+        root.trimmed();
+        root.scrubbed();
+    }
+    function set-end(t: float) {
+        root.end = clamp(t, root.start + root.min-gap, root.duration);
+        root.position = root.end;
+        root.trimmed();
+        root.scrubbed();
+    }
+    function set-position(t: float) {
+        root.position = clamp(t, 0, root.duration);
+        root.scrubbed();
+    }
+    pure function step(shift: bool) -> float {
+        shift ? 1 : 0.1
+    }
+
+    height: Theme.video-timeline-height;
+
+    // The whole video.
+    Rectangle {
+        x: root.handle;
+        width: root.span;
+        y: Theme.space-1;
+        height: root.height - 2 * Theme.space-1;
+        border-radius: Theme.radius-nested;
+        background: Theme.bg-control-track;
+    }
+    // The part kept, between the handles.
+    Rectangle {
+        x: root.x-of(root.start);
+        width: root.x-of(root.end) - root.x-of(root.start);
+        border-width: Theme.video-line-width;
+        border-color: Theme.accent;
+        background: Theme.selection-fill;
+    }
+
+    start-handle := Rectangle {
+        x: root.x-of(root.start) - root.handle;
+        width: root.handle;
+        border-top-left-radius: Theme.radius-control;
+        border-bottom-left-radius: Theme.radius-control;
+        background: Theme.accent;
+
+        Rectangle {
+            width: Theme.video-line-width;
+            height: parent.height / 3;
+            border-radius: self.width / 2;
+            background: Theme.on-accent;
+        }
+    }
+    end-handle := Rectangle {
+        x: root.x-of(root.end);
+        width: root.handle;
+        border-top-right-radius: Theme.radius-control;
+        border-bottom-right-radius: Theme.radius-control;
+        background: Theme.accent;
+
+        Rectangle {
+            width: Theme.video-line-width;
+            height: parent.height / 3;
+            border-radius: self.width / 2;
+            background: Theme.on-accent;
+        }
+    }
+    playhead := Rectangle {
+        x: root.x-of(root.position) - self.width / 2;
+        y: -Theme.space-1;
+        width: Theme.video-line-width;
+        height: root.height + 2 * Theme.space-1;
+        border-radius: self.width / 2;
+        background: Theme.text-primary;
+    }
+
+    // Keyboard stops, under the pointer area so a drag always reaches it.
+    start-fs := FocusScope {
+        x: start-handle.x;
+        width: start-handle.width;
+        accessible-role: slider;
+        accessible-label: "Trim start";
+        accessible-value: root.start-label;
+        accessible-action-increment => { root.set-start(root.start + root.min-gap); }
+        accessible-action-decrement => { root.set-start(root.start - root.min-gap); }
+        key-pressed(event) => {
+            if (event.text == Key.LeftArrow) {
+                root.set-start(root.start - root.step(event.modifiers.shift));
+                return accept;
+            }
+            if (event.text == Key.RightArrow) {
+                root.set-start(root.start + root.step(event.modifiers.shift));
+                return accept;
+            }
+            reject
+        }
+
+        FocusRing { has-focus: start-fs.has-focus; }
+    }
+    playhead-fs := FocusScope {
+        x: playhead.x - Theme.space-1;
+        width: playhead.width + 2 * Theme.space-1;
+        accessible-role: slider;
+        accessible-label: "Playhead";
+        accessible-value: root.position-label;
+        accessible-action-increment => { root.set-position(root.position + root.min-gap); }
+        accessible-action-decrement => { root.set-position(root.position - root.min-gap); }
+        key-pressed(event) => {
+            if (event.text == Key.LeftArrow) {
+                root.set-position(root.position - root.step(event.modifiers.shift));
+                return accept;
+            }
+            if (event.text == Key.RightArrow) {
+                root.set-position(root.position + root.step(event.modifiers.shift));
+                return accept;
+            }
+            if (event.text == Key.Home) {
+                root.set-position(root.start);
+                return accept;
+            }
+            if (event.text == Key.End) {
+                root.set-position(root.end);
+                return accept;
+            }
+            reject
+        }
+
+        FocusRing { has-focus: playhead-fs.has-focus; }
+    }
+    end-fs := FocusScope {
+        x: end-handle.x;
+        width: end-handle.width;
+        accessible-role: slider;
+        accessible-label: "Trim end";
+        accessible-value: root.end-label;
+        accessible-action-increment => { root.set-end(root.end + root.min-gap); }
+        accessible-action-decrement => { root.set-end(root.end - root.min-gap); }
+        key-pressed(event) => {
+            if (event.text == Key.LeftArrow) {
+                root.set-end(root.end - root.step(event.modifiers.shift));
+                return accept;
+            }
+            if (event.text == Key.RightArrow) {
+                root.set-end(root.end + root.step(event.modifiers.shift));
+                return accept;
+            }
+            reject
+        }
+
+        FocusRing { has-focus: end-fs.has-focus; }
+    }
+
+    TouchArea {
+        mouse-cursor: abs(self.mouse-x - (start-handle.x + root.handle / 2)) <= root.handle || abs(self.mouse-x - (end-handle.x + root.handle / 2)) <= root.handle ? MouseCursor.ew-resize : MouseCursor.pointer;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                if (abs(self.mouse-x - (start-handle.x + root.handle / 2)) <= root.handle) {
+                    root.grab = TimelineGrab.start;
+                } else if (abs(self.mouse-x - (end-handle.x + root.handle / 2)) <= root.handle) {
+                    root.grab = TimelineGrab.end;
+                } else {
+                    root.grab = TimelineGrab.playhead;
+                    root.set-position(root.t-of(self.mouse-x));
+                }
+            }
+            if (event.kind == PointerEventKind.up) {
+                root.grab = TimelineGrab.none;
+            }
+        }
+        moved => {
+            if (root.grab == TimelineGrab.start) {
+                root.set-start(root.t-of(self.mouse-x + root.handle / 2));
+            } else if (root.grab == TimelineGrab.end) {
+                root.set-end(root.t-of(self.mouse-x - root.handle / 2));
+            } else if (root.grab == TimelineGrab.playhead) {
+                root.set-position(root.t-of(self.mouse-x));
+            }
+        }
+    }
+}
+
+enum CropGrab { none, move, resize }
+
+// The crop rectangle over the frame: drag inside to move it, near an edge or corner to resize
+// it. Focused, the arrow keys move it 1 px, with Shift 10 px; X, Y, W and H in the inspector
+// set it exactly. Coordinates are source pixels; `frame-*` place the displayed frame.
+component CropOverlay {
+    in property <length> frame-x;
+    in property <length> frame-y;
+    in property <length> frame-w;
+    in property <length> frame-h;
+    in property <float> source-width;
+    in property <float> source-height;
+    in-out property <float> crop-x;
+    in-out property <float> crop-y;
+    in-out property <float> crop-w;
+    in-out property <float> crop-h;
+    callback changed();
+
+    // Displayed length of one source pixel.
+    private property <length> unit: root.frame-w / max(root.source-width, 1);
+    private property <length> rx: root.frame-x + root.crop-x * root.unit;
+    private property <length> ry: root.frame-y + root.crop-y * root.unit;
+    private property <length> rw: root.crop-w * root.unit;
+    private property <length> rh: root.crop-h * root.unit;
+    private property <length> reach: Theme.video-crop-handle-size;
+    private property <float> min-side: 16;
+
+    private property <CropGrab> grab;
+    private property <bool> grab-left;
+    private property <bool> grab-right;
+    private property <bool> grab-top;
+    private property <bool> grab-bottom;
+    // The crop and pointer when the drag began.
+    private property <float> x0;
+    private property <float> y0;
+    private property <float> w0;
+    private property <float> h0;
+    private property <length> px0;
+    private property <length> py0;
+
+    pure function near(a: length, b: length) -> bool { abs(a - b) <= root.reach }
+    pure function inside-y(y: length) -> bool { y >= root.ry - root.reach && y <= root.ry + root.rh + root.reach }
+    pure function inside-x(x: length) -> bool { x >= root.rx - root.reach && x <= root.rx + root.rw + root.reach }
+    pure function on-left(x: length, y: length) -> bool { root.near(x, root.rx) && root.inside-y(y) }
+    pure function on-right(x: length, y: length) -> bool { root.near(x, root.rx + root.rw) && root.inside-y(y) }
+    pure function on-top(x: length, y: length) -> bool { root.near(y, root.ry) && root.inside-x(x) }
+    pure function on-bottom(x: length, y: length) -> bool { root.near(y, root.ry + root.rh) && root.inside-x(x) }
+
+    function move-by(dx: float, dy: float) {
+        root.crop-x = clamp(round(root.crop-x + dx), 0, root.source-width - root.crop-w);
+        root.crop-y = clamp(round(root.crop-y + dy), 0, root.source-height - root.crop-h);
+        root.changed();
+    }
+    function drag(x: length, y: length) {
+        let dx = (x - root.px0) / root.unit;
+        let dy = (y - root.py0) / root.unit;
+        if (root.grab == CropGrab.move) {
+            root.crop-x = clamp(round(root.x0 + dx), 0, root.source-width - root.w0);
+            root.crop-y = clamp(round(root.y0 + dy), 0, root.source-height - root.h0);
+        }
+        if (root.grab == CropGrab.resize && root.grab-left) {
+            let left = clamp(round(root.x0 + dx), 0, root.x0 + root.w0 - root.min-side);
+            root.crop-x = left;
+            root.crop-w = root.x0 + root.w0 - left;
+        }
+        if (root.grab == CropGrab.resize && root.grab-right) {
+            root.crop-w = clamp(round(root.w0 + dx), root.min-side, root.source-width - root.x0);
+        }
+        if (root.grab == CropGrab.resize && root.grab-top) {
+            let top = clamp(round(root.y0 + dy), 0, root.y0 + root.h0 - root.min-side);
+            root.crop-y = top;
+            root.crop-h = root.y0 + root.h0 - top;
+        }
+        if (root.grab == CropGrab.resize && root.grab-bottom) {
+            root.crop-h = clamp(round(root.h0 + dy), root.min-side, root.source-height - root.y0);
+        }
+        root.changed();
+    }
+
+    // Dims the frame outside the crop.
+    Rectangle {
+        x: root.frame-x;
+        y: root.frame-y;
+        width: root.frame-w;
+        height: root.ry - root.frame-y;
+        background: Theme.video-crop-scrim;
+    }
+    Rectangle {
+        x: root.frame-x;
+        y: root.ry + root.rh;
+        width: root.frame-w;
+        height: root.frame-y + root.frame-h - root.ry - root.rh;
+        background: Theme.video-crop-scrim;
+    }
+    Rectangle {
+        x: root.frame-x;
+        y: root.ry;
+        width: root.rx - root.frame-x;
+        height: root.rh;
+        background: Theme.video-crop-scrim;
+    }
+    Rectangle {
+        x: root.rx + root.rw;
+        y: root.ry;
+        width: root.frame-x + root.frame-w - root.rx - root.rw;
+        height: root.rh;
+        background: Theme.video-crop-scrim;
+    }
+
+    // The crop's edge, with a dark outline so it shows on bright and dark video alike.
+    crop := Rectangle {
+        x: root.rx;
+        y: root.ry;
+        width: root.rw;
+        height: root.rh;
+        border-width: 1px;
+        border-color: Theme.video-crop-line;
+        drop-shadow-blur: Theme.shadow-1-blur;
+        drop-shadow-color: Theme.video-crop-outline;
+
+        // Rule-of-thirds guides.
+        for i in [1, 2]: Rectangle {
+            x: parent.width * i / 3;
+            width: 1px;
+            background: Theme.video-crop-guide;
+        }
+        for i in [1, 2]: Rectangle {
+            y: parent.height * i / 3;
+            height: 1px;
+            background: Theme.video-crop-guide;
+        }
+    }
+
+    // Corner and edge handles: [x fraction, y fraction] of the crop.
+    for spot in [[0, 0], [0.5, 0], [1, 0], [0, 0.5], [1, 0.5], [0, 1], [0.5, 1], [1, 1]]: Rectangle {
+        x: root.rx + root.rw * spot[0] - self.width / 2;
+        y: root.ry + root.rh * spot[1] - self.height / 2;
+        width: Theme.video-crop-handle-size;
+        height: Theme.video-crop-handle-size;
+        border-radius: Theme.radius-nested / 2;
+        background: Theme.video-crop-line;
+        border-width: 1px;
+        border-color: Theme.video-crop-outline;
+    }
+
+    fs := FocusScope {
+        x: root.rx;
+        y: root.ry;
+        width: root.rw;
+        height: root.rh;
+        accessible-role: groupbox;
+        accessible-label: "Crop area";
+        accessible-description: "Arrow keys move it; Shift moves it further.";
+        key-pressed(event) => {
+            let step = event.modifiers.shift ? 10 : 1;
+            if (event.text == Key.LeftArrow) {
+                root.move-by(-step, 0);
+                return accept;
+            }
+            if (event.text == Key.RightArrow) {
+                root.move-by(step, 0);
+                return accept;
+            }
+            if (event.text == Key.UpArrow) {
+                root.move-by(0, -step);
+                return accept;
+            }
+            if (event.text == Key.DownArrow) {
+                root.move-by(0, step);
+                return accept;
+            }
+            reject
+        }
+
+        FocusRing { has-focus: fs.has-focus; radius: 0; }
+    }
+
+    TouchArea {
+        mouse-cursor: (root.on-left(self.mouse-x, self.mouse-y) && root.on-top(self.mouse-x, self.mouse-y)) || (root.on-right(self.mouse-x, self.mouse-y) && root.on-bottom(self.mouse-x, self.mouse-y)) ? MouseCursor.nwse-resize
+            : (root.on-right(self.mouse-x, self.mouse-y) && root.on-top(self.mouse-x, self.mouse-y)) || (root.on-left(self.mouse-x, self.mouse-y) && root.on-bottom(self.mouse-x, self.mouse-y)) ? MouseCursor.nesw-resize
+            : root.on-left(self.mouse-x, self.mouse-y) || root.on-right(self.mouse-x, self.mouse-y) ? MouseCursor.ew-resize
+            : root.on-top(self.mouse-x, self.mouse-y) || root.on-bottom(self.mouse-x, self.mouse-y) ? MouseCursor.ns-resize
+            : self.mouse-x > root.rx && self.mouse-x < root.rx + root.rw && self.mouse-y > root.ry && self.mouse-y < root.ry + root.rh ? MouseCursor.move
+            : MouseCursor.default;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                root.grab-left = root.on-left(self.mouse-x, self.mouse-y);
+                root.grab-right = root.on-right(self.mouse-x, self.mouse-y) && !root.grab-left;
+                root.grab-top = root.on-top(self.mouse-x, self.mouse-y);
+                root.grab-bottom = root.on-bottom(self.mouse-x, self.mouse-y) && !root.grab-top;
+                root.x0 = root.crop-x;
+                root.y0 = root.crop-y;
+                root.w0 = root.crop-w;
+                root.h0 = root.crop-h;
+                root.px0 = self.mouse-x;
+                root.py0 = self.mouse-y;
+                if (root.grab-left || root.grab-right || root.grab-top || root.grab-bottom) {
+                    root.grab = CropGrab.resize;
+                } else if (self.mouse-x > root.rx && self.mouse-x < root.rx + root.rw && self.mouse-y > root.ry && self.mouse-y < root.ry + root.rh) {
+                    root.grab = CropGrab.move;
+                } else {
+                    root.grab = CropGrab.none;
+                }
+            }
+            if (event.kind == PointerEventKind.up) {
+                root.grab = CropGrab.none;
+            }
+        }
+        moved => {
+            if (root.grab != CropGrab.none) {
+                root.drag(self.mouse-x, self.mouse-y);
+            }
+        }
+    }
+}
+
+// A value with − and + buttons in an inspector row: the trim points.
+component Nudger inherits HorizontalLayout {
+    in property <string> value;
+    in property <string> label;
+    callback nudge(float);
+
+    spacing: 2px;
+
+    Text {
+        text: root.value;
+        color: Theme.text-secondary;
+        font-size: Theme.size-body;
+        vertical-alignment: center;
+        accessible-role: none;
+    }
+    IconButton {
+        icon: AppIcons.minus;
+        label: "Move " + root.label + " back 0.1 seconds";
+        clicked => { root.nudge(-0.1); }
+    }
+    IconButton {
+        icon: AppIcons.plus;
+        label: "Move " + root.label + " on 0.1 seconds";
+        clicked => { root.nudge(0.1); }
+    }
+}
+
+component Settings inherits Inspector {
+    action-text: "Export…";
+    stop-text: "Cancel Export";
+    can-run: VideoEditor.can-export;
+    running: VideoEditor.exporting;
+    note: VideoEditor.blocked-reason;
+    run => { VideoEditor.export(); }
+    stop => { VideoEditor.cancel-export(); }
+
+    InspectorSection {
+        title: "Trim";
+        footnote: "Keeps " + VideoEditor.clip-label + ". Drag the handles under the video.";
+
+        InspectorRow {
+            label: "Start";
+            first: true;
+
+            Nudger {
+                value: VideoEditor.start-label;
+                label: "the start";
+                nudge(d) => { VideoEditor.nudge-start(d); }
+            }
+        }
+        InspectorRow {
+            label: "End";
+
+            Nudger {
+                value: VideoEditor.end-label;
+                label: "the end";
+                nudge(d) => { VideoEditor.nudge-end(d); }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Crop";
+
+        InspectorRow {
+            label: "Crop";
+            first: true;
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Crop";
+                    checked <=> VideoEditor.crop-enabled;
+                    toggled => { VideoEditor.crop-changed(); }
+                }
+            }
+        }
+        if VideoEditor.crop-enabled: InspectorRow {
+            label: "X";
+
+            NumberField {
+                label: "Crop X";
+                unit: "px";
+                maximum: VideoEditor.source-width - VideoEditor.crop-w;
+                value <=> VideoEditor.crop-x;
+                changed => { VideoEditor.crop-changed(); }
+            }
+        }
+        if VideoEditor.crop-enabled: InspectorRow {
+            label: "Y";
+
+            NumberField {
+                label: "Crop Y";
+                unit: "px";
+                maximum: VideoEditor.source-height - VideoEditor.crop-h;
+                value <=> VideoEditor.crop-y;
+                changed => { VideoEditor.crop-changed(); }
+            }
+        }
+        if VideoEditor.crop-enabled: InspectorRow {
+            label: "Width";
+
+            NumberField {
+                label: "Crop width";
+                unit: "px";
+                minimum: 16;
+                maximum: VideoEditor.source-width - VideoEditor.crop-x;
+                value <=> VideoEditor.crop-w;
+                changed => { VideoEditor.crop-changed(); }
+            }
+        }
+        if VideoEditor.crop-enabled: InspectorRow {
+            label: "Height";
+
+            NumberField {
+                label: "Crop height";
+                unit: "px";
+                minimum: 16;
+                maximum: VideoEditor.source-height - VideoEditor.crop-y;
+                value <=> VideoEditor.crop-h;
+                changed => { VideoEditor.crop-changed(); }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Rotate and flip";
+
+        InspectorRow {
+            label: "Rotate";
+            first: true;
+
+            SegmentedControl {
+                label: "Rotate clockwise";
+                options: ["0°", "90°", "180°", "270°"];
+                current-index: VideoEditor.rotation == VideoEditorRotation.quarter ? 1
+                    : VideoEditor.rotation == VideoEditorRotation.half ? 2
+                    : VideoEditor.rotation == VideoEditorRotation.three-quarters ? 3
+                    : 0;
+                selected(i) => {
+                    VideoEditor.rotation = i == 1 ? VideoEditorRotation.quarter
+                        : i == 2 ? VideoEditorRotation.half
+                        : i == 3 ? VideoEditorRotation.three-quarters
+                        : VideoEditorRotation.none;
+                    VideoEditor.settings-changed();
+                }
+            }
+        }
+        InspectorRow {
+            label: "Flip";
+
+            Checkbox {
+                text: "Horizontal";
+                checked <=> VideoEditor.flip-h;
+                toggled => { VideoEditor.settings-changed(); }
+            }
+            Checkbox {
+                text: "Vertical";
+                checked <=> VideoEditor.flip-v;
+                toggled => { VideoEditor.settings-changed(); }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Size and speed";
+
+        InspectorRow {
+            label: "Size";
+            first: true;
+
+            Select {
+                label: "Size";
+                options: VideoEditor.sizes;
+                current-index <=> VideoEditor.size-index;
+                selected => { VideoEditor.settings-changed(); }
+            }
+        }
+        if VideoEditor.custom-size: InspectorRow {
+            label: "Width";
+
+            NumberField {
+                label: "Width";
+                unit: "px";
+                minimum: 16;
+                maximum: 7680;
+                step: 2;
+                value <=> VideoEditor.custom-width;
+                changed => { VideoEditor.settings-changed(); }
+            }
+        }
+        if VideoEditor.custom-size: InspectorRow {
+            label: "Height";
+
+            NumberField {
+                label: "Height";
+                unit: "px";
+                minimum: 16;
+                maximum: 4320;
+                step: 2;
+                value <=> VideoEditor.custom-height;
+                changed => { VideoEditor.settings-changed(); }
+            }
+        }
+        InspectorRow {
+            label: "Speed";
+            detail: (VideoEditor.speed / 100) + "×";
+
+            Slider {
+                label: "Speed";
+                minimum: 25;
+                maximum: 400;
+                step: 25;
+                value <=> VideoEditor.speed;
+                changed => { VideoEditor.settings-changed(); }
+            }
+        }
+        if VideoEditor.has-audio: InspectorRow {
+            label: "Volume";
+            detail: round(VideoEditor.volume) + "%";
+
+            Slider {
+                label: "Volume";
+                minimum: 0;
+                maximum: 200;
+                step: 5;
+                value <=> VideoEditor.volume;
+                changed => { VideoEditor.settings-changed(); }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Format";
+        footnote: VideoEditor.output-summary;
+
+        InspectorRow {
+            label: "Format";
+            first: true;
+
+            Select {
+                label: "Format";
+                options: VideoEditor.formats;
+                current-index <=> VideoEditor.format-index;
+                selected => { VideoEditor.settings-changed(); }
+            }
+        }
+        if VideoEditor.hw-name != "": InspectorRow {
+            label: "Hardware encoding";
+            detail: VideoEditor.hw-name;
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Hardware encoding";
+                    checked <=> VideoEditor.hw-enabled;
+                    toggled => { VideoEditor.settings-changed(); }
+                }
+            }
+        }
+    }
+}
+
+// The frame, fitted to the space, with the crop over it.
+component Preview inherits Rectangle {
+    private property <float> aspect: VideoEditor.source-width / max(VideoEditor.source-height, 1);
+    private property <length> frame-w: min(root.width, root.height * root.aspect);
+    private property <length> frame-h: root.frame-w / root.aspect;
+    private property <length> frame-x: (root.width - root.frame-w) / 2;
+    private property <length> frame-y: (root.height - root.frame-h) / 2;
+
+    border-radius: Theme.radius-group;
+    background: Theme.video-canvas;
+    clip: true;
+
+    Image {
+        x: root.frame-x;
+        y: root.frame-y;
+        width: root.frame-w;
+        height: root.frame-h;
+        source: VideoEditor.preview;
+        image-fit: fill;
+        accessible-role: image;
+        accessible-label: "Frame at " + VideoEditor.position-label;
+    }
+
+    if VideoEditor.crop-enabled: CropOverlay {
+        frame-x: root.frame-x;
+        frame-y: root.frame-y;
+        frame-w: root.frame-w;
+        frame-h: root.frame-h;
+        source-width: VideoEditor.source-width;
+        source-height: VideoEditor.source-height;
+        crop-x <=> VideoEditor.crop-x;
+        crop-y <=> VideoEditor.crop-y;
+        crop-w <=> VideoEditor.crop-w;
+        crop-h <=> VideoEditor.crop-h;
+        changed => { VideoEditor.crop-changed(); }
+    }
+}
+
+export component VideoEditorView inherits VerticalLayout {
+    if !VideoEditor.ffmpeg-found: EmptyState {
+        icon: AppIcons.alert;
+        title: "FFmpeg wasn't found";
+        message: "Video Editor runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Open Tools, then restart the app.";
+        action-text: "Get FFmpeg";
+        action => { VideoEditor.get-ffmpeg(); }
+    }
+
+    if VideoEditor.ffmpeg-found && !VideoEditor.loaded: VerticalLayout {
+        padding: Theme.space-6;
+        padding-top: 0;
+        spacing: Theme.space-3;
+
+        DropZone {
+            vertical-stretch: 1;
+            drop-hover: VideoEditor.drop-hover;
+            icon: AppIcons.film;
+            title: VideoEditor.loading ? "Reading the video…" : "Drop a video here";
+            hint: "Trim, crop, rotate, flip, resize, and change its speed or volume.";
+            button-text: "Choose Video…";
+            choose => { VideoEditor.choose-file(); }
+        }
+        if VideoEditor.load-error != "": Notice {
+            text: VideoEditor.load-error;
+            tone: NoticeTone.error;
+        }
+    }
+
+    if VideoEditor.ffmpeg-found && VideoEditor.loaded: HorizontalLayout {
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding: Theme.space-6;
+            padding-top: 0;
+            spacing: Theme.space-3;
+
+            HorizontalLayout {
+                spacing: Theme.space-2;
+
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+
+                    Text {
+                        text: VideoEditor.file-name;
+                        color: Theme.text-primary;
+                        font-size: Theme.size-body;
+                        font-weight: Theme.weight-medium;
+                        overflow: elide;
+                    }
+                    Text {
+                        text: VideoEditor.file-detail;
+                        color: Theme.text-secondary;
+                        font-size: Theme.size-footnote;
+                        overflow: elide;
+                    }
+                }
+                Button {
+                    text: "Open Another…";
+                    kind: ButtonKind.plain;
+                    clicked => { VideoEditor.choose-file(); }
+                }
+                IconButton {
+                    y: (parent.height - self.height) / 2;
+                    icon: AppIcons.close;
+                    label: "Close video";
+                    enabled: !VideoEditor.exporting;
+                    clicked => { VideoEditor.close-file(); }
+                }
+            }
+
+            Preview {
+                vertical-stretch: 1;
+            }
+
+            Timeline {
+                duration: VideoEditor.duration;
+                position <=> VideoEditor.position;
+                start <=> VideoEditor.trim-start;
+                end <=> VideoEditor.trim-end;
+                position-label: VideoEditor.position-label;
+                start-label: VideoEditor.start-label;
+                end-label: VideoEditor.end-label;
+                scrubbed => { VideoEditor.scrubbed(); }
+                trimmed => { VideoEditor.trimmed(); }
+            }
+
+            HorizontalLayout {
+                Text {
+                    text: VideoEditor.start-label;
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: VideoEditor.position-label;
+                    color: Theme.text-primary;
+                    font-size: Theme.size-footnote;
+                    font-weight: Theme.weight-medium;
+                    horizontal-stretch: 1;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: VideoEditor.end-label;
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    horizontal-stretch: 1;
+                    horizontal-alignment: right;
+                }
+            }
+
+            VideoEditorExportStatus {
+                running: VideoEditor.exporting;
+                progress: VideoEditor.export-progress;
+                activity: "Exporting";
+                message: VideoEditor.export-message;
+                failed: VideoEditor.export-failed;
+                can-reveal: VideoEditor.can-reveal;
+                reveal => { VideoEditor.reveal(); }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}
