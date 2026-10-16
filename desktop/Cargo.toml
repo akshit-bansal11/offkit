@@ -26,6 +26,10 @@ open = "=5.4.4"
 arboard = "=3.7.0"
 
 # --- audio ---
+# Plays the Audio Editor's preview. Without the default features only the WAV demuxer and PCM
+# decoder (Symphonia) and the cpal output stay: no MP3/FLAC/Vorbis/AAC decoders, recording or
+# dither. cpal uses WASAPI on Windows, CoreAudio on macOS and ALSA on Linux (libasound2-dev).
+rodio = { version = "=0.23.0", default-features = false, features = ["playback", "wav"] }
 
 # --- video ---
 
