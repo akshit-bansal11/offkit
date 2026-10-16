@@ -1,8 +1,412 @@
-// Box Shadow Generator: a placeholder until the css family builds it. Its state will live in the
-// `BoxShadow` global, driven by src/tools/box_shadow.rs.
+// Box Shadow view: the rendered preview over the CSS it makes, the layer list and the active
+// layer's settings in the inspector. All state lives in the `BoxShadow` global, which Rust drives
+// (src/tools/box_shadow.rs). Also exports `ValueControl` and `CodePane`, which the other css
+// tools (Blob Generator, Glassmorphism) share.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, FocusRing, IconButton, Slider } from "../components/controls.slint";
+import { ColorWell, NumberField, SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, TextPane } from "../components/editor.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
 
-export global BoxShadow { }
+// A number in an inspector row, typed or stepped, with a slider under it for the whole range.
+export component ValueControl inherits VerticalLayout {
+    in property <string> label;
+    in-out property <float> value;
+    in property <float> minimum;
+    in property <float> maximum: 100;
+    in property <float> step: 1;
+    in property <string> unit;
+    in property <bool> first;
+    callback changed(float);
 
-export component BoxShadowView inherits PlaceholderView { }
+    InspectorRow {
+        label: root.label;
+        first: root.first;
+
+        NumberField {
+            label: root.label;
+            unit: root.unit;
+            value <=> root.value;
+            minimum: root.minimum;
+            maximum: root.maximum;
+            step: root.step;
+            changed(v) => { root.changed(v); }
+        }
+    }
+    HorizontalLayout {
+        padding-left: Theme.space-3;
+        padding-right: Theme.space-3;
+        padding-bottom: Theme.space-2;
+
+        Slider {
+            label: root.label;
+            value <=> root.value;
+            minimum: root.minimum;
+            maximum: root.maximum;
+            step: root.step;
+            changed(v) => { root.changed(v); }
+        }
+    }
+}
+
+// Generated code under a preview: a format picker when there are several formats (or the
+// title when there is one), Copy and an optional Save…, over read-only text.
+export component CodePane inherits VerticalLayout {
+    in property <string> title;
+    in property <[string]> formats;
+    in property <int> format-index;
+    in property <string> code;
+    // "Save SVG…"; no Save button while empty.
+    in property <string> save-text;
+    callback format-selected(int);
+    callback copy() -> bool;
+    callback save();
+
+    spacing: Theme.space-2;
+
+    HorizontalLayout {
+        spacing: Theme.space-2;
+        min-height: Theme.control-height;
+
+        if root.formats.length > 1: SegmentedControl {
+            label: "Output format";
+            options: root.formats;
+            current-index: root.format-index;
+            selected(i) => { root.format-selected(i); }
+        }
+        if root.formats.length <= 1: Text {
+            text: root.title;
+            color: Theme.text-secondary;
+            font-size: Theme.size-callout;
+            font-weight: Theme.weight-medium;
+            vertical-alignment: center;
+            accessible-role: none;
+        }
+        Rectangle { horizontal-stretch: 1; }
+        if root.save-text != "": Button {
+            text: root.save-text;
+            kind: ButtonKind.plain;
+            clicked => { root.save(); }
+        }
+        CopyButton {
+            copy => { return root.copy(); }
+        }
+    }
+    TextPane {
+        label: root.formats.length > 1 ? root.formats[root.format-index] : root.title;
+        text: root.code;
+        read-only: true;
+        height: Theme.css-code-height;
+        vertical-stretch: 0;
+    }
+}
+
+export struct BoxShadowRow {
+    label: string,
+    // The layer's colour at its opacity.
+    swatch: color,
+    inset: bool,
+}
+
+// Which colour field changed: the active layer's, the box's or the preview background's.
+export enum BoxShadowColor { layer, box, background }
+
+export global BoxShadow {
+    in property <[BoxShadowRow]> rows;
+    in property <int> active;
+    // "Layer 2": the active layer's name.
+    in property <string> active-label;
+
+    // The active layer.
+    in-out property <float> x;
+    in-out property <float> y;
+    in-out property <float> blur;
+    in-out property <float> spread;
+    in-out property <float> opacity;
+    in-out property <bool> inset;
+    in-out property <string> layer-hex;
+    in property <color> layer-color;
+    in property <bool> layer-invalid;
+
+    in-out property <string> box-hex;
+    in property <color> box-color;
+    in property <bool> box-invalid;
+    in-out property <string> background-hex;
+    in property <color> background-color;
+    in property <bool> background-invalid;
+
+    in property <image> preview;
+    in property <string> css;
+    in property <string> error;
+
+    callback select(int);
+    callback add();
+    callback remove(int);
+    // Moves layer `index` up (-1) or down (+1) the list.
+    callback move-layer(int, int);
+    // A number or the inset choice of the active layer changed.
+    callback layer-changed();
+    callback color-edited(BoxShadowColor, string);
+    callback color-accepted(BoxShadowColor, string);
+    // The preview area's size, in logical pixels.
+    callback resized(float, float);
+    callback copy() -> bool;
+}
+
+component LayerRow {
+    in property <BoxShadowRow> layer;
+    in property <bool> selected;
+    in property <bool> first;
+    in property <bool> can-move-up;
+    in property <bool> can-move-down;
+    in property <bool> can-remove;
+    callback select();
+    callback move-up();
+    callback move-down();
+    callback remove();
+
+    min-height: inner.min-height;
+    preferred-height: inner.preferred-height;
+    accessible-role: list-item;
+    accessible-label: root.layer.label + (root.layer.inset ? ", inset" : "");
+    accessible-item-selectable: true;
+    accessible-item-selected: root.selected;
+    accessible-action-default => { root.select(); }
+
+    pill := Rectangle {
+        x: Theme.space-1;
+        y: Theme.space-1;
+        width: parent.width - 2 * Theme.space-1;
+        height: parent.height - 2 * Theme.space-1;
+        border-radius: Theme.radius-nested;
+        background: root.selected ? Theme.selection-fill : ta.has-hover ? Theme.bg-hover : transparent;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+
+        FocusRing { has-focus: fs.has-focus; radius: parent.border-radius; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.select(); }
+    }
+
+    fs := FocusScope {
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.select();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    inner := InspectorRow {
+        width: 100%;
+        height: 100%;
+        label: root.layer.label;
+        detail: root.layer.inset ? "Inset" : "Outset";
+        first: root.first;
+
+        // Decorative: the row's name says which layer it is.
+        VerticalLayout {
+            alignment: center;
+
+            Rectangle {
+                width: Theme.icon-size;
+                height: Theme.icon-size;
+                border-radius: Theme.radius-nested;
+                background: root.layer.swatch;
+                border-width: 1px;
+                border-color: Theme.border-control;
+            }
+        }
+        IconButton {
+            icon: AppIcons.move-up;
+            label: "Move " + root.layer.label + " up";
+            enabled: root.can-move-up;
+            clicked => { root.move-up(); }
+        }
+        IconButton {
+            icon: AppIcons.move-down;
+            label: "Move " + root.layer.label + " down";
+            enabled: root.can-move-down;
+            clicked => { root.move-down(); }
+        }
+        IconButton {
+            icon: AppIcons.trash;
+            label: "Delete " + root.layer.label;
+            enabled: root.can-remove;
+            clicked => { root.remove(); }
+        }
+    }
+}
+
+component Settings inherits Inspector {
+    action-text: "Add Shadow";
+    can-run: true;
+    run => { BoxShadow.add(); }
+
+    InspectorSection {
+        title: "Layers";
+        footnote: "The first layer is drawn on top, as in CSS.";
+
+        for layer[i] in BoxShadow.rows: LayerRow {
+            layer: layer;
+            first: i == 0;
+            selected: i == BoxShadow.active;
+            can-move-up: i > 0;
+            can-move-down: i < BoxShadow.rows.length - 1;
+            can-remove: BoxShadow.rows.length > 1;
+            select => { BoxShadow.select(i); }
+            move-up => { BoxShadow.move-layer(i, -1); }
+            move-down => { BoxShadow.move-layer(i, 1); }
+            remove => { BoxShadow.remove(i); }
+        }
+    }
+
+    InspectorSection {
+        title: BoxShadow.active-label;
+
+        ValueControl {
+            label: "X offset";
+            unit: "px";
+            first: true;
+            minimum: -100;
+            value <=> BoxShadow.x;
+            changed => { BoxShadow.layer-changed(); }
+        }
+        ValueControl {
+            label: "Y offset";
+            unit: "px";
+            minimum: -100;
+            value <=> BoxShadow.y;
+            changed => { BoxShadow.layer-changed(); }
+        }
+        ValueControl {
+            label: "Blur";
+            unit: "px";
+            maximum: 150;
+            value <=> BoxShadow.blur;
+            changed => { BoxShadow.layer-changed(); }
+        }
+        ValueControl {
+            label: "Spread";
+            unit: "px";
+            minimum: -50;
+            value <=> BoxShadow.spread;
+            changed => { BoxShadow.layer-changed(); }
+        }
+        ValueControl {
+            label: "Opacity";
+            unit: "%";
+            value <=> BoxShadow.opacity;
+            changed => { BoxShadow.layer-changed(); }
+        }
+        InspectorRow {
+            label: "Colour";
+
+            ColorWell {
+                label: "Shadow colour";
+                hex <=> BoxShadow.layer-hex;
+                color: BoxShadow.layer-color;
+                invalid: BoxShadow.layer-invalid;
+                edited(text) => { BoxShadow.color-edited(BoxShadowColor.layer, text); }
+                accepted(text) => { BoxShadow.color-accepted(BoxShadowColor.layer, text); }
+            }
+        }
+        InspectorRow {
+            label: "Position";
+
+            SegmentedControl {
+                label: "Position";
+                options: ["Outset", "Inset"];
+                current-index: BoxShadow.inset ? 1 : 0;
+                selected(i) => {
+                    BoxShadow.inset = i == 1;
+                    BoxShadow.layer-changed();
+                }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Preview";
+        footnote: "The box is 256 px square with a 24 px radius.";
+
+        InspectorRow {
+            label: "Box";
+            first: true;
+
+            ColorWell {
+                label: "Box colour";
+                hex <=> BoxShadow.box-hex;
+                color: BoxShadow.box-color;
+                invalid: BoxShadow.box-invalid;
+                edited(text) => { BoxShadow.color-edited(BoxShadowColor.box, text); }
+                accepted(text) => { BoxShadow.color-accepted(BoxShadowColor.box, text); }
+            }
+        }
+        InspectorRow {
+            label: "Background";
+
+            ColorWell {
+                label: "Background colour";
+                hex <=> BoxShadow.background-hex;
+                color: BoxShadow.background-color;
+                invalid: BoxShadow.background-invalid;
+                edited(text) => { BoxShadow.color-edited(BoxShadowColor.background, text); }
+                accepted(text) => { BoxShadow.color-accepted(BoxShadowColor.background, text); }
+            }
+        }
+    }
+}
+
+export component BoxShadowView inherits VerticalLayout {
+    HorizontalLayout {
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding: Theme.space-6;
+            padding-top: 0;
+            spacing: Theme.space-4;
+
+            preview := Rectangle {
+                vertical-stretch: 1;
+                min-height: 240px;
+                border-radius: Theme.radius-surface;
+                border-width: 1px;
+                border-color: Theme.separator;
+                clip: true;
+                init => { BoxShadow.resized(self.width / 1px, self.height / 1px); }
+                changed width => { BoxShadow.resized(self.width / 1px, self.height / 1px); }
+                changed height => { BoxShadow.resized(self.width / 1px, self.height / 1px); }
+
+                Image {
+                    width: 100%;
+                    height: 100%;
+                    source: BoxShadow.preview;
+                    image-fit: fill;
+                    accessible-role: image;
+                    accessible-label: "Preview of the shadows on a box";
+                }
+            }
+
+            CodePane {
+                title: "CSS";
+                code: BoxShadow.css;
+                copy => { return BoxShadow.copy(); }
+            }
+
+            if BoxShadow.error != "": Notice {
+                text: BoxShadow.error;
+                tone: NoticeTone.error;
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}
