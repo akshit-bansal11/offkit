@@ -321,7 +321,13 @@ fn create(app: &AppWindow) {
         // `out` is dropped, deleting the partial archive, on any error or panic.
         let run = || -> Result<(PathBuf, Vec<String>), JobError> {
             let plan = archive::plan(&roots, Some(out.path()), MAX_ENTRIES, &cancel)?;
-            let changed = archive::write(&plan, target, level, out.path(), &cancel, &progress)?;
+            // NOTE: `Reserved` doesn't keep the handle from its `create_new`, so this opens the
+            // reserved (empty) file once, never creating it, and `write` uses only that handle.
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .open(out.path())
+                .map_err(|e| JobError::Failed(format!("Couldn't open the archive file: {e}")))?;
+            let changed = archive::write(&plan, target, level, file, &cancel, &progress)?;
             let mut left_out = plan.skipped;
             left_out.extend(changed);
             let saved = out
