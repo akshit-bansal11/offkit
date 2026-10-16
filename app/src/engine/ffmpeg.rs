@@ -47,7 +47,7 @@ impl Ffmpeg {
     }
 
     /// Reads a file's streams and container. Also the gate for untrusted input: anything that
-    /// isn't a single local media file (see `INDIRECT_DEMUXERS`) is rejected here, and
+    /// isn't a single local media file (see `ALLOWED_DEMUXERS`) is rejected here, and
     /// `convert` probes again right before running, so a file swapped after it was added
     /// can't slip through.
     pub fn probe(&self, path: &Path) -> anyhow::Result<MediaInfo> {
@@ -64,6 +64,9 @@ impl Ffmpeg {
             .output()
             .context("couldn't run ffprobe")?;
         if !out.status.success() {
+            if String::from_utf8_lossy(&out.stderr).contains("not on whitelist") {
+                bail!(UNSUPPORTED);
+            }
             bail!("Not a video FFmpeg can read");
         }
         MediaInfo::from_ffprobe_json(&out.stdout)
@@ -241,17 +244,74 @@ impl ConvertError {
 
 // ---- Probing ------------------------------------------------------------------------------
 
-/// Demuxers that read other files or URLs named inside the input (playlists, file lists).
-/// Fed a crafted file they fetch remote URLs or pull unrelated local files into the output,
-/// so they are refused outright. Names as ffprobe's `format_name` reports them.
-const INDIRECT_DEMUXERS: &[&str] = &["hls", "dash", "concat", "tee", "webm_dash_manifest"];
+/// The only demuxers untrusted input may use: an allowlist, because a denylist can never
+/// catch every demuxer that opens other files, URLs or scripts (hls, concat, imf, sdp, …).
+/// Self-contained single-file containers and elementary streams, video and audio, matched
+/// against the first name of ffprobe's `format_name`. `mov` is safe because its external
+/// references (`enable_drefs`) are off by default.
+const ALLOWED_DEMUXERS: &[&str] = &[
+    "mov",
+    "matroska",
+    "avi",
+    "mpegts",
+    "mpeg",
+    "mpegvideo",
+    "flv",
+    "asf",
+    "ogg",
+    "mxf",
+    "nut",
+    "ivf",
+    "m4v",
+    "h264",
+    "hevc",
+    "gif",
+    "mp3",
+    "wav",
+    "w64",
+    "flac",
+    "aac",
+    "aiff",
+    "caf",
+    "amr",
+    "ac3",
+    "eac3",
+    "dts",
+    "truehd",
+    "wv",
+    "ape",
+    "tta",
+    "au",
+    "mpc",
+    "mpc8",
+    "tak",
+    "dsf",
+    "xwma",
+];
+
+const UNSUPPORTED: &str = "This file type isn't supported";
+
+/// The demuxer to pin for a probed file, or why the file is refused.
+fn allowed_demuxer(format_name: &str) -> anyhow::Result<&str> {
+    let first = format_name.split(',').next().unwrap_or_default();
+    if !ALLOWED_DEMUXERS.contains(&first) {
+        bail!(UNSUPPORTED);
+    }
+    Ok(first)
+}
 
 /// The input half of every ffmpeg/ffprobe command line; nothing else may add `-i`.
 /// `-protocol_whitelist file` stops the input (and anything it references) from reaching the
-/// network, and the path is made absolute so a name like `http:x` can't parse as a protocol.
+/// network, `-format_whitelist` limits ffmpeg to `ALLOWED_DEMUXERS`, and the path is made absolute so a name like `http:x` can't parse as a protocol.
 /// `format` pins the demuxer, so the file is read exactly as it was probed.
 fn input_args(path: &Path, format: Option<&str>) -> io::Result<Vec<OsString>> {
-    let mut args: Vec<OsString> = vec!["-protocol_whitelist".into(), "file".into()];
+    let mut args: Vec<OsString> = vec![
+        "-protocol_whitelist".into(),
+        "file".into(),
+        // Refused at open, before a demuxer reads a byte: some (avisynth) run code on open.
+        "-format_whitelist".into(),
+        ALLOWED_DEMUXERS.join(",").into(),
+    ];
     if let Some(format) = format {
         args.extend(["-f".into(), format.into()]);
     }
@@ -296,16 +356,7 @@ impl MediaInfo {
             .as_ref()
             .and_then(|f| f.format_name.clone())
             .unwrap_or_default();
-        if format_name
-            .split(',')
-            .any(|name| INDIRECT_DEMUXERS.contains(&name))
-        {
-            bail!("Playlists and file lists aren't supported");
-        }
-        let format = match format_name.split(',').next() {
-            Some(name) if !name.is_empty() => name.to_owned(),
-            _ => bail!("Not a video FFmpeg can read"),
-        };
+        let format = allowed_demuxer(&format_name)?.to_owned();
         let of = |kind: &str| {
             out.streams
                 .iter()
@@ -1016,29 +1067,64 @@ mod tests {
         );
         let input = std::path::absolute("in.mov").unwrap();
         let input = input.to_string_lossy();
+        let formats = ALLOWED_DEMUXERS.join(",");
+        let hardened = ["-protocol_whitelist", "file", "-format_whitelist", &formats];
         assert!(has(
             &a,
-            &["-protocol_whitelist", "file", "-f", "mov", "-i", &input]
+            &[&hardened[..], &["-f", "mov", "-i", &input]].concat()
         ));
         assert_eq!(a.iter().filter(|x| *x == "-i").count(), 1);
         // A relative name that looks like a URL becomes an absolute file path.
         let probe: Vec<_> = input_args(Path::new("http:evil"), None).unwrap();
-        assert_eq!(
-            probe[..3],
-            ["-protocol_whitelist", "file", "-i"].map(OsString::from)
-        );
-        assert!(Path::new(&probe[3]).is_absolute());
+        assert_eq!(probe[4], "-i");
+        assert!(Path::new(&probe[5]).is_absolute());
     }
 
     #[test]
-    fn playlist_and_list_demuxers_are_refused() {
-        for name in ["hls", "dash", "concat", "tee", "webm_dash_manifest"] {
+    fn only_allowlisted_first_demuxers_pass() {
+        let probe = |name: &str| {
             let json = format!(
                 r#"{{"streams":[{{"codec_type":"video"}}],"format":{{"format_name":"{name}"}}}}"#
             );
-            let err = MediaInfo::from_ffprobe_json(json.as_bytes()).unwrap_err();
-            assert_eq!(err.to_string(), "Playlists and file lists aren't supported");
+            MediaInfo::from_ffprobe_json(json.as_bytes()).map(|i| i.format)
+        };
+        assert_eq!(probe("mov,mp4,m4a,3gp,3g2,mj2").unwrap(), "mov");
+        assert_eq!(probe("matroska,webm").unwrap(), "matroska");
+        for name in [
+            "hls",
+            "dash",
+            "concat",
+            "tee",
+            "imf",
+            "sdp",
+            "rtsp",
+            "avisynth",
+            "vapoursynth",
+            "ffmetadata",
+            "image2",
+            "image2pipe",
+            "png_pipe",
+            "lavfi",
+            "vobsub",
+            "webm_dash_manifest",
+            "",
+            "unknown",
+            // Only the first entry counts, so an allowed name later in the list doesn't help.
+            "concat,mov",
+        ] {
+            let err = probe(name).unwrap_err().to_string();
+            assert_eq!(err, "This file type isn't supported", "{name:?}");
         }
+    }
+
+    #[test]
+    fn input_whitelist_is_the_allowlist() {
+        let a = input_args(Path::new("x.mp4"), None).unwrap();
+        let joined = ALLOWED_DEMUXERS.join(",");
+        assert_eq!(
+            a[2..4],
+            ["-format_whitelist", joined.as_str()].map(OsString::from)
+        );
     }
 
     #[test]
@@ -1438,7 +1524,7 @@ Error opening output file o4.mkv.";
             assert!(started.elapsed() < std::time::Duration::from_secs(5));
         }
         let message = ff.probe(&relative).unwrap_err().to_string();
-        assert_eq!(message, "Playlists and file lists aren't supported");
+        assert_eq!(message, "This file type isn't supported");
 
         // Even if probe were bypassed, ffmpeg itself refuses the network for the playlist.
         let out = command(&ff.ffmpeg)
@@ -1450,6 +1536,92 @@ Error opening output file o4.mkv.";
             .unwrap();
         assert!(!out.status.success());
         assert!(String::from_utf8_lossy(&out.stderr).contains("not on whitelist"));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Files ffmpeg must refuse at open via `-format_whitelist`, not only in our post-check.
+    #[test]
+    fn non_allowlisted_formats_are_refused_by_ffprobe_itself() {
+        let Some((ff, dir)) = real_ffmpeg("formats-refused") else {
+            return;
+        };
+        let meta = dir.join("meta.mp4");
+        fs::write(&meta, ";FFMETADATA1\ntitle=x\n").unwrap();
+        let sdp = dir.join("sdp.mp4");
+        fs::write(
+            &sdp,
+            "v=0\no=- 0 0 IN IP4 127.0.0.1\ns=x\nc=IN IP4 127.0.0.1\nt=0 0\nm=video 9 RTP/AVP 96\na=rtpmap:96 H264/90000\n",
+        )
+        .unwrap();
+        for input in [&meta, &sdp] {
+            let out = command(&ff.ffprobe)
+                .args(["-v", "error"])
+                .args(input_args(input, None).unwrap())
+                .output()
+                .unwrap();
+            assert!(!out.status.success());
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            assert!(stderr.contains("Format not on whitelist"), "{stderr}");
+            assert_eq!(
+                ff.probe(input).unwrap_err().to_string(),
+                "This file type isn't supported"
+            );
+        }
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// What this tool (and the coming audio tools) produce must get through the allowlist.
+    #[test]
+    fn common_formats_pass_the_allowlist() {
+        let Some((ff, dir)) = real_ffmpeg("formats-ok") else {
+            return;
+        };
+        let video = "testsrc=duration=1:size=320x240:rate=25";
+        let cases: [(&str, &str, &str); 11] = [
+            ("a.mp4", video, "-c:v libx264 -pix_fmt yuv420p"),
+            ("a.mkv", video, "-c:v libx264 -pix_fmt yuv420p"),
+            ("a.webm", video, "-c:v libvpx-vp9 -deadline realtime"),
+            ("a.mov", video, "-c:v libx264 -pix_fmt yuv420p"),
+            ("a.avi", video, "-c:v mpeg4"),
+            ("a.gif", video, ""),
+            ("a.mp3", "sine=duration=1", ""),
+            ("a.wav", "sine=duration=1", ""),
+            ("a.flac", "sine=duration=1", ""),
+            ("a.opus", "sine=duration=1", "-c:a libopus"),
+            ("a.m4a", "sine=duration=1", "-c:a aac"),
+        ];
+        for (name, source, codec) in cases {
+            let path = dir.join(name);
+            let status = command(&ff.ffmpeg)
+                .args(["-v", "error", "-y", "-f", "lavfi", "-i", source])
+                .args(codec.split_whitespace())
+                .arg(&path)
+                .status()
+                .unwrap();
+            assert!(status.success(), "{name}");
+            let out = command(&ff.ffprobe)
+                .args([
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=format_name",
+                    "-of",
+                    "default=nw=1:nk=1",
+                ])
+                .args(input_args(&path, None).unwrap())
+                .output()
+                .unwrap();
+            assert!(
+                out.status.success(),
+                "{name}: {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+            let format_name = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+            assert!(
+                allowed_demuxer(&format_name).is_ok(),
+                "{name}: {format_name}"
+            );
+        }
         fs::remove_dir_all(&dir).unwrap();
     }
 }
