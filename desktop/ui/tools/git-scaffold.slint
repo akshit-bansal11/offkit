@@ -1,8 +1,201 @@
-// Git Scaffold: a placeholder until the dev family builds it. Its state will live in the
-// `GitScaffold` global, driven by src/tools/git_scaffold.rs.
+// Git Scaffold view (shown as Directory Scaffold): a local folder's tree as text or a Markdown
+// list, with the options in an inspector. All state lives in the `GitScaffold` global, which
+// Rust drives (src/tools/git_scaffold.rs); this file only lays it out.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, Select, Switch } from "../components/controls.slint";
+import { SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
+import { DropZone } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
 
-export global GitScaffold { }
+export enum ScaffoldFormat { tree, markdown }
+export enum ScaffoldSort { folders-first, name }
 
-export component GitScaffoldView inherits PlaceholderView { }
+export global GitScaffold {
+    // The chosen folder's name; empty until one is chosen.
+    in property <string> folder;
+    // "project · 12 folders · 210 files".
+    in property <string> summary;
+    // The start of the output, for the pane; Copy and Save use all of it.
+    in property <string> output;
+    // The output was longer than the pane shows.
+    in property <bool> cut;
+    in property <bool> walking;
+    in property <bool> drop-hover;
+    in property <string> error;
+    in property <string> note;
+
+    in-out property <ScaffoldFormat> format;
+    in-out property <ScaffoldSort> sort;
+    in-out property <bool> show-hidden;
+    in-out property <bool> folders-only;
+    in-out property <bool> use-gitignore: true;
+    in property <[string]> depths;
+    in-out property <int> depth-index;
+
+    callback choose-folder();
+    // Any option that changes what the walk finds.
+    callback options-changed();
+    callback format-changed();
+    callback stop();
+    callback copy-output() -> bool;
+    callback save-output();
+}
+
+component SwitchRow inherits InspectorRow {
+    in-out property <bool> checked;
+    callback toggled();
+
+    VerticalLayout {
+        alignment: center;
+
+        Switch {
+            label: root.label;
+            checked <=> root.checked;
+            toggled => { root.toggled(); }
+        }
+    }
+}
+
+component Settings inherits Inspector {
+    action-text: "Choose Folder…";
+    stop-text: "Stop";
+    can-run: true;
+    running: GitScaffold.walking;
+    run => { GitScaffold.choose-folder(); }
+    stop => { GitScaffold.stop(); }
+
+    InspectorSection {
+        title: "Show";
+
+        InspectorRow {
+            label: "Depth";
+            first: true;
+
+            Select {
+                label: "Depth";
+                options: GitScaffold.depths;
+                current-index <=> GitScaffold.depth-index;
+                selected => { GitScaffold.options-changed(); }
+            }
+        }
+        SwitchRow {
+            label: "Hidden files";
+            checked <=> GitScaffold.show-hidden;
+            toggled => { GitScaffold.options-changed(); }
+        }
+        SwitchRow {
+            label: "Folders only";
+            checked <=> GitScaffold.folders-only;
+            toggled => { GitScaffold.options-changed(); }
+        }
+    }
+
+    InspectorSection {
+        title: "Order";
+
+        VerticalLayout {
+            padding: Theme.space-2;
+
+            SegmentedControl {
+                label: "Order";
+                options: ["Folders first", "By name"];
+                current-index: GitScaffold.sort == ScaffoldSort.name ? 1 : 0;
+                selected(i) => {
+                    GitScaffold.sort = i == 1 ? ScaffoldSort.name : ScaffoldSort.folders-first;
+                    GitScaffold.options-changed();
+                }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Ignore";
+        footnote: "Leaves out what the folder's .gitignore files exclude, and the .git folder.";
+
+        SwitchRow {
+            label: "Use .gitignore";
+            first: true;
+            checked <=> GitScaffold.use-gitignore;
+            toggled => { GitScaffold.options-changed(); }
+        }
+    }
+}
+
+export component GitScaffoldView inherits VerticalLayout {
+    property <bool> markdown: GitScaffold.format == ScaffoldFormat.markdown;
+
+    HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-4;
+
+                if GitScaffold.folder == "": DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: GitScaffold.drop-hover;
+                    icon: AppIcons.folder-tree;
+                    title: "Drop a folder here";
+                    hint: "See its tree as text or a Markdown list, to copy or save. Nothing leaves your computer.";
+                    button-text: "Choose Folder…";
+                    choose => { GitScaffold.choose-folder(); }
+                }
+
+                if GitScaffold.folder != "": Pane {
+                    vertical-stretch: 1;
+
+                    PaneHeader {
+                        title: GitScaffold.summary;
+
+                        SegmentedControl {
+                            label: "Format";
+                            options: ["Tree", "Markdown"];
+                            current-index: root.markdown ? 1 : 0;
+                            selected(i) => {
+                                GitScaffold.format = i == 1 ? ScaffoldFormat.markdown : ScaffoldFormat.tree;
+                                GitScaffold.format-changed();
+                            }
+                        }
+                        CopyButton {
+                            enabled: GitScaffold.output != "";
+                            copy => { return GitScaffold.copy-output(); }
+                        }
+                        Button {
+                            text: "Save…";
+                            kind: ButtonKind.plain;
+                            enabled: GitScaffold.output != "";
+                            clicked => { GitScaffold.save-output(); }
+                        }
+                    }
+                    TextPane {
+                        label: root.markdown ? "Markdown" : "Tree";
+                        text: GitScaffold.output;
+                        read-only: true;
+                        drop-hover: GitScaffold.drop-hover;
+                        placeholder: "Reading the folder…";
+                    }
+                }
+
+                if GitScaffold.error != "": Notice {
+                    text: GitScaffold.error;
+                    tone: NoticeTone.error;
+                }
+                if GitScaffold.error == "" && GitScaffold.note != "": Notice {
+                    text: GitScaffold.note;
+                }
+                if GitScaffold.cut: Notice {
+                    text: "The pane shows the start of the tree. Copy and Save use all of it.";
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}
