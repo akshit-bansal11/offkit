@@ -14,9 +14,10 @@ use std::collections::HashSet;
 use std::ffi::OsString;
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::sync::{Arc, OnceLock};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, anyhow, bail};
 use serde::Deserialize;
@@ -77,20 +78,29 @@ impl Ffmpeg {
     /// through. Accepts audio-only files. `media` is how the tool names what it expects, for
     /// the error its row shows: "Not {media} FFmpeg can read" (e.g. "a video").
     pub fn probe(&self, path: &Path, media: &str) -> anyhow::Result<MediaInfo> {
-        let out = command(&self.ffprobe)
-            .args([
-                "-v",
-                "error",
-                "-print_format",
-                "json",
-                "-show_entries",
-                "format=duration,format_name:stream=codec_type,codec_name,width,height",
-            ])
-            .args(input_args(path, None)?)
-            .output()
-            .context("couldn't run ffprobe")?;
+        self.probe_cancellable(path, media, None)
+    }
+
+    /// `probe`, with ffprobe killed as soon as `cancel` is.
+    fn probe_cancellable(
+        &self,
+        path: &Path,
+        media: &str,
+        cancel: Option<&CancelToken>,
+    ) -> anyhow::Result<MediaInfo> {
+        let mut cmd = command(&self.ffprobe);
+        cmd.args([
+            "-v",
+            "error",
+            "-print_format",
+            "json",
+            "-show_entries",
+            "format=duration,format_name:stream=codec_type,codec_name,width,height",
+        ])
+        .args(input_args(path, None)?);
+        let out = run_ffprobe(cmd, cancel)?;
         if !out.status.success() {
-            if String::from_utf8_lossy(&out.stderr).contains("not on whitelist") {
+            if out.stderr.contains("not on whitelist") {
                 bail!(UNSUPPORTED);
             }
             bail!("Not {media} FFmpeg can read");
@@ -223,9 +233,9 @@ impl Ffmpeg {
         let infos = run
             .inputs
             .iter()
-            .map(|input| self.probe(input, run.media))
+            .map(|input| self.probe_cancellable(input, run.media, Some(cancel)))
             .collect::<anyhow::Result<Vec<_>>>()
-            .map_err(JobError::failed)?;
+            .map_err(|e| probe_failure(e, cancel))?;
         let output_args = prepare(&infos).map_err(JobError::failed)?;
         let inputs: Vec<(&Path, &str)> = run
             .inputs
@@ -254,14 +264,10 @@ impl Ffmpeg {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| JobError::Failed(format!("Couldn't start FFmpeg: {e}")))?;
-        let (Some(stdout), Some(mut stderr)) = (child.stdout.take(), child.stderr.take()) else {
+        let (Some(stdout), Some(stderr)) = (child.stdout.take(), child.stderr.take()) else {
             return Err(JobError::Failed("FFmpeg output unavailable".into()));
         };
-        let stderr_reader = thread::spawn(move || {
-            let mut text = String::new();
-            let _ = stderr.read_to_string(&mut text);
-            text
-        });
+        let stderr_reader = thread::spawn(move || read_tail(stderr, STDERR_MAX));
         cancel.attach(child);
 
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
@@ -290,6 +296,101 @@ impl Ffmpeg {
             None => Err(JobError::Failed("FFmpeg process lost".into())),
         }
     }
+}
+
+/// How long ffprobe may take to read one file before it is killed.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(30);
+/// The most of ffprobe's JSON read; a real file's is a few KiB.
+const PROBE_STDOUT_MAX: usize = 8 << 20;
+/// The most stderr kept from ffprobe or FFmpeg; the end is what holds the error.
+const STDERR_MAX: usize = 64 << 10;
+/// How often a running ffprobe is checked for exit, timeout and cancel.
+const PROBE_POLL: Duration = Duration::from_millis(25);
+
+struct ProbeOutput {
+    status: ExitStatus,
+    stdout: Vec<u8>,
+    stderr: String,
+}
+
+/// Runs ffprobe with capped output, killed after `PROBE_TIMEOUT` or once `cancel` is. A
+/// cancelled probe is an error; callers with a token turn it into `Cancelled`
+/// (`probe_failure`). The child stays here, not in the token, so the timeout can kill it too.
+fn run_ffprobe(mut cmd: Command, cancel: Option<&CancelToken>) -> anyhow::Result<ProbeOutput> {
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("couldn't run ffprobe")?;
+    let (Some(stdout), Some(stderr)) = (child.stdout.take(), child.stderr.take()) else {
+        bail!("ffprobe output unavailable");
+    };
+    let stdout = thread::spawn(move || read_head(stdout, PROBE_STDOUT_MAX));
+    let stderr = thread::spawn(move || read_tail(stderr, STDERR_MAX));
+    let deadline = Instant::now() + PROBE_TIMEOUT;
+    let outcome = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Ok(status),
+            Ok(None) if cancel.is_some_and(CancelToken::is_cancelled) => {
+                break Err(anyhow!("Cancelled"));
+            }
+            Ok(None) if Instant::now() >= deadline => {
+                break Err(anyhow!("FFmpeg took too long to read this file"));
+            }
+            Ok(None) => thread::sleep(PROBE_POLL),
+            Err(e) => break Err(anyhow!("ffprobe didn't finish: {e}")),
+        }
+    };
+    if outcome.is_err() {
+        // Already exited is fine; the pipes close either way, which ends the readers.
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    let (stdout, overflowed) = stdout.join().unwrap_or_default();
+    let stderr = stderr.join().unwrap_or_default();
+    let status = outcome?;
+    if overflowed {
+        bail!("FFmpeg returned too much data for this file");
+    }
+    Ok(ProbeOutput {
+        status,
+        stdout,
+        stderr: String::from_utf8_lossy(&stderr).into_owned(),
+    })
+}
+
+/// A failed probe inside a job: `Cancelled` when the job was cancelled, else its message.
+fn probe_failure(e: anyhow::Error, cancel: &CancelToken) -> JobError {
+    if cancel.is_cancelled() {
+        JobError::Cancelled
+    } else {
+        JobError::failed(e)
+    }
+}
+
+/// Reads to the end, keeping the first `cap` bytes; the flag says whether more followed.
+fn read_head(mut reader: impl Read, cap: usize) -> (Vec<u8>, bool) {
+    let mut kept = Vec::new();
+    // A read error just ends the output; the exit status carries the failure.
+    let _ = (&mut reader).take(cap as u64).read_to_end(&mut kept);
+    let more = io::copy(&mut reader, &mut io::sink()).is_ok_and(|n| n > 0);
+    (kept, more)
+}
+
+/// Reads to the end, keeping the last `cap` bytes, as text.
+fn read_tail(mut reader: impl Read, cap: usize) -> String {
+    let mut kept: Vec<u8> = Vec::new();
+    let mut chunk = [0u8; 8192];
+    while let Ok(n) = reader.read(&mut chunk) {
+        if n == 0 {
+            break;
+        }
+        kept.extend_from_slice(&chunk[..n]);
+        if kept.len() > cap {
+            kept.drain(..kept.len() - cap);
+        }
+    }
+    String::from_utf8_lossy(&kept).into_owned()
 }
 
 /// A command for an FFmpeg binary that never opens a console window on Windows.
@@ -376,6 +477,9 @@ const ALLOWED_DEMUXERS: &[&str] = &[
     "dsf",
     "xwma",
 ];
+
+/// The longest declared duration believed (48 h); a header can claim anything.
+const MAX_DURATION_SECS: f64 = 48.0 * 3600.0;
 
 const UNSUPPORTED: &str = "This file type isn't supported";
 /// How the Video Converter names its inputs in `probe`'s error.
@@ -476,7 +580,8 @@ impl MediaInfo {
             duration: out
                 .format
                 .and_then(|f| f.duration)
-                .and_then(|d| d.parse().ok()),
+                .and_then(|d| d.parse::<f64>().ok())
+                .filter(|d| d.is_finite() && *d > 0.0 && *d <= MAX_DURATION_SECS),
             width: video.and_then(|s| s.width),
             height: video.and_then(|s| s.height),
             video_codec: video.and_then(|s| s.codec_name.clone()),
@@ -1469,6 +1574,33 @@ Error opening output file o4.mkv.";
 
         assert_eq!(summarize_error("\nConversion failed!\n"), None);
         assert!(summarize_error(&"x".repeat(300)).unwrap().ends_with('…'));
+    }
+
+    #[test]
+    fn declared_duration_must_be_finite_positive_and_at_most_48_hours() {
+        let duration = |d: &str| {
+            let json = format!(
+                r#"{{"streams":[],"format":{{"duration":"{d}","format_name":"mp3"}}}}"#
+            );
+            MediaInfo::from_ffprobe_json(json.as_bytes())
+                .unwrap()
+                .duration
+        };
+        assert_eq!(duration("61.5"), Some(61.5));
+        assert_eq!(duration("172800"), Some(172_800.0));
+        for bad in ["1e9", "NaN", "inf", "-5", "0", "172800.1"] {
+            assert_eq!(duration(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn capped_readers_keep_the_head_or_the_tail() {
+        let (head, more) = read_head(&b"abcdef"[..], 4);
+        assert_eq!((head.as_slice(), more), (&b"abcd"[..], true));
+        let (head, more) = read_head(&b"abcd"[..], 4);
+        assert_eq!((head.as_slice(), more), (&b"abcd"[..], false));
+        let long = "x".repeat(20_000) + "end";
+        assert_eq!(read_tail(long.as_bytes(), 10), "xxxxxxxend");
     }
 
     #[test]
