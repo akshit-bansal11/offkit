@@ -11,7 +11,7 @@
 //! Never open a dialog inside a tool's `with()`: the dialog's nested event loop can run posted
 //! closures, which borrow the tool's state again.
 
-use std::fs::{self, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -57,6 +57,8 @@ pub fn choose_save_path(title: &str, file_name: &str) -> Option<PathBuf> {
 #[must_use = "dropping a Reserved deletes its file"]
 pub struct Reserved {
     path: PathBuf,
+    /// The handle from `create_new`, until a writer takes it.
+    file: Option<File>,
     /// The file the user chose to replace; `keep` moves the finished output over it.
     replaces: Option<PathBuf>,
     kept: bool,
@@ -65,6 +67,13 @@ pub struct Reserved {
 impl Reserved {
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// The handle `create_new` opened, so writers never reopen `path()` by name. Once only.
+    pub fn take_file(&mut self) -> io::Result<File> {
+        self.file
+            .take()
+            .ok_or_else(|| io::Error::other("the output file handle was already taken"))
     }
 
     /// Keeps the finished output and returns where it now is. For `reserve_replacing`, this is
@@ -121,7 +130,7 @@ fn stem_of(path: &Path) -> String {
 
 /// Creates the first free `candidate_name` in `dir` atomically (`create_new`), so two jobs
 /// racing for one name never share a file.
-fn create_first_free(dir: &Path, stem: &str, ext: &str) -> io::Result<PathBuf> {
+fn create_first_free(dir: &Path, stem: &str, ext: &str) -> io::Result<(PathBuf, File)> {
     for n in 0..10_000 {
         let candidate = dir.join(candidate_name(stem, ext, n));
         match OpenOptions::new()
@@ -129,7 +138,7 @@ fn create_first_free(dir: &Path, stem: &str, ext: &str) -> io::Result<PathBuf> {
             .create_new(true)
             .open(&candidate)
         {
-            Ok(_) => return Ok(candidate),
+            Ok(file) => return Ok((candidate, file)),
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
             Err(e) => return Err(e),
         }
@@ -141,8 +150,10 @@ fn create_first_free(dir: &Path, stem: &str, ext: &str) -> io::Result<PathBuf> {
 /// so the input and existing files are never overwritten.
 pub fn reserve_output(input: &Path, dir: Option<&Path>, ext: &str) -> io::Result<Reserved> {
     let dir = dir.or_else(|| input.parent()).unwrap_or(Path::new("."));
+    let (path, file) = create_first_free(dir, &stem_of(input), ext)?;
     Ok(Reserved {
-        path: create_first_free(dir, &stem_of(input), ext)?,
+        path,
+        file: Some(file),
         replaces: None,
         kept: false,
     })
@@ -157,8 +168,10 @@ pub fn reserve_replacing(target: &Path) -> io::Result<Reserved> {
         .map(|e| e.to_string_lossy().into_owned())
         .unwrap_or_default();
     let stem = format!("{}.partial", stem_of(target));
+    let (path, file) = create_first_free(dir, &stem, &ext)?;
     Ok(Reserved {
-        path: create_first_free(dir, &stem, &ext)?,
+        path,
+        file: Some(file),
         replaces: Some(target.to_path_buf()),
         kept: false,
     })

@@ -363,11 +363,8 @@ fn gunzip(
         .map(|e| e.to_string_lossy().into_owned())
         .unwrap_or_default();
     let create = |e: io::Error| failed(format!("Couldn't create the output file: {e}"));
-    let output = files::reserve_output(&inner, out_dir, &ext).map_err(create)?;
-    let mut file = OpenOptions::new()
-        .write(true)
-        .open(output.path())
-        .map_err(create)?;
+    let mut output = files::reserve_output(&inner, out_dir, &ext).map_err(create)?;
+    let mut file = output.take_file().map_err(create)?;
     sink.copy(
         &file_name(&inner),
         &mut MultiGzDecoder::new(source),
