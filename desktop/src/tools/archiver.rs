@@ -16,7 +16,7 @@ use std::thread::{self, JoinHandle};
 
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
-use crate::engine::archive::{self, MAX_ENTRIES, Plan, Target, plural, shown};
+use crate::engine::archive::{self, MAX_ENTRIES, Plan, Target, echoed, plural};
 use crate::files::{self, file_name, format_size, same_file};
 use crate::jobs::{self, CancelToken, JobError};
 use crate::select::{self, index};
@@ -181,7 +181,7 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
                 {
                     refused.push(format!(
                         "Another item is already named “{}”. Rename one to archive both.",
-                        shown(&name)
+                        echoed(&name)
                     ));
                 }
                 Ok(_) => {
@@ -321,7 +321,13 @@ fn create(app: &AppWindow) {
         // `out` is dropped, deleting the partial archive, on any error or panic.
         let run = || -> Result<(PathBuf, Vec<String>), JobError> {
             let plan = archive::plan(&roots, Some(out.path()), MAX_ENTRIES, &cancel)?;
-            let changed = archive::write(&plan, target, level, out.path(), &cancel, &progress)?;
+            // NOTE: `Reserved` doesn't keep the handle from its `create_new`, so this opens the
+            // reserved (empty) file once, never creating it, and `write` uses only that handle.
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .open(out.path())
+                .map_err(|e| JobError::Failed(format!("Couldn't open the archive file: {e}")))?;
+            let changed = archive::write(&plan, target, level, file, &cancel, &progress)?;
             let mut left_out = plan.skipped;
             left_out.extend(changed);
             let saved = out
@@ -408,11 +414,11 @@ fn saved_note(saved: &std::path::Path, skipped: &[String]) -> String {
     let saved = format!("Saved as {}", file_name(saved));
     match skipped {
         [] => saved,
-        [one] => format!("{saved} · left out 1 item: “{}”", shown(one)),
+        [one] => format!("{saved} · left out 1 item: “{}”", echoed(one)),
         [first, rest @ ..] => format!(
             "{saved} · left out {}: “{}” and {} more",
             plural(skipped.len(), "item"),
-            shown(first),
+            echoed(first),
             rest.len()
         ),
     }

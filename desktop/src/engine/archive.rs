@@ -46,6 +46,9 @@ const MAX_RATIO: u64 = 200;
 const MIN_UNPACKED: u64 = 1_000_000_000;
 /// …and never rises above this, however big the archive.
 const MAX_UNPACKED: u64 = 50_000_000_000;
+/// Folder levels an archive may be created from. The walk recurses, so an absurdly deep folder
+/// must not exhaust the stack; Directory Scaffold caps its walk at the same depth.
+const MAX_DEPTH: usize = 256;
 /// TAR long-name and PAX headers are read into memory whole, so they are capped. Real ones hold
 /// a path and a few attributes.
 const MAX_TAR_HEADER: u64 = 1 << 20;
@@ -149,11 +152,15 @@ pub fn probe(path: &Path) -> Result<Probe, String> {
             let file = File::open(path).map_err(|e| bad(&e))?;
             Some(ZipArchive::new(file).map_err(|e| bad(&e))?.len())
         }
-        Format::SevenZ => match sevenz_rust2::Archive::open(path) {
-            Ok(archive) => Some(archive.files.len()),
-            Err(e) if is_locked_7z(&e) => return Err(LOCKED.into()),
-            Err(e) => return Err(bad(&e)),
-        },
+        Format::SevenZ => {
+            let mut file = File::open(path).map_err(|e| bad(&e))?;
+            check_7z_header(&mut file, MAX_7Z_DICTIONARY)?;
+            match sevenz_rust2::Archive::read(&mut file, &Password::empty()) {
+                Ok(archive) => Some(archive.files.len()),
+                Err(e) if is_locked_7z(&e) => return Err(LOCKED.into()),
+                Err(e) => return Err(bad(&e)),
+            }
+        }
         Format::Tar | Format::TarGz | Format::Gz => None,
     };
     Ok(Probe { format, entries })
@@ -251,7 +258,7 @@ fn skipped_note(skipped: &[(Skip, String)]) -> String {
     let names: Vec<_> = skipped
         .iter()
         .take(NAMED)
-        .map(|(_, name)| format!("“{}”", shown(name)))
+        .map(|(_, name)| format!("“{}”", echoed(name)))
         .collect();
     let more = match skipped.len().saturating_sub(NAMED) {
         0 => String::new(),
@@ -407,6 +414,7 @@ fn untar(source: impl Read, sink: &mut Sink) -> Result<(), JobError> {
             || kind.is_pax_local_extensions()
             || kind.is_pax_global_extensions()
         {
+            sink.count()?;
             let data = sink.header(&mut entry)?;
             if kind.is_gnu_longname() {
                 long_name = Some(data);
@@ -469,7 +477,8 @@ fn tar_name(mut raw: Vec<u8>) -> Result<String, JobError> {
     })
 }
 
-fn un7z(source: impl Read + Seek, sink: &mut Sink) -> Result<(), JobError> {
+fn un7z(mut source: impl Read + Seek, sink: &mut Sink) -> Result<(), JobError> {
+    check_7z_header(&mut source, MAX_7Z_DICTIONARY).map_err(failed)?;
     let mut archive = ArchiveReader::new(source, Password::empty()).map_err(seven_error)?;
     sink.expect(archive.archive().files.len())?;
     check_7z_methods(archive.archive(), MAX_7Z_DICTIONARY, sink.limits.bytes)?;
@@ -511,11 +520,7 @@ fn check_7z_methods(
         for coder in &block.coders {
             let wanted = declared_memory(coder.encoder_method_id(), coder.properties());
             if wanted.is_some_and(|bytes| bytes > max_dictionary) {
-                return Err(failed(format!(
-                    "The archive asks for more than {} of memory to unpack, so it may be a \
-                     decompression bomb. Nothing was extracted.",
-                    format_size(max_dictionary)
-                )));
+                return Err(failed(too_much_memory(max_dictionary)));
             }
         }
     }
@@ -527,6 +532,220 @@ fn check_7z_methods(
         )));
     }
     Ok(())
+}
+
+fn too_much_memory(max_dictionary: u64) -> String {
+    format!(
+        "The archive asks for more than {} of memory to unpack, so it may be a decompression \
+         bomb. Nothing was extracted.",
+        format_size(max_dictionary)
+    )
+}
+
+/// A 7z header packed with LZMA is decoded when the archive is opened, before `check_7z_methods`
+/// can see any coder. Its packing is described in plain bytes just ahead: the start header
+/// points at the "next header", and an encoded one begins with the streams info naming the
+/// coders. This reads those bytes alone and refuses a header coder wanting more than
+/// `max_dictionary`, or a header unpacking past `MAX_7Z_HEADER`, before anything is decoded.
+/// Anything it can't place (not a 7z, a plain header, a truncated file) is left for the 7z reader
+/// to accept or report. A 7z whose start header doesn't point at a real next header is refused
+/// here, since the reader would otherwise scan for one itself. Leaves `source` at the start.
+fn check_7z_header(source: &mut (impl Read + Seek), max_dictionary: u64) -> Result<(), String> {
+    let found = encoded_header_streams(source);
+    // Whatever reads next starts from the top.
+    source
+        .seek(SeekFrom::Start(0))
+        .map_err(|e| format!("Couldn't read the archive: {e}"))?;
+    let Some(streams) = found? else {
+        return Ok(());
+    };
+    let (dictionary, unpacked) =
+        scan_encoded_header(&streams).ok_or_else(|| DAMAGED_7Z.to_string())?;
+    if dictionary > max_dictionary {
+        return Err(too_much_memory(max_dictionary));
+    }
+    if unpacked > MAX_7Z_HEADER {
+        return Err(format!(
+            "The archive's header unpacks to more than {}, so it may be a decompression bomb. \
+             Nothing was extracted.",
+            format_size(MAX_7Z_HEADER)
+        ));
+    }
+    Ok(())
+}
+
+const DAMAGED_7Z: &str = "This 7z archive's header is damaged. Nothing was extracted.";
+
+/// The streams info that opens an encoded 7z header: the start of the "next header" when its
+/// first byte says it's encoded; `None` for a plain one or a file that isn't a 7z. A 7z whose
+/// start header points nowhere real (a zero or out-of-range offset or size) is refused outright:
+/// the 7z reader would hunt backwards through the file for a header of its own to decode. At
+/// most `MAX_7Z_STREAMS_INFO` bytes are read, as a real one is a few dozen.
+fn encoded_header_streams(source: &mut (impl Read + Seek)) -> Result<Option<Vec<u8>>, String> {
+    const SIGNATURE_HEADER: u64 = 32;
+    const ENCODED_HEADER: u8 = 0x17;
+    let io = |e: io::Error| format!("Couldn't read the archive: {e}");
+    let damaged = || DAMAGED_7Z.to_string();
+    let len = source.seek(SeekFrom::End(0)).map_err(io)?;
+    source.seek(SeekFrom::Start(0)).map_err(io)?;
+    let mut start = Vec::new();
+    source
+        .take(SIGNATURE_HEADER)
+        .read_to_end(&mut start)
+        .map_err(io)?;
+    if !start.starts_with(b"7z\xBC\xAF\x27\x1C") {
+        return Ok(None);
+    }
+    let field = |from: usize| -> Option<u64> {
+        Some(u64::from_le_bytes(
+            start.get(from..from + 8)?.try_into().ok()?,
+        ))
+    };
+    let (offset, size) = field(12).zip(field(20)).ok_or_else(damaged)?;
+    let at = SIGNATURE_HEADER.checked_add(offset).ok_or_else(damaged)?;
+    let end = at.checked_add(size).ok_or_else(damaged)?;
+    if size == 0 || end > len {
+        return Err(damaged());
+    }
+    source.seek(SeekFrom::Start(at)).map_err(io)?;
+    let mut streams = Vec::new();
+    source
+        .take(size.min(MAX_7Z_STREAMS_INFO))
+        .read_to_end(&mut streams)
+        .map_err(io)?;
+    Ok((streams.first() == Some(&ENCODED_HEADER)).then(|| streams.split_off(1)))
+}
+
+/// The most of an encoded header's streams info that is read.
+const MAX_7Z_STREAMS_INFO: u64 = 64 * 1024;
+/// The most a 7z header may unpack to. A real one lists names and times, tens of bytes per entry,
+/// so this holds far more than `MAX_ENTRIES`.
+const MAX_7Z_HEADER: u64 = 64 << 20;
+
+/// Walks the streams info of an encoded header, as sevenz-rust2 reads it (pack info, then the
+/// folders' coders) and returns the largest dictionary a coder declares and the largest unpacked
+/// size. `None` for anything that isn't well-formed or that this doesn't read.
+fn scan_encoded_header(streams: &[u8]) -> Option<(u64, u64)> {
+    const PACK_INFO: u8 = 0x06;
+    const UNPACK_INFO: u8 = 0x07;
+    const SIZE: u8 = 0x09;
+    const CRC: u8 = 0x0A;
+    const FOLDER: u8 = 0x0B;
+    const CODERS_UNPACK_SIZE: u8 = 0x0C;
+    const END: u8 = 0x00;
+    let mut bytes = Bytes(streams);
+    let bound = streams.len() as u64;
+    let mut next = bytes.u8()?;
+    if next == PACK_INFO {
+        bytes.number()?; // where the packed data starts
+        let packed = bytes.count()?;
+        loop {
+            match bytes.u8()? {
+                SIZE => {
+                    for _ in 0..packed {
+                        bytes.number()?;
+                    }
+                }
+                CRC => {
+                    let defined = if bytes.u8()? != 0 {
+                        packed
+                    } else {
+                        let bits = bytes.take(packed.div_ceil(8))?;
+                        bits.iter().map(|b| b.count_ones() as usize).sum()
+                    };
+                    bytes.take(defined.checked_mul(4)?)?;
+                }
+                END => break,
+                _ => return None,
+            }
+        }
+        next = bytes.u8()?;
+    }
+    if next != UNPACK_INFO || bytes.u8()? != FOLDER {
+        return None;
+    }
+    let folders = bytes.count()?;
+    if bytes.u8()? != 0 {
+        return None; // The folders live in another stream.
+    }
+    let (mut dictionary, mut unpacked, mut outputs) = (0, 0, 0usize);
+    for _ in 0..folders {
+        let (mut ins, mut outs) = (0u64, 0u64);
+        for _ in 0..bytes.count()? {
+            let flags = bytes.u8()?;
+            if flags & 0x80 != 0 {
+                return None; // Alternative methods, which 7-Zip itself doesn't read.
+            }
+            let method = bytes.take(usize::from(flags & 0x0F))?;
+            let (coder_ins, coder_outs) = match flags & 0x10 {
+                0 => (1, 1),
+                _ => (bytes.number()?, bytes.number()?),
+            };
+            ins = ins.checked_add(coder_ins).filter(|n| *n <= bound)?;
+            outs = outs.checked_add(coder_outs).filter(|n| *n <= bound)?;
+            if flags & 0x20 != 0 {
+                let size = bytes.count()?;
+                let properties = bytes.take(size)?;
+                let wanted = declared_memory(method, properties).unwrap_or(0);
+                dictionary = dictionary.max(wanted);
+            }
+        }
+        let pairs = outs.checked_sub(1)?;
+        for _ in 0..pairs * 2 {
+            bytes.number()?;
+        }
+        let loose = ins.checked_sub(pairs)?;
+        if loose > 1 {
+            for _ in 0..loose {
+                bytes.number()?;
+            }
+        }
+        outputs = outputs.checked_add(usize::try_from(outs).ok()?)?;
+    }
+    if bytes.u8()? != CODERS_UNPACK_SIZE {
+        return None;
+    }
+    for _ in 0..outputs {
+        unpacked = unpacked.max(bytes.number()?);
+    }
+    Some((dictionary, unpacked))
+}
+
+/// A cursor over header bytes; every read is `None` past the end.
+struct Bytes<'a>(&'a [u8]);
+
+impl<'a> Bytes<'a> {
+    fn u8(&mut self) -> Option<u8> {
+        self.take(1).map(|b| b[0])
+    }
+
+    fn take(&mut self, n: usize) -> Option<&'a [u8]> {
+        let (head, rest) = self.0.split_at_checked(n)?;
+        self.0 = rest;
+        Some(head)
+    }
+
+    /// A 7z number: the leading 1-bits of the first byte say how many bytes follow it.
+    fn number(&mut self) -> Option<u64> {
+        let first = u64::from(self.u8()?);
+        let mut value = 0;
+        for i in 0..8 {
+            let mask = 0x80 >> i;
+            if first & mask == 0 {
+                return Some(value | ((first & (mask - 1)) << (8 * i)));
+            }
+            value |= u64::from(self.u8()?) << (8 * i);
+        }
+        Some(value)
+    }
+
+    /// A number counting things that each take at least a byte after it, so more than are left
+    /// is damage, not a big header.
+    fn count(&mut self) -> Option<usize> {
+        usize::try_from(self.number()?)
+            .ok()
+            .filter(|n| *n <= self.0.len())
+    }
 }
 
 /// The window or model size a coder's properties declare, for the methods that allocate by it:
@@ -648,9 +867,9 @@ impl Sink<'_> {
         Ok(())
     }
 
-    /// Counts one entry, polls for cancel, and checks its name: the path it stands for inside
-    /// the folder.
-    fn entry(&mut self, name: &str) -> Result<PathBuf, JobError> {
+    /// Counts one header against the entry cap and polls for cancel. Every header counts, a TAR
+    /// extension header included, so a run of those can't dodge the cap.
+    fn count(&mut self) -> Result<(), JobError> {
         self.entries += 1;
         if self.entries > self.limits.entries {
             return Err(too_many(self.limits.entries));
@@ -659,6 +878,12 @@ impl Sink<'_> {
             return Err(JobError::Cancelled);
         }
         self.meter.tick();
+        Ok(())
+    }
+
+    /// Counts one entry and checks its name: the path it stands for inside the folder.
+    fn entry(&mut self, name: &str) -> Result<PathBuf, JobError> {
+        self.count()?;
         relative_path(name).map_err(|reason| refused(name, reason))
     }
 
@@ -705,7 +930,7 @@ impl Sink<'_> {
                 io::ErrorKind::AlreadyExists => failed(format!(
                     "The archive holds “{}” twice, or two names that differ only in case. \
                      Nothing was extracted.",
-                    shown(name)
+                    echoed(name)
                 )),
                 _ => unwritable(name, e),
             })?;
@@ -756,7 +981,7 @@ impl Sink<'_> {
                 Err(e) => {
                     return Err(failed(format!(
                         "Couldn't read “{}” from the archive: {e}",
-                        shown(name)
+                        echoed(name)
                     )));
                 }
             };
@@ -877,7 +1102,7 @@ fn unreadable(e: impl Display) -> JobError {
 }
 
 fn unwritable(name: &str, e: io::Error) -> JobError {
-    failed(format!("Couldn't write “{}”: {e}", shown(name)))
+    failed(format!("Couldn't write “{}”: {e}", echoed(name)))
 }
 
 fn unsupported(what: &str) -> JobError {
@@ -889,7 +1114,7 @@ fn unsupported(what: &str) -> JobError {
 fn refused(name: &str, reason: &str) -> JobError {
     failed(format!(
         "Refused “{}”: {reason}. Nothing was extracted.",
-        shown(name)
+        echoed(name)
     ))
 }
 
@@ -910,6 +1135,19 @@ pub fn shown(name: &str) -> String {
     name.chars()
         .map(|c| if c.is_control() { '\u{FFFD}' } else { c })
         .collect()
+}
+
+/// The most characters of an archive-supplied name that an error or note repeats.
+const MAX_ECHOED: usize = 200;
+
+/// `shown`, cut to `MAX_ECHOED` characters with “…”: a crafted name can be megabytes, and a
+/// message repeating it whole would swamp the row that shows it.
+pub fn echoed(name: &str) -> String {
+    let line = shown(&name.chars().take(MAX_ECHOED + 1).collect::<String>());
+    match line.char_indices().nth(MAX_ECHOED) {
+        Some((at, _)) => format!("{}…", &line[..at]),
+        None => line,
+    }
 }
 
 /// "1 file", "12 files", "1,200 files".
@@ -1022,7 +1260,15 @@ impl Plan {
         if cancel.is_cancelled() {
             return Err(JobError::Cancelled);
         }
-        let unreadable = |e: io::Error| failed(format!("Couldn't read “{}”: {e}", shown(&name)));
+        // `name` is the root's name, then one `/` per level below it. Leaving the deep part out
+        // would store a quietly partial archive, so it's refused.
+        if name.matches('/').count() > MAX_DEPTH {
+            return Err(failed(format!(
+                "“{}” is nested more than {MAX_DEPTH} folders deep, which is too deep to archive.",
+                echoed(&name)
+            )));
+        }
+        let unreadable = |e: io::Error| failed(format!("Couldn't read “{}”: {e}", echoed(&name)));
         let meta = fs::symlink_metadata(path).map_err(unreadable)?;
         let kind = meta.file_type();
         if kind.is_symlink() || !(kind.is_dir() || kind.is_file()) {
@@ -1091,24 +1337,24 @@ fn mode(meta: &fs::Metadata) -> u32 {
 fn not_unicode(name: &str) -> JobError {
     failed(format!(
         "“{}” has a name that isn't valid Unicode, so it can't be stored.",
-        shown(name)
+        echoed(name)
     ))
 }
 
 /// Writes `plan` to `out` as `target` at `level` (0 stores, 9 compresses most), reporting each
 /// root's progress (its index, 0..1) and polling `cancel`. Returns the files left out because
-/// they changed after the plan was made (swapped for a link, or resized). `out` is a reserved file: on an error
-/// the caller drops it, which deletes the partial archive.
+/// they changed after the plan was made (swapped for a link, or resized). `file` is the open
+/// handle of the reserved output, which is written through as given and never reopened by path,
+/// so a link swapped in after the reservation can't make this write somewhere else. On an error
+/// the caller drops the reservation, which deletes the partial archive.
 pub fn write(
     plan: &Plan,
     target: Target,
     level: u32,
-    out: &Path,
+    file: File,
     cancel: &CancelToken,
     progress: &dyn Fn(usize, f32),
 ) -> Result<Vec<String>, JobError> {
-    let file =
-        File::create(out).map_err(|e| failed(format!("Couldn't create the archive: {e}")))?;
     let feeder = Feeder {
         cancel,
         report: progress,
@@ -1303,7 +1549,7 @@ impl Read for Feed<'_> {
             Ok(0) => {
                 let message = format!(
                     "“{}” got shorter while it was being archived. Try again.",
-                    shown(self.name)
+                    echoed(self.name)
                 );
                 return Err(self.feeder.fail(failed(message)));
             }
@@ -1318,7 +1564,7 @@ impl Read for Feed<'_> {
 }
 
 fn cant_read(name: &str, e: io::Error) -> JobError {
-    failed(format!("Couldn't read “{}”: {e}", shown(name)))
+    failed(format!("Couldn't read “{}”: {e}", echoed(name)))
 }
 
 #[cfg(test)]
@@ -1434,7 +1680,8 @@ mod tests {
         let out = dir.join(format!("out.{}", target.extension()));
         let cancel = CancelToken::default();
         let plan = plan(roots, None, MAX_ENTRIES, &cancel).unwrap();
-        write(&plan, target, level, &out, &cancel, &|_, _| {}).unwrap();
+        let file = File::create(&out).unwrap();
+        write(&plan, target, level, file, &cancel, &|_, _| {}).unwrap();
         out
     }
 
@@ -2049,12 +2296,30 @@ mod tests {
             &plan,
             Target::Zip,
             6,
-            &dir.join("out.zip"),
+            File::create(dir.join("out.zip")).unwrap(),
             &cancel,
             &|_, _| {},
         );
 
         assert!(matches!(result, Err(JobError::Cancelled)));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn writing_goes_through_the_handle_it_is_given() {
+        let dir = temp_dir("write-handle");
+        let root = fixture(&dir);
+        let cancel = CancelToken::default();
+        let plan = plan(&[root], None, MAX_ENTRIES, &cancel).unwrap();
+        let out = dir.join("out.zip");
+        let file = File::create(&out).unwrap();
+        // Replacing the path behind the handle doesn't redirect the write.
+        fs::rename(&out, dir.join("moved.zip")).unwrap();
+
+        write(&plan, Target::Zip, 6, file, &cancel, &|_, _| {}).unwrap();
+
+        assert!(!out.exists());
+        assert!(fs::metadata(dir.join("moved.zip")).unwrap().len() > 0);
         fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -2138,6 +2403,219 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
     }
 
+    /// A 7z of just a start header and an encoded next header whose one LZMA coder declares a
+    /// `dictionary` window and a header of `unpacked` bytes (a 7z number). There is no packed
+    /// data, so anything that tried to decode it would fail differently from the guard.
+    fn crafted_7z(dictionary: u32, unpacked: &[u8]) -> Vec<u8> {
+        let mut streams = vec![
+            0x17, 0x06, 0, 1, 0x09, 10, 0x00, 0x07, 0x0B, 1, 0, 1, 0x23, 3, 1, 1, 5, 0x5D,
+        ];
+        streams.extend(dictionary.to_le_bytes());
+        streams.push(0x0C);
+        streams.extend(unpacked);
+        streams.extend([0, 0]);
+        let mut file = b"7z\xBC\xAF\x27\x1C".to_vec();
+        file.extend([0, 4, 0, 0, 0, 0]);
+        file.extend(0u64.to_le_bytes());
+        file.extend((streams.len() as u64).to_le_bytes());
+        file.extend([0; 4]);
+        file.extend(streams);
+        file
+    }
+
+    #[test]
+    fn an_encoded_7z_header_declaring_a_huge_dictionary_is_refused_before_it_is_decoded() {
+        let mut file = io::Cursor::new(crafted_7z(0x4000_0000, &[100]));
+
+        let result = check_7z_header(&mut file, MAX_7Z_DICTIONARY);
+
+        assert!(matches!(result, Err(m) if m.contains("of memory to unpack")));
+    }
+
+    #[test]
+    fn an_encoded_7z_header_with_an_ordinary_dictionary_passes() {
+        let mut file = io::Cursor::new(crafted_7z(4 << 20, &[100]));
+
+        assert_eq!(check_7z_header(&mut file, MAX_7Z_DICTIONARY), Ok(()));
+    }
+
+    #[test]
+    fn an_encoded_7z_header_unpacking_to_a_huge_size_is_refused() {
+        let mut file = io::Cursor::new(crafted_7z(4 << 20, &[0xE8, 0, 0, 0]));
+
+        let result = check_7z_header(&mut file, MAX_7Z_DICTIONARY);
+
+        assert!(matches!(result, Err(m) if m.contains("header unpacks to more than")));
+    }
+
+    #[test]
+    fn a_7z_start_header_pointing_past_the_end_of_the_file_is_refused() {
+        let mut bytes = crafted_7z(4 << 20, &[100]);
+        bytes[12..20].copy_from_slice(&1_000_000u64.to_le_bytes());
+        let mut file = io::Cursor::new(bytes);
+
+        let result = check_7z_header(&mut file, MAX_7Z_DICTIONARY);
+
+        assert!(matches!(result, Err(m) if m.contains("header is damaged")));
+    }
+
+    #[test]
+    fn a_7z_start_header_with_an_overflowing_offset_or_zero_size_is_refused() {
+        let mut overflowing = crafted_7z(4 << 20, &[100]);
+        overflowing[12..20].copy_from_slice(&u64::MAX.to_le_bytes());
+        let mut empty = crafted_7z(4 << 20, &[100]);
+        empty[20..28].copy_from_slice(&0u64.to_le_bytes());
+
+        for bytes in [overflowing, empty] {
+            let result = check_7z_header(&mut io::Cursor::new(bytes), MAX_7Z_DICTIONARY);
+
+            assert!(matches!(result, Err(m) if m.contains("header is damaged")));
+        }
+    }
+
+    #[test]
+    fn a_7z_signature_without_a_whole_start_header_is_refused() {
+        let mut file = io::Cursor::new(b"7z\xBC\xAF\x27\x1C\0\x04".to_vec());
+
+        let result = check_7z_header(&mut file, MAX_7Z_DICTIONARY);
+
+        assert!(matches!(result, Err(m) if m.contains("header is damaged")));
+    }
+
+    #[test]
+    fn a_damaged_7z_start_header_stops_extract_before_the_reader_can_scan() {
+        let dir = temp_dir("7z-start-header");
+        let path = dir.join("lost.7z");
+        let mut bytes = crafted_7z(4 << 20, &[100]);
+        bytes[20..28].copy_from_slice(&0u64.to_le_bytes());
+        fs::write(&path, bytes).unwrap();
+
+        let extracted = extract_roomy(&path);
+
+        assert!(matches!(extracted, Err(m) if m.contains("header is damaged")));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn an_encoded_7z_header_cut_short_is_reported_as_damaged() {
+        // A number that announces eight more bytes than are left.
+        let mut file = io::Cursor::new(crafted_7z(4 << 20, &[0xFF]));
+
+        let result = check_7z_header(&mut file, MAX_7Z_DICTIONARY);
+
+        assert!(matches!(result, Err(m) if m.contains("header is damaged")));
+    }
+
+    #[test]
+    fn a_7z_with_a_huge_header_dictionary_is_stopped_by_extract_and_probe() {
+        let dir = temp_dir("7z-header-window");
+        let path = dir.join("bomb.7z");
+        fs::write(&path, crafted_7z(0x4000_0000, &[100])).unwrap();
+
+        let extracted = extract_roomy(&path);
+        let probed = probe(&path);
+
+        assert!(matches!(extracted, Err(m) if m.contains("of memory to unpack")));
+        assert!(matches!(probed, Err(m) if m.contains("of memory to unpack")));
+        assert!(!dir.join("bomb").exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_real_encoded_7z_header_is_read_and_passes_the_guard() {
+        let dir = temp_dir("7z-real-header");
+        let path = dir.join("many.7z");
+        let names: Vec<String> = (0..200)
+            .map(|i| format!("folder/file-{i:04}.txt"))
+            .collect();
+        let entries: Vec<_> = names.iter().map(|n| (n.as_str(), 0, &b"x"[..])).collect();
+        seven_of(&path, &entries);
+        let mut file = File::open(&path).unwrap();
+
+        // Many similar names make the header worth compressing, so the writer encodes it.
+        assert!(encoded_header_streams(&mut file).unwrap().is_some());
+        assert_eq!(check_7z_header(&mut file, MAX_7Z_DICTIONARY), Ok(()));
+        assert!(matches!(check_7z_header(&mut file, 1), Err(m) if m.contains("of memory")));
+        assert_eq!(probe(&path).unwrap().entries, Some(200));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_7z_number_reads_every_width() {
+        let read = |bytes: &[u8]| Bytes(bytes).number();
+
+        assert_eq!(read(&[0x7F]), Some(0x7F));
+        assert_eq!(read(&[0x81, 0x02]), Some(0x102));
+        assert_eq!(read(&[0xE8, 0, 0, 0]), Some(8 << 24));
+        assert_eq!(read(&[0xFF, 1, 0, 0, 0, 0, 0, 0, 0]), Some(1));
+        assert_eq!(read(&[0x81]), None);
+    }
+
+    #[test]
+    fn tar_extension_headers_count_toward_the_entry_cap() {
+        let dir = temp_dir("tar-ext-count");
+        let path = dir.join("longnames.tar");
+        let long_name = (
+            b"././@LongLink".as_slice(),
+            EntryType::GNULongName,
+            b"a\0".as_slice(),
+        );
+        let mut entries = vec![long_name; 5];
+        entries.push((b"file.txt", EntryType::Regular, b"x"));
+        fs::write(&path, tar_bytes(&entries)).unwrap();
+        let limits = Limits {
+            entries: 3,
+            bytes: 10_000_000,
+        };
+
+        let result = extract_with(&path, limits);
+
+        assert!(matches!(result, Err(m) if m.contains("more than 3 items")));
+        assert!(!dir.join("longnames").exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_folder_nested_past_the_depth_cap_is_refused_when_planning() {
+        let dir = temp_dir("plan-deep");
+        let mut deep = dir.join("project");
+        for _ in 0..MAX_DEPTH + 40 {
+            deep.push("d");
+        }
+        fs::create_dir_all(&deep).unwrap();
+
+        let result = plan(
+            &[dir.join("project")],
+            None,
+            MAX_ENTRIES,
+            &CancelToken::default(),
+        );
+
+        assert!(matches!(result, Err(JobError::Failed(m)) if m.contains("too deep to archive")));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn echoed_names_are_cut_to_the_limit_and_keep_short_ones() {
+        let long = echoed(&"a".repeat(500));
+        let wide = echoed(&"é".repeat(300));
+
+        assert_eq!(long, format!("{}…", "a".repeat(MAX_ECHOED)));
+        assert_eq!(wide.chars().count(), MAX_ECHOED + 1);
+        assert_eq!(echoed("a\nb"), "a\u{FFFD}b");
+        assert_eq!(echoed(&"b".repeat(MAX_ECHOED)), "b".repeat(MAX_ECHOED));
+    }
+
+    #[test]
+    fn a_refusal_echoes_a_crafted_name_only_in_part() {
+        let message = match refused(&"x".repeat(5000), "because") {
+            JobError::Failed(message) => message,
+            JobError::Cancelled => unreachable!(),
+        };
+
+        assert!(message.len() < 400);
+    }
+
     #[test]
     fn a_file_resized_after_the_plan_is_left_out_and_listed() {
         let dir = temp_dir("write-resized");
@@ -2146,8 +2624,8 @@ mod tests {
         let plan = plan(std::slice::from_ref(&root), None, MAX_ENTRIES, &cancel).unwrap();
         fs::write(root.join("readme.txt"), "changed after the walk\n").unwrap();
 
-        let out = dir.join("out.zip");
-        let left_out = write(&plan, Target::Zip, 6, &out, &cancel, &|_, _| {}).unwrap();
+        let out = File::create(dir.join("out.zip")).unwrap();
+        let left_out = write(&plan, Target::Zip, 6, out, &cancel, &|_, _| {}).unwrap();
 
         assert_eq!(left_out, ["project/readme.txt"]);
         fs::remove_dir_all(&dir).unwrap();

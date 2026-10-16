@@ -37,6 +37,11 @@ const MAX_DEPTH: usize = 256;
 const MAX_PATTERN_CHARS: usize = 1_024;
 /// Patterns read from one .gitignore; the rest are skipped and counted.
 const MAX_PATTERNS: usize = 10_000;
+/// Patterns kept across every .gitignore on the stack at once; the rest are skipped and counted.
+const MAX_TOTAL_PATTERNS: usize = 20_000;
+/// Entries read at most, hidden and ignored ones included: a folder of millions of files that
+/// are all filtered out must still end.
+const MAX_SCANNED: usize = 200_000;
 /// How long a walk runs before Stop replaces Choose Folder…, so quick walks don't flicker.
 const SHOW_STOP_AFTER: Duration = Duration::from_millis(250);
 const DEPTHS: [(&str, Option<usize>); 6] = [
@@ -95,9 +100,12 @@ struct Tree {
     links: usize,
     /// Stopped at `MAX_ENTRIES`.
     truncated: bool,
+    /// Stopped at `MAX_SCANNED` entries read.
+    scan_capped: bool,
     /// Folders below `MAX_DEPTH` were left unlisted.
     too_deep: bool,
-    /// .gitignore lines skipped for being too long or beyond `MAX_PATTERNS`.
+    /// .gitignore lines skipped for being too long or beyond `MAX_PATTERNS` or
+    /// `MAX_TOTAL_PATTERNS`.
     skipped_patterns: usize,
     /// Folders (and .gitignore files) that couldn't be read, by path below the root.
     unreadable: Vec<String>,
@@ -159,11 +167,24 @@ impl Tree {
 
 /// Walks `root` with `options`, polling `cancel` between folders.
 fn walk(root: &Path, options: Options, cancel: &CancelToken) -> Result<Tree, JobError> {
+    walk_within(root, options, cancel, (MAX_SCANNED, MAX_TOTAL_PATTERNS))
+}
+
+/// `walk` with its `(scan, total patterns)` caps given, so tests can reach them cheaply.
+fn walk_within(
+    root: &Path,
+    options: Options,
+    cancel: &CancelToken,
+    (max_scanned, max_patterns): (usize, usize),
+) -> Result<Tree, JobError> {
     let mut walker = Walker {
         options,
         cancel,
+        max_scanned,
+        max_patterns,
         rules: Vec::new(),
         count: 0,
+        scanned: 0,
         tree: Tree {
             name: file_name(root),
             ..Tree::default()
@@ -177,9 +198,14 @@ fn walk(root: &Path, options: Options, cancel: &CancelToken) -> Result<Tree, Job
 struct Walker<'a> {
     options: Options,
     cancel: &'a CancelToken,
+    max_scanned: usize,
+    max_patterns: usize,
     /// The .gitignore files of the folders being walked, outermost first.
     rules: Vec<Rules>,
+    /// Items listed.
     count: usize,
+    /// Entries read, listed or not.
+    scanned: usize,
     tree: Tree,
 }
 
@@ -199,35 +225,53 @@ impl Walker<'_> {
     }
 
     fn list(&mut self, dir: &Path, rel: &mut Vec<String>, depth: usize) -> Result<Vec<Node>, JobError> {
-        let entries = match fs::read_dir(dir).and_then(|d| d.collect::<std::io::Result<Vec<_>>>()) {
-            Ok(entries) => entries,
+        let mut items = Vec::new();
+        // Streamed, never collected whole: a folder of millions of entries stops at the cap.
+        match fs::read_dir(dir) {
+            Ok(entries) => {
+                for entry in entries {
+                    if self.cancel.is_cancelled() {
+                        return Err(JobError::Cancelled);
+                    }
+                    if self.scanned >= self.max_scanned {
+                        self.tree.scan_capped = true;
+                        break;
+                    }
+                    self.scanned += 1;
+                    let entry = match entry {
+                        Ok(entry) => entry,
+                        Err(e) => {
+                            eprintln!("couldn't read {}: {e}", dir.display());
+                            self.unreadable(rel, None);
+                            break;
+                        }
+                    };
+                    let name = entry.file_name().to_string_lossy().into_owned();
+                    // `DirEntry::file_type` doesn't follow links, so a link to a folder isn't one.
+                    let kind = match entry.file_type() {
+                        Ok(kind) => kind,
+                        Err(e) => {
+                            eprintln!("couldn't read {}: {e}", entry.path().display());
+                            self.unreadable(rel, Some(name.as_str()));
+                            continue;
+                        }
+                    };
+                    let hidden = name.starts_with('.') || hidden_on_windows(&entry);
+                    if hidden && !self.options.hidden {
+                        continue;
+                    }
+                    let ignored = self.options.gitignore
+                        && ((kind.is_dir() && name == ".git")
+                            || self.ignored(rel, &name, kind.is_dir())?);
+                    if !ignored {
+                        items.push((name, entry.path(), kind));
+                    }
+                }
+            }
             Err(e) => {
                 eprintln!("couldn't read {}: {e}", dir.display());
-                let at = if rel.is_empty() { self.tree.name.clone() } else { rel.join("/") };
-                self.tree.unreadable.push(at);
-                Vec::new()
+                self.unreadable(rel, None);
             }
-        };
-        let mut items: Vec<_> = entries
-            .into_iter()
-            .filter_map(|entry| {
-                if self.cancel.is_cancelled() {
-                    return None;
-                }
-                let name = entry.file_name().to_string_lossy().into_owned();
-                // `DirEntry::file_type` doesn't follow links, so a link to a folder isn't one.
-                let kind = entry.file_type().ok()?;
-                let hidden = name.starts_with('.') || hidden_on_windows(&entry);
-                if hidden && !self.options.hidden {
-                    return None;
-                }
-                let ignored = self.options.gitignore
-                    && ((kind.is_dir() && name == ".git") || self.ignored(rel, &name, kind.is_dir()));
-                (!ignored).then_some((name, entry.path(), kind))
-            })
-            .collect();
-        if self.cancel.is_cancelled() {
-            return Err(JobError::Cancelled);
         }
         let folders_first = self.options.folders_first;
         items.sort_by(|(a, _, ka), (b, _, kb)| {
@@ -279,6 +323,14 @@ impl Walker<'_> {
         Ok(nodes)
     }
 
+    /// Records that `name` in the folder at `rel` (or the folder itself) couldn't be read.
+    fn unreadable(&mut self, rel: &[String], name: Option<&str>) {
+        let mut at = rel.to_vec();
+        at.extend(name.map(String::from));
+        let at = if at.is_empty() { self.tree.name.clone() } else { at.join("/") };
+        self.tree.unreadable.push(at);
+    }
+
     /// Reads `dir`'s .gitignore onto the stack; false when there is none to read.
     fn load_rules(&mut self, dir: &Path, rel: &[String]) -> bool {
         let path = dir.join(".gitignore");
@@ -291,7 +343,9 @@ impl Walker<'_> {
         }
         match fs::read(&path) {
             Ok(bytes) => {
-                let (patterns, skipped) = parse_gitignore(&String::from_utf8_lossy(&bytes));
+                let held: usize = self.rules.iter().map(|r| r.patterns.len()).sum();
+                let room = self.max_patterns.saturating_sub(held).min(MAX_PATTERNS);
+                let (patterns, skipped) = parse_gitignore(&String::from_utf8_lossy(&bytes), room);
                 self.tree.skipped_patterns += skipped;
                 self.rules.push(Rules {
                     base: rel.to_vec(),
@@ -311,7 +365,7 @@ impl Walker<'_> {
 
     /// Whether `name`, inside the folder at `rel`, is ignored. As in git, the last pattern that
     /// matches decides, and a deeper .gitignore comes after the ones above it.
-    fn ignored(&self, rel: &[String], name: &str, is_dir: bool) -> bool {
+    fn ignored(&self, rel: &[String], name: &str, is_dir: bool) -> Result<bool, JobError> {
         let mut path = rel.to_vec();
         path.push(name.into());
         let mut ignored = false;
@@ -320,12 +374,16 @@ impl Walker<'_> {
                 continue;
             };
             for pattern in &rules.patterns {
+                // One entry meets every pattern on the stack, so stopping can't wait for the next.
+                if self.cancel.is_cancelled() {
+                    return Err(JobError::Cancelled);
+                }
                 if pattern.matches(below, is_dir) {
                     ignored = !pattern.negated;
                 }
             }
         }
-        ignored
+        Ok(ignored)
     }
 }
 
@@ -377,16 +435,16 @@ impl Pattern {
     }
 }
 
-/// The patterns of a .gitignore, and how many lines were skipped for being over
-/// `MAX_PATTERN_CHARS` or past `MAX_PATTERNS`.
-fn parse_gitignore(text: &str) -> (Vec<Pattern>, usize) {
+/// Up to `max` patterns of a .gitignore, and how many lines were skipped for being over
+/// `MAX_PATTERN_CHARS` or past `max`.
+fn parse_gitignore(text: &str, max: usize) -> (Vec<Pattern>, usize) {
     let mut patterns = Vec::new();
     let mut skipped = 0;
     for line in text.lines() {
         if line.chars().count() > MAX_PATTERN_CHARS {
             skipped += 1;
         } else if let Some(pattern) = parse_line(line) {
-            if patterns.len() < MAX_PATTERNS {
+            if patterns.len() < max {
                 patterns.push(pattern);
             } else {
                 skipped += 1;
@@ -730,6 +788,12 @@ fn finish_walk(app: &AppWindow, token: &Arc<CancelToken>, result: Result<(Tree, 
         notes.push(format!(
             "Showing the first {} items; the folder holds more.",
             thousands(MAX_ENTRIES)
+        ));
+    }
+    if tree.scan_capped {
+        notes.push(format!(
+            "Stopped after reading {} entries, hidden and ignored ones included; the folder holds more.",
+            thousands(MAX_SCANNED)
         ));
     }
     if !tree.unreadable.is_empty() {
@@ -1116,7 +1180,7 @@ mod tests {
 keep
 ", "a".repeat(MAX_PATTERN_CHARS + 1));
 
-        let (patterns, skipped) = parse_gitignore(&text);
+        let (patterns, skipped) = parse_gitignore(&text, MAX_PATTERNS);
 
         assert_eq!((patterns.len(), skipped), (1, 1));
     }
@@ -1126,7 +1190,7 @@ keep
         let text = "x
 ".repeat(MAX_PATTERNS + 3);
 
-        let (patterns, skipped) = parse_gitignore(&text);
+        let (patterns, skipped) = parse_gitignore(&text, MAX_PATTERNS);
 
         assert_eq!((patterns.len(), skipped), (MAX_PATTERNS, 3));
     }
@@ -1145,5 +1209,62 @@ keep
         assert!(tree.too_deep);
         assert_eq!(tree.folders, MAX_DEPTH);
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn hidden_entries_count_toward_the_scan_cap() {
+        let (dir, root) = project("scan-cap", &[".a", ".b", ".c", ".d", "shown.txt"]);
+
+        let tree = walk_within(&root, defaults(), &CancelToken::default(), (3, 10)).unwrap();
+
+        assert!(tree.scan_capped);
+        assert!(!tree.truncated);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_folder_within_the_scan_cap_is_not_flagged() {
+        let (dir, root) = project("scan-room", &[".a", "b.txt"]);
+
+        let tree = walk_within(&root, defaults(), &CancelToken::default(), (2, 10)).unwrap();
+
+        assert!(!tree.scan_capped);
+        assert_eq!(tree.files, 1);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn patterns_across_the_whole_stack_share_one_cap() {
+        let (dir, root) = project("total-patterns", &["sub/keep.txt"]);
+        fs::write(root.join(".gitignore"), "a\nb\nc\n").unwrap();
+        fs::write(root.join("sub/.gitignore"), "d\ne\nf\n").unwrap();
+
+        let tree = walk_within(&root, defaults(), &CancelToken::default(), (100, 4)).unwrap();
+
+        assert_eq!(tree.skipped_patterns, 2);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn matching_a_name_against_the_rules_polls_for_cancel() {
+        let cancel = CancelToken::default();
+        let walker = Walker {
+            options: defaults(),
+            cancel: &cancel,
+            max_scanned: MAX_SCANNED,
+            max_patterns: MAX_TOTAL_PATTERNS,
+            rules: vec![Rules {
+                base: Vec::new(),
+                patterns: parse_gitignore("x\n", MAX_PATTERNS).0,
+            }],
+            count: 0,
+            scanned: 0,
+            tree: Tree::default(),
+        };
+        assert!(matches!(walker.ignored(&[], "x", false), Ok(true)));
+
+        cancel.cancel();
+
+        assert!(matches!(walker.ignored(&[], "x", false), Err(JobError::Cancelled)));
     }
 }
