@@ -8,6 +8,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use std::time::{Duration, SystemTime};
 
 use anyhow::Context;
 
@@ -15,7 +16,7 @@ use crate::engine::ffmpeg::{
     AudioCodec, Capabilities, Chain, Container, ConvertJob, Ffmpeg, Filter, FramesRun, Graph,
     HwFamily, Settings, VideoCodec, build_args,
 };
-use crate::files::reserve_dir;
+use crate::files::{file_name, reserve_dir};
 use crate::jobs::{CancelToken, JobError};
 
 /// How the tools name their inputs in `probe`'s error.
@@ -192,6 +193,50 @@ pub fn extract_frame(
         .map_err(JobError::failed)
 }
 
+/// A preview folder left by a crash is deleted by the next launch once it is this old.
+const STALE_PREVIEW: Duration = Duration::from_secs(60 * 60);
+
+/// Whether `name` is a folder `reserve_dir(.., " preview")` made: `<stem> preview`, or
+/// `<stem> preview (n)` once the bare name was taken.
+fn is_preview_name(name: &str) -> bool {
+    let base = match name.strip_suffix(')').and_then(|s| s.rsplit_once(" (")) {
+        Some((base, n)) if !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()) => base,
+        _ => name,
+    };
+    base.len() > " preview".len() && base.ends_with(" preview")
+}
+
+/// Deletes the preview folders in the temp dir that a crashed run left behind. Failures are
+/// logged, never raised: a stale folder is clutter, not a reason to stop starting.
+pub fn sweep_stale_previews() {
+    sweep_previews_in(&std::env::temp_dir(), SystemTime::now());
+}
+
+fn sweep_previews_in(dir: &Path, now: SystemTime) {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => return eprintln!("couldn't scan {} for old previews: {e}", dir.display()),
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        // `file_type` doesn't follow links, so a link named like a preview is never entered.
+        let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
+        if !is_dir || !is_preview_name(&file_name(&path)) {
+            continue;
+        }
+        let age = entry
+            .metadata()
+            .and_then(|m| m.modified())
+            .map(|m| now.duration_since(m).unwrap_or_default());
+        if !age.is_ok_and(|age| age >= STALE_PREVIEW) {
+            continue;
+        }
+        if let Err(e) = fs::remove_dir_all(&path) {
+            eprintln!("couldn't remove the old preview {}: {e}", path.display());
+        }
+    }
+}
+
 /// A number with at most three decimals and no trailing zeros: 29.97, 0.5, 30.
 pub fn trim_number(value: f64) -> String {
     let text = format!("{value:.3}");
@@ -358,5 +403,38 @@ mod tests {
         assert_eq!(frame.dimensions(), (320, 180));
         assert!(!std::env::temp_dir().join("extract-me preview").exists());
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn only_preview_folders_are_recognised() {
+        assert!(is_preview_name("clip preview"));
+        assert!(is_preview_name("clip preview (3)"));
+        assert!(!is_preview_name(" preview"));
+        assert!(!is_preview_name("clip preview.txt"));
+        assert!(!is_preview_name("clip preview (x)"));
+        assert!(!is_preview_name("my previews"));
+    }
+
+    #[test]
+    fn the_sweep_removes_only_old_preview_folders() {
+        let dir = std::env::temp_dir().join(format!("open-tools-sweep-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("a preview")).unwrap();
+        fs::create_dir_all(dir.join("b preview (2)")).unwrap();
+        fs::create_dir_all(dir.join("keep me")).unwrap();
+        fs::write(dir.join("file preview"), b"x").unwrap();
+        let created = SystemTime::now();
+
+        // Half an hour on: too young to touch.
+        sweep_previews_in(&dir, created + Duration::from_secs(30 * 60));
+        assert!(dir.join("a preview").exists());
+
+        // Two hours on: stale. Anything not named like a preview folder stays.
+        sweep_previews_in(&dir, created + Duration::from_secs(2 * 60 * 60));
+        assert!(!dir.join("a preview").exists());
+        assert!(!dir.join("b preview (2)").exists());
+        assert!(dir.join("keep me").exists());
+        assert!(dir.join("file preview").exists());
+        fs::remove_dir_all(&dir).unwrap();
     }
 }

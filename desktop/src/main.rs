@@ -30,6 +30,9 @@ fn main() -> anyhow::Result<()> {
         .backend_name("winit".into())
         .select()?;
 
+    // Previews a crashed run left in the temp dir; off the UI thread so startup never waits.
+    std::thread::spawn(engine::ffmpeg_video::sweep_stale_previews);
+
     let registry = Rc::new(Registry::load()?);
     let app = AppWindow::new()?;
     app.window()
