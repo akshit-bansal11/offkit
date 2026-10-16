@@ -1,8 +1,352 @@
-// SVG Optimizer: a placeholder until the svg family builds it. Its state will live in the
-// `SvgOptimizer` global, driven by src/tools/svg_optimizer.rs.
+// SVG Optimizer view. Paste mode: the original and optimised markup side by side over rendered
+// before/after previews. Files mode: a batch list, as Video Converter. One inspector holds the
+// optimisation settings for both; its action saves the editor's result or runs the batch. All
+// state lives in the `SvgOptimizer` global, which Rust drives (src/tools/svg_optimizer.rs).
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, Switch } from "../components/controls.slint";
+import { SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
+import { DropZone, FileItem, FileList } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
+import { PreviewCanvas, SliderRow } from "svg-parts.slint";
 
-export global SvgOptimizer { }
+export enum SvgOptimizerMode { paste, files }
+export enum SvgOptimizerFormat { svg, jsx }
 
-export component SvgOptimizerView inherits PlaceholderView { }
+export global SvgOptimizer {
+    in-out property <SvgOptimizerMode> mode;
+    in property <bool> drop-hover;
+    in property <string> error;
+    in property <string> note;
+
+    // Paste mode.
+    in-out property <string> input;
+    in-out property <SvgOptimizerFormat> format;
+    in property <string> output;
+    // "Showing the first 50 KB of 1.2 MB…" when the output is cut for display.
+    in property <string> output-note;
+    in property <bool> can-copy;
+    in property <bool> busy;
+    in property <image> before;
+    in property <image> after;
+    in property <string> before-size;
+    in property <string> after-size;
+    in property <string> savings; // "42% smaller"
+    in property <bool> larger;
+
+    // Settings, the website's defaults.
+    in-out property <float> precision: 3;
+    in-out property <bool> remove-comments: true;
+    in-out property <bool> remove-metadata: true;
+    in-out property <bool> remove-empty: true;
+    in-out property <bool> collapse-groups: true;
+    in-out property <bool> remove-editor-data: true;
+    in-out property <bool> styles-to-attributes: true;
+
+    // Files mode.
+    in property <[FileItem]> files;
+    in property <string> list-summary;
+    in property <bool> running;
+    in property <bool> can-optimize;
+    in property <string> output-folder;
+    in property <bool> custom-output;
+
+    // The editor text or a setting changed.
+    callback changed();
+    callback format-changed();
+    callback open-file();
+    callback clear();
+    callback copy-output() -> bool;
+    callback save-output();
+    callback preview-resized(length, length);
+    callback choose-files();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback optimize-all();
+    callback cancel-all();
+}
+
+// A settings row with a switch on the right.
+component SwitchRow inherits InspectorRow {
+    in-out property <bool> checked;
+    callback toggled();
+
+    VerticalLayout {
+        alignment: center;
+
+        Switch {
+            label: root.label;
+            checked <=> root.checked;
+            toggled => { root.toggled(); }
+        }
+    }
+}
+
+component Settings inherits Inspector {
+    property <bool> files: SvgOptimizer.mode == SvgOptimizerMode.files;
+
+    action-text: root.files ? "Optimize All" : SvgOptimizer.format == SvgOptimizerFormat.jsx ? "Save JSX…" : "Save SVG…";
+    can-run: root.files ? SvgOptimizer.can-optimize : SvgOptimizer.can-copy;
+    running: root.files && SvgOptimizer.running;
+    run => {
+        if (root.files) {
+            SvgOptimizer.optimize-all();
+        } else {
+            SvgOptimizer.save-output();
+        }
+    }
+    stop => { SvgOptimizer.cancel-all(); }
+
+    InspectorSection {
+        title: "Precision";
+        footnote: "Fewer decimal places shrink paths more but can distort curves. 2 or 3 suits most files.";
+
+        SliderRow {
+            label: "Decimal places";
+            value-text: SvgOptimizer.precision;
+            first: true;
+            value <=> SvgOptimizer.precision;
+            minimum: 0;
+            maximum: 5;
+            changed => { SvgOptimizer.changed(); }
+        }
+    }
+
+    InspectorSection {
+        title: "Remove";
+
+        SwitchRow {
+            label: "Comments";
+            first: true;
+            checked <=> SvgOptimizer.remove-comments;
+            toggled => { SvgOptimizer.changed(); }
+        }
+        SwitchRow {
+            label: "Metadata and title";
+            checked <=> SvgOptimizer.remove-metadata;
+            toggled => { SvgOptimizer.changed(); }
+        }
+        SwitchRow {
+            label: "Empty groups and attributes";
+            checked <=> SvgOptimizer.remove-empty;
+            toggled => { SvgOptimizer.changed(); }
+        }
+        SwitchRow {
+            label: "Editor data";
+            detail: "Inkscape, Illustrator, Sketch";
+            checked <=> SvgOptimizer.remove-editor-data;
+            toggled => { SvgOptimizer.changed(); }
+        }
+    }
+
+    InspectorSection {
+        title: "Simplify";
+
+        SwitchRow {
+            label: "Collapse useless groups";
+            first: true;
+            checked <=> SvgOptimizer.collapse-groups;
+            toggled => { SvgOptimizer.changed(); }
+        }
+        SwitchRow {
+            label: "Inline styles to attributes";
+            checked <=> SvgOptimizer.styles-to-attributes;
+            toggled => { SvgOptimizer.changed(); }
+        }
+    }
+
+    if root.files: OutputFolderSection {
+        folder: SvgOptimizer.output-folder;
+        custom: SvgOptimizer.custom-output;
+        choose => { SvgOptimizer.choose-output-folder(); }
+        reset => { SvgOptimizer.reset-output-folder(); }
+    }
+}
+
+// One rendered preview under its header: "Before · 12 KB".
+component PreviewPane inherits Pane {
+    in property <string> title;
+    in property <string> size;
+    in property <image> source;
+    callback resized(length, length);
+
+    PaneHeader {
+        title: root.title;
+
+        @children
+        Text {
+            text: root.size;
+            color: Theme.text-secondary;
+            font-size: Theme.size-callout;
+            vertical-alignment: center;
+        }
+    }
+    PreviewCanvas {
+        vertical-stretch: 1;
+        label: root.title + " preview";
+        resized(width, height) => { root.resized(width, height); }
+
+        Image {
+            width: 100%;
+            height: 100%;
+            source: root.source;
+            image-fit: contain;
+            accessible-role: none;
+        }
+    }
+}
+
+export component SvgOptimizerView inherits VerticalLayout {
+    property <bool> files: SvgOptimizer.mode == SvgOptimizerMode.files;
+
+    HorizontalLayout {
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding: Theme.space-6;
+            padding-top: 0;
+            spacing: Theme.space-4;
+
+            HorizontalLayout {
+                spacing: Theme.space-3;
+
+                SegmentedControl {
+                    label: "Input";
+                    options: ["Paste", "Files"];
+                    current-index: root.files ? 1 : 0;
+                    selected(i) => {
+                        SvgOptimizer.mode = i == 1 ? SvgOptimizerMode.files : SvgOptimizerMode.paste;
+                    }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                if !root.files: Button {
+                    text: "Open…";
+                    kind: ButtonKind.secondary;
+                    clicked => { SvgOptimizer.open-file(); }
+                }
+                if !root.files: Button {
+                    text: "Clear";
+                    kind: ButtonKind.secondary;
+                    enabled: SvgOptimizer.input != "";
+                    clicked => { SvgOptimizer.clear(); }
+                }
+            }
+
+            if !root.files: HorizontalLayout {
+                vertical-stretch: 3;
+                spacing: Theme.space-4;
+
+                Pane {
+
+                    PaneHeader { title: "Original"; }
+                    TextPane {
+                        label: "Original SVG";
+                        text <=> SvgOptimizer.input;
+                        placeholder: "Paste <svg> markup, or drop an SVG file.";
+                        drop-hover: SvgOptimizer.drop-hover;
+                        edited => { SvgOptimizer.changed(); }
+                    }
+                }
+
+                Pane {
+
+                    PaneHeader {
+                        title: "Optimized";
+
+                        SegmentedControl {
+                            label: "Output format";
+                            options: ["SVG", "JSX"];
+                            current-index: SvgOptimizer.format == SvgOptimizerFormat.jsx ? 1 : 0;
+                            selected(i) => {
+                                SvgOptimizer.format = i == 1 ? SvgOptimizerFormat.jsx : SvgOptimizerFormat.svg;
+                                SvgOptimizer.format-changed();
+                            }
+                        }
+                        CopyButton {
+                            enabled: SvgOptimizer.can-copy;
+                            copy => { return SvgOptimizer.copy-output(); }
+                        }
+                    }
+                    TextPane {
+                        label: "Optimized output";
+                        text: SvgOptimizer.output;
+                        read-only: true;
+                        placeholder: SvgOptimizer.format == SvgOptimizerFormat.jsx ? "A React component appears here." : "The optimized SVG appears here.";
+                    }
+                }
+            }
+
+            if !root.files: HorizontalLayout {
+                vertical-stretch: 2;
+                spacing: Theme.space-4;
+
+                PreviewPane {
+                    title: "Before";
+                    size: SvgOptimizer.before-size;
+                    source: SvgOptimizer.before;
+                    resized(width, height) => { SvgOptimizer.preview-resized(width, height); }
+                }
+                PreviewPane {
+                    title: "After";
+                    size: SvgOptimizer.after-size;
+                    source: SvgOptimizer.after;
+
+                    if SvgOptimizer.busy: Text {
+                        text: "Optimizing…";
+                        color: Theme.text-secondary;
+                        font-size: Theme.size-callout;
+                        vertical-alignment: center;
+                    }
+                    if !SvgOptimizer.busy && SvgOptimizer.savings != "": Text {
+                        text: SvgOptimizer.savings;
+                        color: SvgOptimizer.larger ? Theme.danger : Theme.success;
+                        font-size: Theme.size-callout;
+                        font-weight: Theme.weight-medium;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            if root.files && SvgOptimizer.files.length == 0: DropZone {
+                vertical-stretch: 1;
+                drop-hover: SvgOptimizer.drop-hover;
+                icon: AppIcons.tool("sparkles");
+                title: "Drop SVG files here";
+                hint: "Each one is saved as name.min.svg";
+                choose => { SvgOptimizer.choose-files(); }
+            }
+            if root.files && SvgOptimizer.files.length > 0: FileList {
+                vertical-stretch: 1;
+                files: SvgOptimizer.files;
+                summary: SvgOptimizer.list-summary;
+                drop-hover: SvgOptimizer.drop-hover;
+                icon: AppIcons.tool("sparkles");
+                activity: "Optimizing";
+                cancel-label: "Cancel optimizing";
+                add => { SvgOptimizer.choose-files(); }
+                remove(i) => { SvgOptimizer.remove(i); }
+                cancel(i) => { SvgOptimizer.cancel(i); }
+                reveal(i) => { SvgOptimizer.reveal(i); }
+            }
+
+            if SvgOptimizer.error != "": Notice {
+                text: SvgOptimizer.error;
+                tone: NoticeTone.error;
+            }
+            if SvgOptimizer.error == "" && SvgOptimizer.note != "": Notice {
+                text: SvgOptimizer.note;
+            }
+            if !root.files && SvgOptimizer.error == "" && SvgOptimizer.note == "" && SvgOptimizer.output-note != "": Notice {
+                text: SvgOptimizer.output-note;
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

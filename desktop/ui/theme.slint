@@ -190,6 +190,12 @@ export global Theme {
     // --- end pdf ---
 
     // --- svg ---
+    // Sizes only; the SVG tools use the shared colour roles. The transparency checkerboard
+    // behind previews is painted by Rust (engine/svg.rs) and is content, not chrome.
+    out property <length> svg-preview-min-height: 120px;
+    out property <length> svg-picker-cell-height: 60px; // a Pattern picker cell: thumbnail over label
+    out property <length> svg-thumb-size: 24px; // the website's thumbnail tile
+    out property <length> svg-color-well-width: 128px; // swatch plus room for "#rrggbb"
     // --- end svg ---
 
     // --- colors ---
