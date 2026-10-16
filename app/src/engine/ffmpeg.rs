@@ -46,6 +46,10 @@ impl Ffmpeg {
             })
     }
 
+    /// Reads a file's streams and container. Also the gate for untrusted input: anything that
+    /// isn't a single local media file (see `INDIRECT_DEMUXERS`) is rejected here, and
+    /// `convert` probes again right before running, so a file swapped after it was added
+    /// can't slip through.
     pub fn probe(&self, path: &Path) -> anyhow::Result<MediaInfo> {
         let out = command(&self.ffprobe)
             .args([
@@ -54,9 +58,9 @@ impl Ffmpeg {
                 "-print_format",
                 "json",
                 "-show_entries",
-                "format=duration:stream=codec_type,codec_name,width,height",
+                "format=duration,format_name:stream=codec_type,codec_name,width,height",
             ])
-            .arg(path)
+            .args(input_args(path, None)?)
             .output()
             .context("couldn't run ffprobe")?;
         if !out.status.success() {
@@ -147,7 +151,9 @@ impl Ffmpeg {
         if cancel.is_cancelled() {
             return Err(ConvertError::Cancelled);
         }
-        let args = build_args(job, caps).map_err(ConvertError::failed)?;
+        // Re-probe and pin the demuxer that probe accepted: the file may have changed since.
+        let info = self.probe(&job.input).map_err(ConvertError::failed)?;
+        let args = build_args(job, caps, &info.format).map_err(ConvertError::failed)?;
         let mut child = command(&self.ffmpeg)
             .args(args)
             .stdout(Stdio::piped())
@@ -235,8 +241,28 @@ impl ConvertError {
 
 // ---- Probing ------------------------------------------------------------------------------
 
+/// Demuxers that read other files or URLs named inside the input (playlists, file lists).
+/// Fed a crafted file they fetch remote URLs or pull unrelated local files into the output,
+/// so they are refused outright. Names as ffprobe's `format_name` reports them.
+const INDIRECT_DEMUXERS: &[&str] = &["hls", "dash", "concat", "tee", "webm_dash_manifest"];
+
+/// The input half of every ffmpeg/ffprobe command line; nothing else may add `-i`.
+/// `-protocol_whitelist file` stops the input (and anything it references) from reaching the
+/// network, and the path is made absolute so a name like `http:x` can't parse as a protocol.
+/// `format` pins the demuxer, so the file is read exactly as it was probed.
+fn input_args(path: &Path, format: Option<&str>) -> io::Result<Vec<OsString>> {
+    let mut args: Vec<OsString> = vec!["-protocol_whitelist".into(), "file".into()];
+    if let Some(format) = format {
+        args.extend(["-f".into(), format.into()]);
+    }
+    args.extend(["-i".into(), std::path::absolute(path)?.into_os_string()]);
+    Ok(args)
+}
+
 #[derive(Debug, Clone)]
 pub struct MediaInfo {
+    /// The demuxer ffprobe chose (first name of its `format_name`, e.g. "mov").
+    pub format: String,
     pub duration: Option<f64>,
     pub width: Option<u32>,
     pub height: Option<u32>,
@@ -262,8 +288,24 @@ impl MediaInfo {
         #[derive(Deserialize)]
         struct Format {
             duration: Option<String>,
+            format_name: Option<String>,
         }
         let out: Out = serde_json::from_slice(json).context("unreadable ffprobe output")?;
+        let format_name = out
+            .format
+            .as_ref()
+            .and_then(|f| f.format_name.clone())
+            .unwrap_or_default();
+        if format_name
+            .split(',')
+            .any(|name| INDIRECT_DEMUXERS.contains(&name))
+        {
+            bail!("Playlists and file lists aren't supported");
+        }
+        let format = match format_name.split(',').next() {
+            Some(name) if !name.is_empty() => name.to_owned(),
+            _ => bail!("Not a video FFmpeg can read"),
+        };
         let of = |kind: &str| {
             out.streams
                 .iter()
@@ -271,6 +313,7 @@ impl MediaInfo {
         };
         let video = of("video").ok_or_else(|| anyhow!("No video stream found"))?;
         Ok(Self {
+            format,
             duration: out
                 .format
                 .and_then(|f| f.duration)
@@ -633,7 +676,12 @@ fn lerp(q: u8, at_0: i32, at_100: i32) -> i32 {
     at_0 + ((at_100 - at_0) * q + 50 * (at_100 - at_0).signum()) / 100
 }
 
-pub fn build_args(job: &ConvertJob, caps: &Capabilities) -> anyhow::Result<Vec<OsString>> {
+/// `input_format` is the demuxer `probe` reported for `job.input`.
+pub fn build_args(
+    job: &ConvertJob,
+    caps: &Capabilities,
+    input_format: &str,
+) -> anyhow::Result<Vec<OsString>> {
     let s = &job.settings;
     // Output options as whitespace-separated words; no word below contains a space.
     let mut o: Vec<String> = Vec::new();
@@ -702,11 +750,11 @@ pub fn build_args(job: &ConvertJob, caps: &Capabilities) -> anyhow::Result<Vec<O
     }
 
     // `-y` is safe: `reserve_output` created the output file itself, so nothing else is overwritten.
-    let mut args: Vec<OsString> = "-hide_banner -nostdin -v error -nostats -progress pipe:1 -y -i"
+    let mut args: Vec<OsString> = "-hide_banner -nostdin -v error -nostats -progress pipe:1 -y"
         .split_whitespace()
         .map(OsString::from)
         .collect();
-    args.push(job.input.as_os_str().into());
+    args.extend(input_args(&job.input, Some(input_format))?);
     args.extend(o.into_iter().map(OsString::from));
     args.push(job.output.as_os_str().into());
     Ok(args)
@@ -810,7 +858,7 @@ mod tests {
     use super::*;
 
     fn args(s: Settings, caps: &Capabilities) -> Vec<String> {
-        build_args(&job(s), caps)
+        build_args(&job(s), caps, "mov")
             .unwrap()
             .into_iter()
             .map(|a| a.to_string_lossy().into_owned())
@@ -881,7 +929,9 @@ mod tests {
         assert!(has(&a, &["-c:a", "aac", "-b:a", "192k"]));
         assert!(has(&a, &["-movflags", "+faststart"]));
         assert!(has(&a, &["-progress", "pipe:1"]));
-        assert!(has(&a, &["-i", "in.mov"]));
+        let input = std::path::absolute("in.mov").unwrap();
+        assert_eq!(a.last().map(String::as_str), Some("out.x"));
+        assert!(a.iter().any(|x| *x == input.to_string_lossy()));
         assert_eq!(a.last().map(String::as_str), Some("out.x"));
     }
 
@@ -959,6 +1009,39 @@ mod tests {
     }
 
     #[test]
+    fn input_is_hardened_before_dash_i() {
+        let a = args(
+            settings(Container::Mp4, VideoCodec::H264, AudioCodec::Aac),
+            &full_caps(),
+        );
+        let input = std::path::absolute("in.mov").unwrap();
+        let input = input.to_string_lossy();
+        assert!(has(
+            &a,
+            &["-protocol_whitelist", "file", "-f", "mov", "-i", &input]
+        ));
+        assert_eq!(a.iter().filter(|x| *x == "-i").count(), 1);
+        // A relative name that looks like a URL becomes an absolute file path.
+        let probe: Vec<_> = input_args(Path::new("http:evil"), None).unwrap();
+        assert_eq!(
+            probe[..3],
+            ["-protocol_whitelist", "file", "-i"].map(OsString::from)
+        );
+        assert!(Path::new(&probe[3]).is_absolute());
+    }
+
+    #[test]
+    fn playlist_and_list_demuxers_are_refused() {
+        for name in ["hls", "dash", "concat", "tee", "webm_dash_manifest"] {
+            let json = format!(
+                r#"{{"streams":[{{"codec_type":"video"}}],"format":{{"format_name":"{name}"}}}}"#
+            );
+            let err = MediaInfo::from_ffprobe_json(json.as_bytes()).unwrap_err();
+            assert_eq!(err.to_string(), "Playlists and file lists aren't supported");
+        }
+    }
+
+    #[test]
     fn hw_is_skipped_for_codecs_that_failed_their_trial() {
         let caps = Capabilities::with(
             &["libx264", "libsvtav1", "aac", "h264_nvenc"],
@@ -1003,7 +1086,7 @@ mod tests {
     fn copied_hevc_into_mp4_is_tagged_hvc1() {
         let mut j = job(settings(Container::Mp4, VideoCodec::Copy, AudioCodec::Copy));
         let words = |j: &ConvertJob| -> Vec<String> {
-            build_args(j, &full_caps())
+            build_args(j, &full_caps(), "mov")
                 .unwrap()
                 .into_iter()
                 .map(|a| a.to_string_lossy().into_owned())
@@ -1033,7 +1116,7 @@ mod tests {
     fn missing_encoder_is_an_error() {
         let caps = Capabilities::with(&["aac"], None);
         let s = settings(Container::Mp4, VideoCodec::H264, AudioCodec::Aac);
-        assert!(build_args(&job(s), &caps).is_err());
+        assert!(build_args(&job(s), &caps, "mov").is_err());
     }
 
     #[test]
@@ -1156,8 +1239,9 @@ Error opening output file o4.mkv.";
 
     #[test]
     fn media_summary_formats() {
-        let json = br#"{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080},{"codec_type":"audio","codec_name":"aac"}],"format":{"duration":"42.4"}}"#;
+        let json = br#"{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080},{"codec_type":"audio","codec_name":"aac"}],"format":{"duration":"42.4","format_name":"mov,mp4,m4a,3gp,3g2,mj2"}}"#;
         let info = MediaInfo::from_ffprobe_json(json).unwrap();
+        assert_eq!(info.format, "mov");
         assert_eq!(info.summary(), "0:42 · 1920×1080 · H.264 / AAC");
         assert!(MediaInfo::from_ffprobe_json(br#"{"streams":[{"codec_type":"audio"}]}"#).is_err());
     }
@@ -1304,6 +1388,68 @@ Error opening output file o4.mkv.";
                 Some(name)
             );
         }
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A crafted "video" that is really an HLS playlist or a concat list, saved as `.mp4`.
+    #[test]
+    fn playlists_disguised_as_mp4_are_rejected_and_never_converted() {
+        let Some((ff, dir)) = real_ffmpeg("playlists") else {
+            return;
+        };
+        let secret = dir.join("secret.mp4");
+        make_clip(&ff, &secret, 1, "320x240");
+        let hls = dir.join("hls.mp4");
+        // Port 9 (discard): nothing listens, and the whitelist must stop the attempt anyway.
+        fs::write(
+            &hls,
+            "#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\nhttp://127.0.0.1:9/x.ts\n#EXT-X-ENDLIST\n",
+        )
+        .unwrap();
+        // Relative names pass the concat demuxer's own "safe" check, so this is the real threat.
+        let relative = dir.join("relative.mp4");
+        fs::write(&relative, "ffconcat version 1.0\nfile 'secret.mp4'\n").unwrap();
+        let absolute = dir.join("absolute.mp4");
+        let listed = secret.to_string_lossy().replace('\\', "/");
+        fs::write(
+            &absolute,
+            format!("ffconcat version 1.0\nfile '{listed}'\n"),
+        )
+        .unwrap();
+
+        let caps = ff.capabilities();
+        for input in [&hls, &relative, &absolute] {
+            assert!(
+                ff.probe(input).is_err(),
+                "probe accepted {}",
+                input.display()
+            );
+            let job = ConvertJob {
+                input: input.clone(),
+                output: reserve_output(input, None, "mkv").unwrap(),
+                settings: settings(Container::Mkv, VideoCodec::H264, AudioCodec::Aac),
+                duration: None,
+                source_codec: None,
+            };
+            let started = std::time::Instant::now();
+            let result = ff.convert(&job, &caps, &CancelToken::default(), |_| {});
+            assert!(matches!(result, Err(ConvertError::Failed(_))), "{result:?}");
+            assert!(!job.output.exists(), "{} left output", input.display());
+            assert!(started.elapsed() < std::time::Duration::from_secs(5));
+        }
+        let message = ff.probe(&relative).unwrap_err().to_string();
+        assert_eq!(message, "Playlists and file lists aren't supported");
+
+        // Even if probe were bypassed, ffmpeg itself refuses the network for the playlist.
+        let out = command(&ff.ffmpeg)
+            .args(["-hide_banner", "-v", "error", "-f", "hls"])
+            .args(["-protocol_whitelist", "file", "-i"])
+            .arg(&hls)
+            .args(["-f", "null", "-"])
+            .output()
+            .unwrap();
+        assert!(!out.status.success());
+        assert!(String::from_utf8_lossy(&out.stderr).contains("not on whitelist"));
         fs::remove_dir_all(&dir).unwrap();
     }
 }
