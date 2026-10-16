@@ -85,7 +85,11 @@ impl Kind {
     }
 
     fn tile_height(self, size: f64) -> f64 {
-        if self == Kind::Waves { size / 2.0 } else { size }
+        if self == Kind::Waves {
+            size / 2.0
+        } else {
+            size
+        }
     }
 
     /// The pattern's shapes for one tile; `fg` is the 8-digit colour, `w` the width setting.
@@ -100,9 +104,9 @@ impl Kind {
                 s / 2.0,
                 (s / 8.0) * w
             ),
-            Kind::Diagonal => format!(
-                r#"<path d="M0 {s} L{s} 0" stroke="{fg}" stroke-width="{w}" fill="none"/>"#
-            ),
+            Kind::Diagonal => {
+                format!(r#"<path d="M0 {s} L{s} 0" stroke="{fg}" stroke-width="{w}" fill="none"/>"#)
+            }
             Kind::Cross => format!(
                 r#"<path d="M{} 0v{s}M0 {}h{s}" stroke="{fg}" stroke-width="{w}" fill="none"/>"#,
                 s / 2.0,
@@ -166,7 +170,13 @@ impl Pattern {
 
     /// One tile on its background: what the CSS embeds.
     fn tile_svg(&self) -> String {
-        tile_svg(self.kind, &self.bg, &self.fg_with_alpha(), self.size, self.width)
+        tile_svg(
+            self.kind,
+            &self.bg,
+            &self.fg_with_alpha(),
+            self.size,
+            self.width,
+        )
     }
 
     /// A `width` × `height` canvas filled with the pattern: the export at 1600 × 900, and the
@@ -299,7 +309,8 @@ pub fn init(app: &AppWindow) {
     let weak = app.as_weak();
     g.on_preview_resized(move |width, height| {
         let Some(app) = weak.upgrade() else { return };
-        let changed = with(|s| std::mem::replace(&mut s.canvas, (width, height)) != (width, height));
+        let changed =
+            with(|s| std::mem::replace(&mut s.canvas, (width, height)) != (width, height));
         if changed {
             render(&app);
         }
@@ -571,7 +582,10 @@ mod tests {
 
     #[test]
     fn encode_uri_component_keeps_its_unreserved_marks() {
-        assert_eq!(encode_uri_component("a-_.!~*'()é #"), "a-_.!~*'()%C3%A9%20%23");
+        assert_eq!(
+            encode_uri_component("a-_.!~*'()é #"),
+            "a-_.!~*'()%C3%A9%20%23"
+        );
     }
 
     #[test]
@@ -581,7 +595,14 @@ mod tests {
 
     #[test]
     fn a_transparent_thumbnail_background_draws_nothing() {
-        let tree = svg::parse(&tile_svg(Kind::Checker, "transparent", "#00000000", 24.0, 1.0)).unwrap();
+        let tree = svg::parse(&tile_svg(
+            Kind::Checker,
+            "transparent",
+            "#00000000",
+            24.0,
+            1.0,
+        ))
+        .unwrap();
 
         let pixmap = svg::render(&tree, 1.0).unwrap();
 

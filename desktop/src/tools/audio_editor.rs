@@ -77,7 +77,9 @@ impl Edit {
     /// stretch at `speed`, so the playhead covers `speed` source seconds per second; it stays
     /// within the kept stretch.
     fn source_time(&self, output: f64) -> f64 {
-        (self.start + output * self.speed).max(self.start).min(self.end)
+        (self.start + output * self.speed)
+            .max(self.start)
+            .min(self.end)
     }
 
     /// How far into this edit's preview `source` falls: the inverse of `source_time`, so a
@@ -231,7 +233,9 @@ enum Command {
     /// Jumps within the loaded preview, in seconds.
     Seek(f64),
     /// Stops playing; with `release`, also lets go of (and so deletes) the preview file.
-    Stop { release: bool },
+    Stop {
+        release: bool,
+    },
 }
 
 /// What the engine thread tells the UI thread, refreshed every `POLL`.
@@ -350,10 +354,9 @@ impl Engine {
         let Some(sink) = &self.sink else {
             return Err("No audio output is available".into());
         };
-        let file = File::open(wav.path())
-            .map_err(|e| format!("Couldn't open the preview: {e}"))?;
-        let decoder = Decoder::try_from(file)
-            .map_err(|e| format!("Couldn't read the preview: {e}"))?;
+        let file = File::open(wav.path()).map_err(|e| format!("Couldn't open the preview: {e}"))?;
+        let decoder =
+            Decoder::try_from(file).map_err(|e| format!("Couldn't read the preview: {e}"))?;
         let player = Player::connect_new(sink.mixer());
         // Paused until it is in place, so a jump doesn't play the first moments.
         player.pause();
@@ -468,7 +471,11 @@ fn post_current(
 ) {
     let token = token.clone();
     jobs::post(weak, move |app| {
-        let current = with(|s| slot(s, slot_of).as_ref().is_some_and(|t| Arc::ptr_eq(t, &token)));
+        let current = with(|s| {
+            slot(s, slot_of)
+                .as_ref()
+                .is_some_and(|t| Arc::ptr_eq(t, &token))
+        });
         if current {
             f(&app);
         }
@@ -500,7 +507,11 @@ pub fn init(app: &AppWindow) {
             let formats = ffmpeg_audio::available(&Format::EDIT, ff.encoders());
             jobs::post(&weak, move |app| {
                 let g = app.global::<AudioEditor>();
-                let previous = with(|s| s.formats.get(index(g.get_format_index(), s.formats.len())).copied());
+                let previous = with(|s| {
+                    s.formats
+                        .get(index(g.get_format_index(), s.formats.len()))
+                        .copied()
+                });
                 with(|s| s.formats = formats);
                 let i = with(|s| s.formats.iter().position(|f| Some(*f) == previous));
                 g.set_format_index(i.unwrap_or(0) as i32);
@@ -594,7 +605,9 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
     }
     halt(app, true);
     let token = begin(Slot::Load);
-    let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or_default();
+    let size = std::fs::metadata(&path)
+        .map(|m| m.len())
+        .unwrap_or_default();
     with(|s| {
         s.file = Some(path.clone());
         s.duration = 0.0;
@@ -711,8 +724,16 @@ fn export(app: &AppWindow) {
     let g = app.global::<AudioEditor>();
     let edit = current_edit(app);
     let prepared = with(|s| {
-        let format = *s.formats.get(index(g.get_format_index(), s.formats.len()))?;
-        Some((s.ffmpeg.clone()?, s.file.clone()?, s.sample_rate, s.formats.clone(), format))
+        let format = *s
+            .formats
+            .get(index(g.get_format_index(), s.formats.len()))?;
+        Some((
+            s.ffmpeg.clone()?,
+            s.file.clone()?,
+            s.sample_rate,
+            s.formats.clone(),
+            format,
+        ))
     });
     let Some((ff, input, rate, offered, format)) = prepared else {
         return;
@@ -733,13 +754,19 @@ fn export(app: &AppWindow) {
     };
     // The name typed in the dialog decides the format, so "take.wav" is a WAV file.
     let Some(format) = format_for_path(&target, &offered) else {
-        let names: Vec<_> = offered.iter().map(|f| format!(".{}", f.extension())).collect();
+        let names: Vec<_> = offered
+            .iter()
+            .map(|f| format!(".{}", f.extension()))
+            .collect();
         return fail(format!("Choose a name ending in {}.", names.join(", ")));
     };
-    let mut options = vec!["-af".into(), match graph(&edit, rate) {
-        Ok(graph) => graph,
-        Err(e) => return fail(e.to_string()),
-    }];
+    let mut options = vec![
+        "-af".into(),
+        match graph(&edit, rate) {
+            Ok(graph) => graph,
+            Err(e) => return fail(e.to_string()),
+        },
+    ];
     match ffmpeg_audio::encode_args(format, None, ff.encoders()) {
         Ok(codec) => options.extend(codec),
         Err(e) => return fail(e.to_string()),
@@ -782,7 +809,9 @@ fn export(app: &AppWindow) {
             with(|s| s.export = None);
             match result {
                 Ok(saved) => {
-                    let size = std::fs::metadata(&saved).map(|m| m.len()).unwrap_or_default();
+                    let size = std::fs::metadata(&saved)
+                        .map(|m| m.len())
+                        .unwrap_or_default();
                     g.set_export_message(
                         format!("Saved as {} · {}", file_name(&saved), format_size(size)).into(),
                     );
@@ -964,7 +993,12 @@ fn follow(app: &AppWindow) {
         if report.serial != s.serial {
             return None;
         }
-        Some((report.position, report.ended, report.error.take(), s.rendered))
+        Some((
+            report.position,
+            report.ended,
+            report.error.take(),
+            s.rendered,
+        ))
     });
     let Some((position, ended, error, rendered)) = heard else {
         return;
@@ -1105,7 +1139,11 @@ mod tests {
     }
 
     fn tempo_text(speed: f64) -> String {
-        let graph = Graph::new().chain(atempo_chain(speed).into_iter().fold(Chain::new(), Chain::then));
+        let graph = Graph::new().chain(
+            atempo_chain(speed)
+                .into_iter()
+                .fold(Chain::new(), Chain::then),
+        );
         graph.arg().to_string_lossy().into_owned()
     }
 

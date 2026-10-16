@@ -114,10 +114,7 @@ struct Tree {
 impl Tree {
     /// "12 folders · 210 files · 1 link".
     fn summary(&self) -> String {
-        let mut parts = vec![
-            plural(self.folders, "folder"),
-            plural(self.files, "file"),
-        ];
+        let mut parts = vec![plural(self.folders, "folder"), plural(self.files, "file")];
         if self.links > 0 {
             parts.push(plural(self.links, "link"));
         }
@@ -211,7 +208,12 @@ struct Walker<'a> {
 
 impl Walker<'_> {
     /// The listing of `dir`, which sits at `rel` below the root, `depth` levels down.
-    fn folder(&mut self, dir: &Path, rel: &mut Vec<String>, depth: usize) -> Result<Vec<Node>, JobError> {
+    fn folder(
+        &mut self,
+        dir: &Path,
+        rel: &mut Vec<String>,
+        depth: usize,
+    ) -> Result<Vec<Node>, JobError> {
         if self.cancel.is_cancelled() {
             return Err(JobError::Cancelled);
         }
@@ -224,7 +226,12 @@ impl Walker<'_> {
         listing
     }
 
-    fn list(&mut self, dir: &Path, rel: &mut Vec<String>, depth: usize) -> Result<Vec<Node>, JobError> {
+    fn list(
+        &mut self,
+        dir: &Path,
+        rel: &mut Vec<String>,
+        depth: usize,
+    ) -> Result<Vec<Node>, JobError> {
         let mut items = Vec::new();
         // Streamed, never collected whole: a folder of millions of entries stops at the cap.
         match fs::read_dir(dir) {
@@ -327,7 +334,11 @@ impl Walker<'_> {
     fn unreadable(&mut self, rel: &[String], name: Option<&str>) {
         let mut at = rel.to_vec();
         at.extend(name.map(String::from));
-        let at = if at.is_empty() { self.tree.name.clone() } else { at.join("/") };
+        let at = if at.is_empty() {
+            self.tree.name.clone()
+        } else {
+            at.join("/")
+        };
         self.tree.unreadable.push(at);
     }
 
@@ -597,11 +608,7 @@ fn class(pattern: &[char], c: char) -> Option<(usize, bool)> {
 
 /// `text` as a Markdown code span, its backtick fence longer than any run inside it.
 fn code(text: &str) -> String {
-    let longest = text
-        .split(|c| c != '`')
-        .map(str::len)
-        .max()
-        .unwrap_or(0);
+    let longest = text.split(|c| c != '`').map(str::len).max().unwrap_or(0);
     let fence = "`".repeat(longest + 1);
     let pad = if text.starts_with('`') || text.ends_with('`') {
         " "
@@ -756,7 +763,9 @@ fn start_walk(app: &AppWindow) {
     let walking = token.clone();
     slint::Timer::single_shot(SHOW_STOP_AFTER, move || {
         let Some(app) = weak.upgrade() else { return };
-        if with(|s| Arc::ptr_eq(&s.walk, &walking) && s.worker.as_ref().is_some_and(|w| !w.is_finished())) {
+        if with(|s| {
+            Arc::ptr_eq(&s.walk, &walking) && s.worker.as_ref().is_some_and(|w| !w.is_finished())
+        }) {
             app.global::<GitScaffold>().set_walking(true);
         }
     });
@@ -771,7 +780,11 @@ fn start_walk(app: &AppWindow) {
     with(|s| s.worker = Some(worker));
 }
 
-fn finish_walk(app: &AppWindow, token: &Arc<CancelToken>, result: Result<(Tree, String, String), JobError>) {
+fn finish_walk(
+    app: &AppWindow,
+    token: &Arc<CancelToken>,
+    result: Result<(Tree, String, String), JobError>,
+) {
     if !with(|s| Arc::ptr_eq(&s.walk, token)) {
         return; // A newer walk replaced this one.
     }
@@ -779,7 +792,9 @@ fn finish_walk(app: &AppWindow, token: &Arc<CancelToken>, result: Result<(Tree, 
     g.set_walking(false);
     let (tree, ascii, markdown) = match result {
         Ok(done) => done,
-        Err(JobError::Cancelled) => return g.set_note("Stopped. Change an option to read the folder again.".into()),
+        Err(JobError::Cancelled) => {
+            return g.set_note("Stopped. Change an option to read the folder again.".into());
+        }
         Err(JobError::Failed(message)) => return g.set_error(message.into()),
     };
     g.set_summary(format!("{} · {}", shown(&tree.name), tree.summary()).into());
@@ -797,7 +812,11 @@ fn finish_walk(app: &AppWindow, token: &Arc<CancelToken>, result: Result<(Tree, 
         ));
     }
     if !tree.unreadable.is_empty() {
-        let names: Vec<_> = tree.unreadable.iter().map(|n| format!("“{}”", shown(n))).collect();
+        let names: Vec<_> = tree
+            .unreadable
+            .iter()
+            .map(|n| format!("“{}”", shown(n)))
+            .collect();
         notes.push(format!("Couldn't read {}.", names.join(", ")));
     }
     if tree.too_deep {
@@ -865,10 +884,8 @@ mod tests {
     use super::*;
 
     fn temp_dir(test: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "open-tools-scaffold-{test}-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("open-tools-scaffold-{test}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -901,10 +918,18 @@ mod tests {
     }
 
     fn ascii(root: &Path, options: Options) -> String {
-        walk(root, options, &CancelToken::default()).unwrap().ascii()
+        walk(root, options, &CancelToken::default())
+            .unwrap()
+            .ascii()
     }
 
-    const FIXTURE: &[&str] = &["src/main.rs", "src/lib/mod.rs", "README.md", "docs/", "Cargo.toml"];
+    const FIXTURE: &[&str] = &[
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "README.md",
+        "docs/",
+        "Cargo.toml",
+    ];
 
     #[test]
     fn the_tree_draws_real_box_characters_with_folders_first() {
@@ -930,7 +955,9 @@ mod tests {
     fn the_markdown_list_nests_by_two_spaces() {
         let (dir, root) = project("markdown", &["src/main.rs", "notes_v1.md"]);
 
-        let text = walk(&root, defaults(), &CancelToken::default()).unwrap().markdown();
+        let text = walk(&root, defaults(), &CancelToken::default())
+            .unwrap()
+            .markdown();
 
         assert_eq!(
             text,
@@ -943,7 +970,13 @@ mod tests {
     fn sorting_by_name_mixes_folders_and_files() {
         let (dir, root) = project("by-name", &["b/", "a.txt", "C.txt"]);
 
-        let text = ascii(&root, Options { folders_first: false, ..defaults() });
+        let text = ascii(
+            &root,
+            Options {
+                folders_first: false,
+                ..defaults()
+            },
+        );
 
         assert_eq!(text, "project/\n├── a.txt\n├── b/\n└── C.txt");
         fs::remove_dir_all(&dir).unwrap();
@@ -954,7 +987,13 @@ mod tests {
         let (dir, root) = project("hidden", &[".env", "app.rs"]);
 
         let hidden = ascii(&root, defaults());
-        let shown = ascii(&root, Options { hidden: true, ..defaults() });
+        let shown = ascii(
+            &root,
+            Options {
+                hidden: true,
+                ..defaults()
+            },
+        );
 
         assert_eq!(hidden, "project/\n└── app.rs");
         assert_eq!(shown, "project/\n├── .env\n└── app.rs");
@@ -965,7 +1004,13 @@ mod tests {
     fn folders_only_leaves_out_files() {
         let (dir, root) = project("folders-only", FIXTURE);
 
-        let text = ascii(&root, Options { folders_only: true, ..defaults() });
+        let text = ascii(
+            &root,
+            Options {
+                folders_only: true,
+                ..defaults()
+            },
+        );
 
         assert_eq!(text, "project/\n├── docs/\n└── src/\n    └── lib/");
         fs::remove_dir_all(&dir).unwrap();
@@ -975,7 +1020,14 @@ mod tests {
     fn depth_stops_below_the_chosen_level() {
         let (dir, root) = project("depth", FIXTURE);
 
-        let text = ascii(&root, Options { depth: Some(1), folders_only: true, ..defaults() });
+        let text = ascii(
+            &root,
+            Options {
+                depth: Some(1),
+                folders_only: true,
+                ..defaults()
+            },
+        );
 
         assert_eq!(text, "project/\n├── docs/\n└── src/");
         fs::remove_dir_all(&dir).unwrap();
@@ -985,9 +1037,20 @@ mod tests {
     fn gitignore_patterns_negation_and_folder_only_rules_apply() {
         let (dir, root) = project(
             "gitignore",
-            &["debug.log", "keep.log", "build/out.o", "build.rs", "src/build", "notes.txt"],
+            &[
+                "debug.log",
+                "keep.log",
+                "build/out.o",
+                "build.rs",
+                "src/build",
+                "notes.txt",
+            ],
         );
-        fs::write(root.join(".gitignore"), "*.log\n!keep.log\nbuild/\n# a comment\n\n").unwrap();
+        fs::write(
+            root.join(".gitignore"),
+            "*.log\n!keep.log\nbuild/\n# a comment\n\n",
+        )
+        .unwrap();
 
         let text = ascii(&root, defaults());
 
@@ -1036,7 +1099,13 @@ mod tests {
     fn double_star_patterns_cross_folders() {
         let (dir, root) = project(
             "globstar",
-            &["cache/a", "deep/er/cache/b", "docs/guide.md", "docs/api/ref.md", "docs/api/ref.txt"],
+            &[
+                "cache/a",
+                "deep/er/cache/b",
+                "docs/guide.md",
+                "docs/api/ref.md",
+                "docs/api/ref.txt",
+            ],
         );
         fs::write(root.join(".gitignore"), "**/cache/\ndocs/**/*.md\n").unwrap();
 
@@ -1053,7 +1122,13 @@ mod tests {
     fn the_git_folder_is_left_out_with_gitignore_on() {
         let (dir, root) = project("dot-git", &[".git/HEAD", "app.rs"]);
 
-        let text = ascii(&root, Options { hidden: true, ..defaults() });
+        let text = ascii(
+            &root,
+            Options {
+                hidden: true,
+                ..defaults()
+            },
+        );
 
         assert_eq!(text, "project/\n└── app.rs");
         fs::remove_dir_all(&dir).unwrap();
@@ -1064,7 +1139,13 @@ mod tests {
         let (dir, root) = project("gitignore-off", &["debug.log"]);
         fs::write(root.join(".gitignore"), "*.log\n").unwrap();
 
-        let text = ascii(&root, Options { gitignore: false, ..defaults() });
+        let text = ascii(
+            &root,
+            Options {
+                gitignore: false,
+                ..defaults()
+            },
+        );
 
         assert_eq!(text, "project/\n└── debug.log");
         fs::remove_dir_all(&dir).unwrap();
@@ -1077,7 +1158,9 @@ mod tests {
         let made = std::os::windows::fs::symlink_dir(root.join("real"), root.join("link"));
         #[cfg(not(windows))]
         let made = std::os::unix::fs::symlink(root.join("real"), root.join("link"));
-        let Ok(()) = made.map_err(|e| eprintln!("skipped: creating a symlink failed ({e}); needs Developer Mode on Windows")) else {
+        let Ok(()) = made.map_err(|e| {
+            eprintln!("skipped: creating a symlink failed ({e}); needs Developer Mode on Windows")
+        }) else {
             fs::remove_dir_all(&dir).unwrap();
             return;
         };
@@ -1120,7 +1203,10 @@ mod tests {
     #[test]
     fn a_trailing_escaped_space_is_kept_and_others_dropped() {
         assert_eq!(parse_line("trail   "), parse_line("trail"));
-        assert_eq!(parse_line("trail\\ ").unwrap().parts, [['t', 'r', 'a', 'i', 'l', '\\', ' '].to_vec()]);
+        assert_eq!(
+            parse_line("trail\\ ").unwrap().parts,
+            [['t', 'r', 'a', 'i', 'l', '\\', ' '].to_vec()]
+        );
     }
 
     #[test]
@@ -1169,16 +1255,23 @@ mod tests {
 
         assert_eq!(many.parts.len(), one.parts.len());
         assert_eq!(
-            [many.matches(&deep, false), many.matches(&shallow, false), many.matches(&other, false)],
+            [
+                many.matches(&deep, false),
+                many.matches(&shallow, false),
+                many.matches(&other, false)
+            ],
             [true, true, false]
         );
     }
 
     #[test]
     fn overlong_and_surplus_patterns_are_skipped_and_counted() {
-        let text = format!("{}
+        let text = format!(
+            "{}
 keep
-", "a".repeat(MAX_PATTERN_CHARS + 1));
+",
+            "a".repeat(MAX_PATTERN_CHARS + 1)
+        );
 
         let (patterns, skipped) = parse_gitignore(&text, MAX_PATTERNS);
 
@@ -1188,7 +1281,8 @@ keep
     #[test]
     fn patterns_past_the_per_file_limit_are_skipped_and_counted() {
         let text = "x
-".repeat(MAX_PATTERNS + 3);
+"
+        .repeat(MAX_PATTERNS + 3);
 
         let (patterns, skipped) = parse_gitignore(&text, MAX_PATTERNS);
 
@@ -1265,6 +1359,9 @@ keep
 
         cancel.cancel();
 
-        assert!(matches!(walker.ignored(&[], "x", false), Err(JobError::Cancelled)));
+        assert!(matches!(
+            walker.ignored(&[], "x", false),
+            Err(JobError::Cancelled)
+        ));
     }
 }

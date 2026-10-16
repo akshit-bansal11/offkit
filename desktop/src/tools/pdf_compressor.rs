@@ -159,7 +159,14 @@ fn compress_all(app: &AppWindow) {
         let named = job.input.with_file_name(format!("{stem} compressed.pdf"));
         let out = reserve_output(&named, out_dir.as_deref(), "pdf")
             .map_err(|e| JobError::Failed(format!("Couldn't create the output file: {e}")))?;
-        match pdf::compress(pdfium, &job.input, out.path(), settings, &job.cancel, progress)? {
+        match pdf::compress(
+            pdfium,
+            &job.input,
+            out.path(),
+            settings,
+            &job.cancel,
+            progress,
+        )? {
             Compressed::Smaller { .. } => Ok(out),
             Compressed::NoGain => Err(JobError::Failed(ALREADY_SMALL.into())),
         }
@@ -234,6 +241,9 @@ mod tests {
     fn a_finished_row_shows_the_size_before_and_after() {
         let message = saved_message(2_400_000, 600_000, Path::new("a compressed.pdf"));
 
-        assert_eq!(message, "2.4 MB → 600 KB, 75% smaller · Saved as a compressed.pdf");
+        assert_eq!(
+            message,
+            "2.4 MB → 600 KB, 75% smaller · Saved as a compressed.pdf"
+        );
     }
 }

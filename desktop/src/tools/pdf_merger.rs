@@ -120,12 +120,17 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
         s.task.clear();
         let mut added = Vec::new();
         for path in paths {
-            let Ok(meta) = std::fs::metadata(&path) else { continue };
+            let Ok(meta) = std::fs::metadata(&path) else {
+                continue;
+            };
             if !meta.is_file() || s.files.iter().any(|e| same_file(&e.path, &path)) {
                 continue;
             }
             if !is_pdf(&path) {
-                s.task.show_error(format!("{} isn't a PDF, so it wasn't added.", file_name(&path)));
+                s.task.show_error(format!(
+                    "{} isn't a PDF, so it wasn't added.",
+                    file_name(&path)
+                ));
                 continue;
             }
             s.next_id += 1;
@@ -192,28 +197,31 @@ fn merge(app: &AppWindow) {
         let sources: Vec<PathBuf> = s.files.iter().map(|e| e.path.clone()).collect();
         plan(&s.files).ok().map(|pages| (sources, pages))
     });
-    let Some((sources, pages)) = planned else { return };
+    let Some((sources, pages)) = planned else {
+        return;
+    };
     let Some(target) = files::choose_save_path("Save Merged PDF", "merged.pdf") else {
         return;
     };
     with(|s| {
-        s.task.start(app, "Merging", apply, move |cancel, progress| {
-            let out = files::reserve_replacing(&target).map_err(|e| {
-                JobError::Failed(format!("Couldn't create {}: {e}", file_name(&target)))
-            })?;
-            pdf::assemble(pdfium, &sources, &pages, out.path(), cancel, progress)?;
-            let saved = out.keep().map_err(|e| {
-                JobError::Failed(format!("Couldn't save {}: {e}", file_name(&target)))
-            })?;
-            Ok(Outcome {
-                message: format!(
-                    "Saved {} · {}",
-                    file_name(&saved),
-                    count(pages.len(), "page", "pages")
-                ),
-                reveal: saved,
+        s.task
+            .start(app, "Merging", apply, move |cancel, progress| {
+                let out = files::reserve_replacing(&target).map_err(|e| {
+                    JobError::Failed(format!("Couldn't create {}: {e}", file_name(&target)))
+                })?;
+                pdf::assemble(pdfium, &sources, &pages, out.path(), cancel, progress)?;
+                let saved = out.keep().map_err(|e| {
+                    JobError::Failed(format!("Couldn't save {}: {e}", file_name(&target)))
+                })?;
+                Ok(Outcome {
+                    message: format!(
+                        "Saved {} · {}",
+                        file_name(&saved),
+                        count(pages.len(), "page", "pages")
+                    ),
+                    reveal: saved,
+                })
             })
-        })
     });
     sync(app);
 }
@@ -227,7 +235,10 @@ fn row(e: &Entry) -> PdfListItem {
     let size = format_size(e.size);
     let (detail, failed) = match &e.pages {
         None => (format!("{size} · Reading…"), false),
-        Some(Ok(n)) => (format!("{} · {size}", count(*n as usize, "page", "pages")), false),
+        Some(Ok(n)) => (
+            format!("{} · {size}", count(*n as usize, "page", "pages")),
+            false,
+        ),
         Some(Err(message)) => (message.clone(), true),
     };
     PdfListItem {
@@ -281,7 +292,10 @@ mod tests {
     fn an_unreadable_file_blocks_the_merge() {
         let files = [entry(Some(Ok(3))), entry(Some(Err("bad".into())))];
 
-        assert_eq!(plan(&files), Err("Remove the files that can't be read, then merge."));
+        assert_eq!(
+            plan(&files),
+            Err("Remove the files that can't be read, then merge.")
+        );
     }
 
     #[test]
@@ -290,6 +304,9 @@ mod tests {
 
         let pages = plan(&files).unwrap();
 
-        assert_eq!(pages, [PageRef::new(0, 0), PageRef::new(0, 1), PageRef::new(1, 0)]);
+        assert_eq!(
+            pages,
+            [PageRef::new(0, 0), PageRef::new(0, 1), PageRef::new(1, 0)]
+        );
     }
 }

@@ -415,7 +415,8 @@ impl Writer {
 
     fn flush(&mut self) {
         if !self.text.is_empty() {
-            self.pieces.push(Piece::Text(std::mem::take(&mut self.text)));
+            self.pieces
+                .push(Piece::Text(std::mem::take(&mut self.text)));
         }
     }
 
@@ -506,8 +507,10 @@ impl Writer {
     /// an `xlink` namespace are in scope.
     fn namespaces(&mut self, node: Node) -> (bool, bool) {
         let inherited = |name: Option<&str>, uri: &str| {
-            node.parent_element()
-                .is_some_and(|p| p.namespaces().any(|ns| ns.name() == name && ns.uri() == uri))
+            node.parent_element().is_some_and(|p| {
+                p.namespaces()
+                    .any(|ns| ns.name() == name && ns.uri() == uri)
+            })
         };
         let mut default = false;
         let mut xlink = false;
@@ -519,7 +522,11 @@ impl Writer {
             }
             match ns.name() {
                 Some(prefix) => {
-                    let _ = write!(self.text, r#" xmlns:{prefix}="{}""#, escape_attribute(ns.uri()));
+                    let _ = write!(
+                        self.text,
+                        r#" xmlns:{prefix}="{}""#,
+                        escape_attribute(ns.uri())
+                    );
                 }
                 None => {
                     let _ = write!(self.text, r#" xmlns="{}""#, escape_attribute(ns.uri()));
@@ -591,7 +598,11 @@ fn element_name(node: Node) -> String {
         let is_default = node
             .namespaces()
             .any(|ns| ns.name().is_none() && ns.uri() == uri);
-        if is_default { None } else { node.lookup_prefix(uri) }
+        if is_default {
+            None
+        } else {
+            node.lookup_prefix(uri)
+        }
     });
     match prefix {
         Some(prefix) => format!("{prefix}:{local}"),
@@ -762,7 +773,8 @@ pub fn init(app: &AppWindow) {
     let weak = app.as_weak();
     g.on_preview_resized(move |width, height| {
         let Some(app) = weak.upgrade() else { return };
-        let changed = with(|s| std::mem::replace(&mut s.canvas, (width, height)) != (width, height));
+        let changed =
+            with(|s| std::mem::replace(&mut s.canvas, (width, height)) != (width, height));
         if changed {
             request_frame(&app);
         }
@@ -983,10 +995,7 @@ fn pause(app: &AppWindow) {
 
 fn toggle_play(app: &AppWindow) {
     let (running, finished) = with(|s| {
-        let total = s
-            .loaded
-            .as_ref()
-            .map_or(0.0, |l| timing_total(app, l));
+        let total = s.loaded.as_ref().map_or(0.0, |l| timing_total(app, l));
         (s.timer.running(), s.clock.elapsed() >= total)
     });
     match (running, finished) {
@@ -1008,7 +1017,9 @@ fn tick(app: &AppWindow) {
         with(|s| s.hidden = true);
         return;
     }
-    let total = timing(app).total(with(|s| s.loaded.as_ref().map_or(0, |l| l.template.paths.len())));
+    let total = timing(app).total(with(|s| {
+        s.loaded.as_ref().map_or(0, |l| l.template.paths.len())
+    }));
     if with(|s| s.clock.elapsed()) >= total {
         with(|s| {
             s.timer.stop();
@@ -1035,7 +1046,9 @@ fn request_frame(app: &AppWindow) {
     let scale = app.window().scale_factor();
     let weak = app.as_weak();
     with(|s| {
-        let Some(loaded) = s.loaded.as_ref() else { return };
+        let Some(loaded) = s.loaded.as_ref() else {
+            return;
+        };
         let template = loaded.template.clone();
         let t = s.clock.elapsed();
         let (width, height) = s.canvas;
@@ -1140,7 +1153,12 @@ mod tests {
 
         let markup = template.write(&style(), Output::Smil(Timing::new(0.3, Mode::Simultaneous)));
 
-        assert_eq!(markup.matches(r#"dur="3.3333333333333335s" begin="0s""#).count(), 2);
+        assert_eq!(
+            markup
+                .matches(r#"dur="3.3333333333333335s" begin="0s""#)
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -1151,7 +1169,10 @@ mod tests {
             ..style()
         };
 
-        let frame = template.write(&no_fill, Output::Frame(Timing::new(1.0, Mode::Sequential), 0.0));
+        let frame = template.write(
+            &no_fill,
+            Output::Frame(Timing::new(1.0, Mode::Sequential), 0.0),
+        );
 
         assert_eq!(
             frame,
@@ -1187,7 +1208,15 @@ mod tests {
 
     fn assert_inert(markup: &str) {
         let lower = markup.to_ascii_lowercase();
-        for bad in ["script", "alert", "javascript", "data:", "onload", "onclick", "evil"] {
+        for bad in [
+            "script",
+            "alert",
+            "javascript",
+            "data:",
+            "onload",
+            "onclick",
+            "evil",
+        ] {
             assert!(!lower.contains(bad), "{bad} survived in {markup}");
         }
     }
@@ -1227,7 +1256,9 @@ mod tests {
             r"\55RL(http://e)",
             "url(#g) url(//e/x.svg#h)",
         ] {
-            let markup = sanitised(&format!(r#"<rect width="1" fill="{value}" mask="{value}"/>"#));
+            let markup = sanitised(&format!(
+                r#"<rect width="1" fill="{value}" mask="{value}"/>"#
+            ));
 
             assert!(!markup.contains("//e"), "{markup}");
             assert!(!markup.contains("mask="), "{markup}");
@@ -1268,9 +1299,10 @@ mod tests {
     fn text_and_attributes_are_re_escaped() {
         let source = r#"<svg xmlns="http://www.w3.org/2000/svg"><title>a &amp; b &lt;c&gt;</title><path d="M0 0H1" id="&quot;q&quot;"/></svg>"#;
 
-        let markup = Template::build(source)
-            .unwrap()
-            .write(&style(), Output::Frame(Timing::new(1.0, Mode::Sequential), 9.0));
+        let markup = Template::build(source).unwrap().write(
+            &style(),
+            Output::Frame(Timing::new(1.0, Mode::Sequential), 9.0),
+        );
 
         assert!(markup.contains("<title>a &amp; b &lt;c&gt;</title>"));
         assert!(markup.contains(r#"id="&quot;q&quot;""#));
@@ -1280,7 +1312,10 @@ mod tests {
     fn an_svg_without_paths_is_refused_like_the_website() {
         let error = Template::build(r#"<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>"#);
 
-        assert_eq!(error, Err("No <path> elements were found in this SVG.".into()));
+        assert_eq!(
+            error,
+            Err("No <path> elements were found in this SVG.".into())
+        );
     }
 
     #[test]
@@ -1358,7 +1393,12 @@ mod tests {
     #[test]
     fn numbers_print_like_javascript() {
         assert_eq!(
-            [js_number(2.0), js_number(1.0 / 0.3), js_number(-0.0), js_number(141.421)],
+            [
+                js_number(2.0),
+                js_number(1.0 / 0.3),
+                js_number(-0.0),
+                js_number(141.421)
+            ],
             ["2", "3.3333333333333335", "0", "141.421"]
         );
     }

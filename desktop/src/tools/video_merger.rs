@@ -40,7 +40,10 @@ const FALLBACK_FPS: (u32, u32) = (30, 1);
 
 enum Probe {
     Reading,
-    Ready { info: MediaInfo, stream: VideoStream },
+    Ready {
+        info: MediaInfo,
+        stream: VideoStream,
+    },
     Failed(String),
 }
 
@@ -269,8 +272,11 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
         match extract_frame(&ff, &path, at, THUMBNAIL_SIDE, &cancel) {
             Ok(frame) => jobs::post(&weak, move |app| {
                 let (w, h) = frame.dimensions();
-                let image =
-                    slint::Image::from_rgba8(SharedPixelBuffer::clone_from_slice(frame.as_raw(), w, h));
+                let image = slint::Image::from_rgba8(SharedPixelBuffer::clone_from_slice(
+                    frame.as_raw(),
+                    w,
+                    h,
+                ));
                 with(|s| {
                     if let Some(entry) = s.entry(id) {
                         entry.thumbnail = Some(image);
@@ -554,7 +560,10 @@ fn merge(app: &AppWindow) {
         return;
     };
     let mut format = selected_format(&g);
-    let first = plan.inputs[0].file_stem().unwrap_or_default().to_string_lossy();
+    let first = plan.inputs[0]
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy();
     let suggested = format!("{first} merged.{}", format.extension());
     // Outside `with`: the dialog runs a nested event loop.
     let Some(target) = files::choose_save_path("Save Merged Video", &suggested) else {
@@ -736,17 +745,25 @@ mod tests {
     fn sound_is_conformed_and_everything_is_joined_in_order() {
         let graph = text(filter_graph(&layout(), &[sound(1.0), sound(2.0)]).unwrap());
 
-        assert!(graph.contains(
-            "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[a0];"
-        ));
-        assert!(graph.ends_with("[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]"), "{graph}");
+        assert!(
+            graph.contains(
+                "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[a0];"
+            )
+        );
+        assert!(
+            graph.ends_with("[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]"),
+            "{graph}"
+        );
     }
 
     #[test]
     fn a_clip_without_sound_gets_silence_as_long_as_itself() {
         let graph = text(filter_graph(&layout(), &[sound(1.0), silent(Some(2.5))]).unwrap());
 
-        assert!(graph.contains("anullsrc=r=48000:cl=stereo,atrim=duration=2.500[a1];"), "{graph}");
+        assert!(
+            graph.contains("anullsrc=r=48000:cl=stereo,atrim=duration=2.500[a1];"),
+            "{graph}"
+        );
     }
 
     #[test]
@@ -788,10 +805,22 @@ mod tests {
 
     #[test]
     fn only_the_joined_streams_are_mapped() {
-        let with_sound = output_args(&layout(), &[sound(1.0), sound(1.0)], Format::Mp4, None, &caps())
-            .unwrap();
-        let without = output_args(&layout(), &[silent(None), silent(None)], Format::Mp4, None, &caps())
-            .unwrap();
+        let with_sound = output_args(
+            &layout(),
+            &[sound(1.0), sound(1.0)],
+            Format::Mp4,
+            None,
+            &caps(),
+        )
+        .unwrap();
+        let without = output_args(
+            &layout(),
+            &[silent(None), silent(None)],
+            Format::Mp4,
+            None,
+            &caps(),
+        )
+        .unwrap();
 
         let maps = |args: &[OsString]| {
             args.windows(2)
@@ -822,7 +851,14 @@ mod tests {
                 fps: (30, 1)
             }
         );
-        assert_eq!(Layout { fps: (30000, 1001), ..layout }.fps_label(), "29.97");
+        assert_eq!(
+            Layout {
+                fps: (30000, 1001),
+                ..layout
+            }
+            .fps_label(),
+            "29.97"
+        );
     }
 
     #[test]
@@ -872,7 +908,11 @@ mod tests {
         let Some((ff, dir)) = real_ffmpeg("merger") else {
             return;
         };
-        let (big, small, mute) = (dir.join("big.mp4"), dir.join("small.mp4"), dir.join("mute.mp4"));
+        let (big, small, mute) = (
+            dir.join("big.mp4"),
+            dir.join("small.mp4"),
+            dir.join("mute.mp4"),
+        );
         make_clip(&big, 2, "320x240", true);
         make_clip(&small, 1, "160x120", true);
         make_clip(&mute, 1, "200x100", false);
@@ -914,7 +954,11 @@ mod tests {
         let info = ff.probe_video(&output.keep().unwrap()).unwrap();
         assert_eq!((info.width, info.height), (Some(320), Some(240)));
         assert_eq!(info.audio_codec.as_deref(), Some("aac"));
-        assert!((info.duration.unwrap() - 4.0).abs() < 0.3, "{:?}", info.duration);
+        assert!(
+            (info.duration.unwrap() - 4.0).abs() < 0.3,
+            "{:?}",
+            info.duration
+        );
         fs::remove_dir_all(&dir).unwrap();
     }
 }

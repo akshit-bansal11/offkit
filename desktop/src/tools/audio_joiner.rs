@@ -287,7 +287,9 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
             .map(|path| {
                 let info = probe(&ff, &path)
                     .map_err(|e| format!("Couldn't add {}: {e}", file_name(&path)))?;
-                let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or_default();
+                let size = std::fs::metadata(&path)
+                    .map(|m| m.len())
+                    .unwrap_or_default();
                 let row = FileItem {
                     name: file_name(&path).into(),
                     detail: format!("{} · {}", format_size(size), info.summary()).into(),
@@ -344,7 +346,9 @@ fn sync(app: &AppWindow) {
 fn join(app: &AppWindow) {
     let g = app.global::<AudioJoiner>();
     let prepared = with(|s| {
-        let format = *s.formats.get(index(g.get_format_index(), s.formats.len()))?;
+        let format = *s
+            .formats
+            .get(index(g.get_format_index(), s.formats.len()))?;
         let paths: Vec<PathBuf> = s.tracks.iter().map(|t| t.path.clone()).collect();
         let seconds = s.tracks.iter().map(|t| t.seconds).sum::<f64>();
         Some((s.ffmpeg.clone()?, paths, seconds, s.formats.clone(), format))
@@ -392,8 +396,8 @@ fn join(app: &AppWindow) {
                 app.global::<AudioJoiner>().set_progress(p);
             });
         };
-        let result = run_join(&ff, &inputs, &output, format, seconds, &token, progress)
-            .and_then(|()| {
+        let result =
+            run_join(&ff, &inputs, &output, format, seconds, &token, progress).and_then(|()| {
                 output.keep().map_err(|e| {
                     JobError::Failed(format!("Couldn't save {}: {e}", file_name(&target)))
                 })
@@ -487,13 +491,26 @@ mod tests {
         let Some((ff, dir)) = real_ffmpeg("joiner") else {
             return;
         };
-        let mono = fixture(&dir, "mono.mp3", "sine=duration=1:sample_rate=22050", "-ac 1");
+        let mono = fixture(
+            &dir,
+            "mono.mp3",
+            "sine=duration=1:sample_rate=22050",
+            "-ac 1",
+        );
         let stereo = fixture(&dir, "stereo.flac", "sine=duration=2", "-ac 2");
         let inputs = [mono, stereo];
         let output = reserve_output(&inputs[0], None, "wav").unwrap();
 
-        run_join(&ff, &inputs, &output, Format::Wav, 3.0, &CancelToken::default(), |_| {})
-            .unwrap();
+        run_join(
+            &ff,
+            &inputs,
+            &output,
+            Format::Wav,
+            3.0,
+            &CancelToken::default(),
+            |_| {},
+        )
+        .unwrap();
 
         let info = probe(&ff, &output.keep().unwrap()).unwrap();
         let seconds = info.duration.unwrap();
@@ -516,8 +533,15 @@ mod tests {
         let inputs = [tone, silent];
         let output = reserve_output(&inputs[0], None, "wav").unwrap();
 
-        let result =
-            run_join(&ff, &inputs, &output, Format::Wav, 2.0, &CancelToken::default(), |_| {});
+        let result = run_join(
+            &ff,
+            &inputs,
+            &output,
+            Format::Wav,
+            2.0,
+            &CancelToken::default(),
+            |_| {},
+        );
 
         assert!(matches!(result, Err(JobError::Failed(m)) if m == "No audio track found"));
         fs::remove_dir_all(&dir).unwrap();

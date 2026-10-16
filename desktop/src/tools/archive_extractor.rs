@@ -207,7 +207,8 @@ fn apply(app: &AppWindow, id: u64, token: &Arc<CancelToken>, report: Report) {
     with(|s| match report {
         Report::Update(update) => s.queue.apply(id, token, update),
         Report::Extracted(output, line) => {
-            s.queue.apply(id, token, Update::Finished(Ok(output.clone())));
+            s.queue
+                .apply(id, token, Update::Finished(Ok(output.clone())));
             s.queue.update(id, |e| {
                 if e.status == FileStatus::Done && e.output.as_ref() == Some(&output) {
                     e.message = line;

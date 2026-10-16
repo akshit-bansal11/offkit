@@ -253,7 +253,11 @@ fn pixels(rect: Rect, width: u32, height: u32) -> (u32, u32, u32, u32) {
 
 /// Cuts the crop out; a circle keeps its anti-aliased disc (diameter = the crop's width) and
 /// turns the corners transparent.
-fn crop(image: &DynamicImage, (x, y, w, h): (u32, u32, u32, u32), shape: CropShape) -> DynamicImage {
+fn crop(
+    image: &DynamicImage,
+    (x, y, w, h): (u32, u32, u32, u32),
+    shape: CropShape,
+) -> DynamicImage {
     let cut = image.crop_imm(x, y, w, h);
     if shape == CropShape::Rectangle {
         return cut;
@@ -294,7 +298,10 @@ struct Item {
 
 impl Summary for Item {
     fn summary(&self) -> String {
-        self.source.as_ref().map(Source::summary).unwrap_or_default()
+        self.source
+            .as_ref()
+            .map(Source::summary)
+            .unwrap_or_default()
     }
 }
 
@@ -456,7 +463,11 @@ pub fn init(app: &AppWindow) {
             s.queue.remove(i as usize);
             if s.queue.entries().len() < before {
                 s.thumbs.remove(i as usize);
-                let next = s.queue.entries().get(i as usize).or(s.queue.entries().last());
+                let next = s
+                    .queue
+                    .entries()
+                    .get(i as usize)
+                    .or(s.queue.entries().last());
                 s.current = next.map(|e| e.id);
             }
         });
@@ -545,9 +556,17 @@ pub fn init(app: &AppWindow) {
         edit_current(&app, |rect, o| match (field, o.ratio) {
             (CropField::X, _) => Rect { x: v, ..rect },
             (CropField::Y, _) => Rect { y: v, ..rect },
-            (CropField::Width, Some(ratio)) => Rect { w: v, h: v / ratio, ..rect },
+            (CropField::Width, Some(ratio)) => Rect {
+                w: v,
+                h: v / ratio,
+                ..rect
+            },
             (CropField::Width, None) => Rect { w: v, ..rect },
-            (CropField::Height, Some(ratio)) => Rect { w: v * ratio, h: v, ..rect },
+            (CropField::Height, Some(ratio)) => Rect {
+                w: v * ratio,
+                h: v,
+                ..rect
+            },
             (CropField::Height, None) => Rect { h: v, ..rect },
         });
     });
@@ -694,7 +713,11 @@ fn crop_settings_changed(app: &AppWindow, shape_changed: bool) {
         }
         let current = s.current_item().and_then(|item| {
             let source = item.source.as_ref()?;
-            Some((item.crop?, f64::from(source.width), f64::from(source.height)))
+            Some((
+                item.crop?,
+                f64::from(source.width),
+                f64::from(source.height),
+            ))
         });
         s.shared = match (s.shared, current) {
             (Some(rel), Some((_, w, h))) if !shape_changed => {
@@ -837,7 +860,13 @@ fn crop_all(app: &AppWindow) {
     });
     sync(app);
     let workers = file_queue::run(app, jobs, CONCURRENT_CROPS, apply, move |job, progress| {
-        crop_file(&job.input, job.work, out_dir.as_deref(), &job.cancel, progress)
+        crop_file(
+            &job.input,
+            job.work,
+            out_dir.as_deref(),
+            &job.cancel,
+            progress,
+        )
     });
     with(|s| s.queue.track(workers));
 }
@@ -860,7 +889,9 @@ fn sync(app: &AppWindow) {
     let note = match chosen {
         Some(Format::Jpeg) if circle => "JPEG has no transparency, so the corners turn white.",
         Some(format) => format.note(),
-        None if circle => "Circles from JPEG and HEIC images are saved as PNG, for their transparent corners.",
+        None if circle => {
+            "Circles from JPEG and HEIC images are saved as PNG, for their transparent corners."
+        }
         None => "HEIC images are saved as PNG.",
     };
     g.set_format_note(note.into());
@@ -886,12 +917,18 @@ mod tests {
 
     #[test]
     fn the_default_crop_is_the_centred_70_percent() {
-        assert_eq!(default_crop(1000.0, 800.0), rect(150.0, 120.0, 700.0, 560.0));
+        assert_eq!(
+            default_crop(1000.0, 800.0),
+            rect(150.0, 120.0, 700.0, 560.0)
+        );
     }
 
     #[test]
     fn the_default_circle_has_a_radius_of_30_percent_of_the_shorter_side() {
-        assert_eq!(default_circle(1000.0, 800.0), rect(260.0, 160.0, 480.0, 480.0));
+        assert_eq!(
+            default_circle(1000.0, 800.0),
+            rect(260.0, 160.0, 480.0, 480.0)
+        );
     }
 
     #[test]
@@ -966,7 +1003,10 @@ mod tests {
     fn a_shared_crop_lands_on_the_same_part_of_a_larger_image() {
         let rel = to_relative(rect(100.0, 50.0, 400.0, 300.0), 1000.0, 500.0);
 
-        assert_eq!(from_relative(rel, 2000.0, 1000.0, None), rect(200.0, 100.0, 800.0, 600.0));
+        assert_eq!(
+            from_relative(rel, 2000.0, 1000.0, None),
+            rect(200.0, 100.0, 800.0, 600.0)
+        );
     }
 
     #[test]
@@ -980,12 +1020,16 @@ mod tests {
 
     #[test]
     fn pixels_round_and_stay_inside_the_image() {
-        assert_eq!(pixels(rect(10.4, 20.6, 99.7, 500.0), 100, 300), (10, 21, 90, 279));
+        assert_eq!(
+            pixels(rect(10.4, 20.6, 99.7, 500.0), 100, 300),
+            (10, 21, 90, 279)
+        );
     }
 
     #[test]
     fn a_circle_crop_has_transparent_corners_and_an_opaque_centre() {
-        let image = DynamicImage::ImageRgba8(RgbaImage::from_pixel(40, 40, ::image::Rgba([9, 9, 9, 255])));
+        let image =
+            DynamicImage::ImageRgba8(RgbaImage::from_pixel(40, 40, ::image::Rgba([9, 9, 9, 255])));
 
         let cut = crop(&image, (0, 0, 40, 40), CropShape::Circle);
 
@@ -1003,7 +1047,10 @@ mod tests {
 
     #[test]
     fn a_circle_from_a_jpeg_becomes_a_png() {
-        assert_eq!(output_format(None, Some(Format::Jpeg), CropShape::Circle), Format::Png);
+        assert_eq!(
+            output_format(None, Some(Format::Jpeg), CropShape::Circle),
+            Format::Png
+        );
     }
 
     #[test]
@@ -1016,7 +1063,9 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("open-tools-crop-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let input = dir.join("photo.png");
-        DynamicImage::ImageRgba8(RgbaImage::new(64, 48)).save(&input).unwrap();
+        DynamicImage::ImageRgba8(RgbaImage::new(64, 48))
+            .save(&input)
+            .unwrap();
         let work = Work {
             rect: (8, 4, 32, 24),
             shape: CropShape::Rectangle,

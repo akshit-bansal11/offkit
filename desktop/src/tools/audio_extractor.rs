@@ -206,9 +206,10 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
     let Some(ff) = with(|s| s.ffmpeg.clone()) else {
         return;
     };
-    let (videos, others): (Vec<_>, Vec<_>) = with(|s| s.queue.add(paths, FileStatus::Reading, || None))
-        .into_iter()
-        .partition(|(_, path)| is_video_name(path));
+    let (videos, others): (Vec<_>, Vec<_>) =
+        with(|s| s.queue.add(paths, FileStatus::Reading, || None))
+            .into_iter()
+            .partition(|(_, path)| is_video_name(path));
     with(|s| {
         for (id, _) in others {
             s.queue.update(id, |e| {
@@ -304,16 +305,28 @@ fn extract_all(app: &AppWindow) {
     };
     sync(app);
 
-    let workers = file_queue::run(app, jobs, CONCURRENT_EXTRACTIONS, apply, move |job, progress| {
-        let info: &MediaInfo = &job.work;
-        let (extension, args) = plan(target, bitrate, info, &ff).map_err(JobError::failed)?;
-        let output = reserve_output(&job.input, out_dir.as_deref(), extension)
-            .map_err(|e| JobError::Failed(format!("Couldn't create the output file: {e}")))?;
-        ffmpeg_audio::transcode(&ff, &job.input, &output, info.duration, args, &job.cancel, |p| {
-            progress(p)
-        })?;
-        Ok(output)
-    });
+    let workers = file_queue::run(
+        app,
+        jobs,
+        CONCURRENT_EXTRACTIONS,
+        apply,
+        move |job, progress| {
+            let info: &MediaInfo = &job.work;
+            let (extension, args) = plan(target, bitrate, info, &ff).map_err(JobError::failed)?;
+            let output = reserve_output(&job.input, out_dir.as_deref(), extension)
+                .map_err(|e| JobError::Failed(format!("Couldn't create the output file: {e}")))?;
+            ffmpeg_audio::transcode(
+                &ff,
+                &job.input,
+                &output,
+                info.duration,
+                args,
+                &job.cancel,
+                |p| progress(p),
+            )?;
+            Ok(output)
+        },
+    );
     with(|s| s.queue.track(workers));
 }
 

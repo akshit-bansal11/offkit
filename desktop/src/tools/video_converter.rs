@@ -86,8 +86,7 @@ pub fn init(app: &AppWindow) {
     let weak = app.as_weak();
     g.on_choose_files(move || {
         let Some(app) = weak.upgrade() else { return };
-        if let Some(paths) =
-            files::choose_files("Choose Videos", Some(("Video", VIDEO_EXTENSIONS)))
+        if let Some(paths) = files::choose_files("Choose Videos", Some(("Video", VIDEO_EXTENSIONS)))
         {
             add_paths(&app, paths);
         }
@@ -219,26 +218,42 @@ fn convert_all(app: &AppWindow) {
             let info = e.data.as_ref()?;
             Some((info.duration, info.video_codec.clone()))
         });
-        Some((ff, caps, settings, s.queue.out_dir().map(PathBuf::from), jobs))
+        Some((
+            ff,
+            caps,
+            settings,
+            s.queue.out_dir().map(PathBuf::from),
+            jobs,
+        ))
     });
     let Some((ff, caps, settings, out_dir, jobs)) = queued else {
         return;
     };
     sync(app);
 
-    let workers = file_queue::run(app, jobs, CONCURRENT_CONVERSIONS, apply, move |job, progress| {
-        let (duration, source_codec): &Work = &job.work;
-        let output = reserve_output(&job.input, out_dir.as_deref(), settings.container.extension())
+    let workers = file_queue::run(
+        app,
+        jobs,
+        CONCURRENT_CONVERSIONS,
+        apply,
+        move |job, progress| {
+            let (duration, source_codec): &Work = &job.work;
+            let output = reserve_output(
+                &job.input,
+                out_dir.as_deref(),
+                settings.container.extension(),
+            )
             .map_err(|e| JobError::Failed(format!("Couldn't create the output file: {e}")))?;
-        let convert = ConvertJob {
-            input: job.input.clone(),
-            settings,
-            duration: *duration,
-            source_codec: source_codec.clone(),
-        };
-        ff.convert(&convert, &output, &caps, &job.cancel, progress)?;
-        Ok(output)
-    });
+            let convert = ConvertJob {
+                input: job.input.clone(),
+                settings,
+                duration: *duration,
+                source_codec: source_codec.clone(),
+            };
+            ff.convert(&convert, &output, &caps, &job.cancel, progress)?;
+            Ok(output)
+        },
+    );
     with(|s| s.queue.track(workers));
 }
 

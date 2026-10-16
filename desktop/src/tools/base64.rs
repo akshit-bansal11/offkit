@@ -78,7 +78,10 @@ fn decode(text: &[u8]) -> Result<Vec<u8>, String> {
 
 /// Why the `=` padding is wrong: in the middle of the text, or the wrong amount at its end.
 fn padding_error(compact: &[u8]) -> &'static str {
-    let first = compact.iter().position(|b| *b == b'=').unwrap_or(compact.len());
+    let first = compact
+        .iter()
+        .position(|b| *b == b'=')
+        .unwrap_or(compact.len());
     if compact[first..].iter().all(|b| *b == b'=') {
         "Not valid Base64: it ends with the wrong number of “=”."
     } else {
@@ -382,9 +385,11 @@ mod tests {
     fn decode_explains_mixed_alphabets() {
         assert_eq!(
             decode(b"aGk+Pg-_"),
-            Err("Not valid Base64: it mixes “+ /” and “- _”, which belong to different \
+            Err(
+                "Not valid Base64: it mixes “+ /” and “- _”, which belong to different \
                  Base64 alphabets."
-                .into())
+                    .into()
+            )
         );
     }
 

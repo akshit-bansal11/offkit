@@ -102,7 +102,11 @@ pub fn add_to_queue(
     let Some(pdfium) = pdf::pdfium() else {
         return Vec::new();
     };
-    let added = queue.add(paths.into_iter().filter(|p| is_pdf(p)).collect(), FileStatus::Reading, PageCount::default);
+    let added = queue.add(
+        paths.into_iter().filter(|p| is_pdf(p)).collect(),
+        FileStatus::Reading,
+        PageCount::default,
+    );
     let weak = app.as_weak();
     jobs::run_pool(added, CONCURRENT_COUNTS, move |(id, path)| {
         let pages = pdf::page_count(pdfium, &path);
@@ -636,8 +640,13 @@ fn save(app: &AppWindow, only_selected: bool) {
         return;
     };
     let suffix = if only_selected { "extract" } else { "edited" };
-    let title = if only_selected { "Save Selected Pages" } else { "Save PDF" };
-    let Some(target) = files::choose_save_path(title, &format!("{} {suffix}.pdf", stem(&first))) else {
+    let title = if only_selected {
+        "Save Selected Pages"
+    } else {
+        "Save PDF"
+    };
+    let Some(target) = files::choose_save_path(title, &format!("{} {suffix}.pdf", stem(&first)))
+    else {
         return;
     };
     let settings = g.get_compress().then(|| CompressSettings {
@@ -651,11 +660,13 @@ fn save(app: &AppWindow, only_selected: bool) {
                 JobError::Failed(format!("Couldn't create {}: {e}", file_name(&target)))
             })?;
             let share = if settings.is_some() { 0.5 } else { 1.0 };
-            pdf::assemble(pdfium, &sources, &pages, out.path(), cancel, &|p| progress(p * share))?;
+            pdf::assemble(pdfium, &sources, &pages, out.path(), cancel, &|p| {
+                progress(p * share)
+            })?;
             let note = match settings {
-                Some(settings) => {
-                    compress_in_place(pdfium, out.path(), settings, cancel, &|p| progress(0.5 + p * 0.5))?
-                }
+                Some(settings) => compress_in_place(pdfium, out.path(), settings, cancel, &|p| {
+                    progress(0.5 + p * 0.5)
+                })?,
                 None => String::new(),
             };
             let saved = out.keep().map_err(|e| {
@@ -712,22 +723,32 @@ fn split(app: &AppWindow) {
         return;
     };
     with(|s| {
-        s.task.start(app, "Splitting", apply, move |cancel, progress| {
-            let folder = files::reserve_dir(&first, Some(&dir), " pages")
-                .map_err(|e| JobError::Failed(format!("Couldn't create the folder: {e}")))?;
-            let n = pages.len() as u32;
-            let outputs: Vec<(PathBuf, Vec<PageRef>)> = pages
-                .iter()
-                .enumerate()
-                .map(|(i, p)| (folder.path().join(pdf::page_file_name(i as u32, n, "pdf")), vec![*p]))
-                .collect();
-            pdf::assemble_each(pdfium, &sources, &outputs, cancel, progress)?;
-            let kept = folder.keep();
-            Ok(Outcome {
-                message: format!("Saved {} in “{}”", count(outputs.len(), "PDF", "PDFs"), file_name(&kept)),
-                reveal: kept,
+        s.task
+            .start(app, "Splitting", apply, move |cancel, progress| {
+                let folder = files::reserve_dir(&first, Some(&dir), " pages")
+                    .map_err(|e| JobError::Failed(format!("Couldn't create the folder: {e}")))?;
+                let n = pages.len() as u32;
+                let outputs: Vec<(PathBuf, Vec<PageRef>)> = pages
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| {
+                        (
+                            folder.path().join(pdf::page_file_name(i as u32, n, "pdf")),
+                            vec![*p],
+                        )
+                    })
+                    .collect();
+                pdf::assemble_each(pdfium, &sources, &outputs, cancel, progress)?;
+                let kept = folder.keep();
+                Ok(Outcome {
+                    message: format!(
+                        "Saved {} in “{}”",
+                        count(outputs.len(), "PDF", "PDFs"),
+                        file_name(&kept)
+                    ),
+                    reveal: kept,
+                })
             })
-        })
     });
     sync(app);
 }
@@ -779,10 +800,16 @@ mod tests {
     #[test]
     fn a_stale_run_cannot_finish_a_newer_one() {
         let mut task = Task::default();
-        let (old, new) = (Arc::new(CancelToken::default()), Arc::new(CancelToken::default()));
+        let (old, new) = (
+            Arc::new(CancelToken::default()),
+            Arc::new(CancelToken::default()),
+        );
         task.token = Some(new.clone());
 
-        task.update(&old, TaskUpdate::Finished(Err(JobError::Failed("old".into()))));
+        task.update(
+            &old,
+            TaskUpdate::Finished(Err(JobError::Failed("old".into()))),
+        );
 
         assert!(task.is_running());
         assert_eq!(task.status().state, PdfTaskState::Idle);
@@ -793,11 +820,17 @@ mod tests {
         let mut task = Task::default();
         let token = Arc::new(CancelToken::default());
         task.token = Some(token.clone());
-        let outcome = Outcome { message: "Saved a.pdf".into(), reveal: PathBuf::from("a.pdf") };
+        let outcome = Outcome {
+            message: "Saved a.pdf".into(),
+            reveal: PathBuf::from("a.pdf"),
+        };
 
         task.update(&token, TaskUpdate::Finished(Ok(outcome)));
 
-        assert_eq!((task.status().state, task.status().text.as_str()), (PdfTaskState::Done, "Saved a.pdf"));
+        assert_eq!(
+            (task.status().state, task.status().text.as_str()),
+            (PdfTaskState::Done, "Saved a.pdf")
+        );
         assert_eq!(task.output(), Some(PathBuf::from("a.pdf")));
     }
 }

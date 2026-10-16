@@ -159,7 +159,9 @@ fn markdown_url(url: &str) -> String {
 /// `code` as an inline code span: fenced by one more backtick than it holds, padded so that a
 /// backtick or space at an end survives.
 fn inline_code(code: &str) -> String {
-    let code = code.replace(['\n', '\r'], " ").replace('\u{e541}', "\u{fffd}");
+    let code = code
+        .replace(['\n', '\r'], " ")
+        .replace('\u{e541}', "\u{fffd}");
     let longest = code
         .split(|c| c != '`')
         .map(str::len)
@@ -516,9 +518,14 @@ fn apply(format: Format, text: &str, anchor: i32, cursor: i32) -> Edit {
         }
         Format::Quote => prefix_lines(text, start, end, |_| "> ".into(), false, "Quote"),
         Format::Bullet => prefix_lines(text, start, end, |_| "- ".into(), false, "List item"),
-        Format::Numbered => {
-            prefix_lines(text, start, end, |n| format!("{}. ", n + 1), false, "List item")
-        }
+        Format::Numbered => prefix_lines(
+            text,
+            start,
+            end,
+            |n| format!("{}. ", n + 1),
+            false,
+            "List item",
+        ),
         Format::Rule => insert(text, end, "\n---\n"),
         Format::Table => insert(text, end, TABLE_TEMPLATE),
     }
@@ -573,7 +580,11 @@ fn prefix_lines(
     let (changed, anchor, cursor) = if start == end && block.trim().is_empty() {
         let lead = prefix(0);
         let anchor = line_start + lead.len();
-        (format!("{lead}{placeholder}"), anchor, anchor + placeholder.len())
+        (
+            format!("{lead}{placeholder}"),
+            anchor,
+            anchor + placeholder.len(),
+        )
     } else {
         let mut n = 0;
         let changed = block
@@ -728,7 +739,9 @@ pub fn init(app: &AppWindow) {
     g.on_save_file(move || {
         if let Some(app) = weak.upgrade() {
             let name = with(|s| s.name.clone());
-            save_as(&app, "Save Markdown", &name, |markdown, _| markdown.to_string());
+            save_as(&app, "Save Markdown", &name, |markdown, _| {
+                markdown.to_string()
+            });
         }
     });
     let weak = app.as_weak();
@@ -953,7 +966,12 @@ fn main() {}
 
         for block in blocks(GFM).iter().chain(&blocks(nasty)) {
             assert!(StyledText::from_markdown(&block.text).is_ok(), "{block:?}");
-            assert!(block.cells.iter().all(|c| StyledText::from_markdown(c).is_ok()));
+            assert!(
+                block
+                    .cells
+                    .iter()
+                    .all(|c| StyledText::from_markdown(c).is_ok())
+            );
         }
     }
 
@@ -1053,7 +1071,10 @@ fn main() {}
     fn lists_prefix_every_line_touched_and_number_them() {
         let text = "a\nb\n\nc\nd";
 
-        assert_eq!(apply(Format::Numbered, text, 0, 6).text, "1. a\n2. b\n\n3. c\nd");
+        assert_eq!(
+            apply(Format::Numbered, text, 0, 6).text,
+            "1. a\n2. b\n\n3. c\nd"
+        );
         assert_eq!(apply(Format::Bullet, text, 0, 3).text, "- a\n- b\n\nc\nd");
         assert_eq!(apply(Format::Quote, "é\nx", 0, 3).text, "> é\nx");
     }
@@ -1064,6 +1085,10 @@ fn main() {}
         assert_eq!(rule.text, "a\n---\nb");
         assert_eq!(rule.cursor, 6);
 
-        assert!(apply(Format::Table, "", 0, 0).text.starts_with("\n| Column 1 |"));
+        assert!(
+            apply(Format::Table, "", 0, 0)
+                .text
+                .starts_with("\n| Column 1 |")
+        );
     }
 }

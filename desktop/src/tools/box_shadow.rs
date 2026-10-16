@@ -425,7 +425,13 @@ fn inset_shadow(canvas: &mut Pixmap, padding_box: RoundedRect, layer: &Layer, s:
             anti_alias: true,
             ..Paint::default()
         };
-        px.fill_path(&hole, &paint, FillRule::Winding, Transform::identity(), None);
+        px.fill_path(
+            &hole,
+            &paint,
+            FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
     }
     canvas.draw_pixmap(
         left as i32,
@@ -795,24 +801,48 @@ mod tests {
 
     #[test]
     fn spread_grows_the_radius_by_the_spread_when_it_is_larger_than_the_spread() {
-        let rect = RoundedRect { x: 0.0, y: 0.0, w: 100.0, h: 100.0, r: 24.0 };
+        let rect = RoundedRect {
+            x: 0.0,
+            y: 0.0,
+            w: 100.0,
+            h: 100.0,
+            r: 24.0,
+        };
 
         assert_eq!(
             rect.spread(10.0),
-            Some(RoundedRect { x: -10.0, y: -10.0, w: 120.0, h: 120.0, r: 34.0 })
+            Some(RoundedRect {
+                x: -10.0,
+                y: -10.0,
+                w: 120.0,
+                h: 120.0,
+                r: 34.0
+            })
         );
     }
 
     #[test]
     fn spread_keeps_a_sharp_corner_sharp() {
-        let rect = RoundedRect { x: 0.0, y: 0.0, w: 100.0, h: 100.0, r: 0.0 };
+        let rect = RoundedRect {
+            x: 0.0,
+            y: 0.0,
+            w: 100.0,
+            h: 100.0,
+            r: 0.0,
+        };
 
         assert_eq!(rect.spread(20.0).map(|r| r.r), Some(0.0));
     }
 
     #[test]
     fn spread_shrinks_the_radius_and_vanishes_past_the_middle() {
-        let rect = RoundedRect { x: 0.0, y: 0.0, w: 100.0, h: 100.0, r: 24.0 };
+        let rect = RoundedRect {
+            x: 0.0,
+            y: 0.0,
+            w: 100.0,
+            h: 100.0,
+            r: 24.0,
+        };
 
         assert_eq!(rect.spread(-30.0).map(|r| r.r), Some(0.0));
         assert_eq!(rect.spread(-50.0), None);
@@ -828,7 +858,11 @@ mod tests {
 
     #[test]
     fn an_outer_shadow_follows_its_offset() {
-        let moved = Layer { x: 30, spread: 0, ..SHARP };
+        let moved = Layer {
+            x: 30,
+            spread: 0,
+            ..SHARP
+        };
 
         let pixmap = render(&scene(vec![moved])).unwrap();
 
@@ -838,7 +872,10 @@ mod tests {
 
     #[test]
     fn an_inset_shadow_covers_its_spread_inside_the_box() {
-        let inset = Layer { inset: true, ..SHARP };
+        let inset = Layer {
+            inset: true,
+            ..SHARP
+        };
 
         let pixmap = render(&scene(vec![inset])).unwrap();
 
@@ -850,7 +887,11 @@ mod tests {
     #[test]
     fn a_blurred_shadow_is_half_strength_at_its_edge() {
         // Blur 40 is σ 20; the shape's edge is the box's right edge, x = 328.
-        let soft = Layer { blur: 40, spread: 0, ..SHARP };
+        let soft = Layer {
+            blur: 40,
+            spread: 0,
+            ..SHARP
+        };
 
         let pixmap = render(&scene(vec![soft])).unwrap();
 
@@ -860,7 +901,10 @@ mod tests {
 
     #[test]
     fn the_first_layer_paints_on_top() {
-        let blue = Layer { color: rgb(0x0000ff), ..SHARP };
+        let blue = Layer {
+            color: rgb(0x0000ff),
+            ..SHARP
+        };
 
         let pixmap = render(&scene(vec![SHARP, blue])).unwrap();
 

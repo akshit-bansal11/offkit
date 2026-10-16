@@ -275,7 +275,10 @@ fn compare(old: &str, new: &str, options: Options) -> Computed {
             out.unified.push(Row::gap(gap));
         }
         drawn = group[group.len() - 1].old_range().end;
-        out.patch.push_str(&format!("{}\n", similar::udiff::UnifiedHunkHeader::new(group)));
+        out.patch.push_str(&format!(
+            "{}\n",
+            similar::udiff::UnifiedHunkHeader::new(group)
+        ));
         for op in group {
             let (old_lines, new_lines) = (op.old_range(), op.new_range());
             if matches!(op, DiffOp::Equal { .. }) {
@@ -308,14 +311,18 @@ fn compare(old: &str, new: &str, options: Options) -> Computed {
             let removed_cells: Vec<Cell> = old_lines
                 .enumerate()
                 .map(|(k, i)| {
-                    let segs = words.get(k).map_or_else(|| plain(&shown(a[i])), |w| w.0.clone());
+                    let segs = words
+                        .get(k)
+                        .map_or_else(|| plain(&shown(a[i])), |w| w.0.clone());
                     Cell::line(Kind::Removed, Some(i + 1), None, segs)
                 })
                 .collect();
             let added_cells: Vec<Cell> = new_lines
                 .enumerate()
                 .map(|(k, j)| {
-                    let segs = words.get(k).map_or_else(|| plain(&shown(b[j])), |w| w.1.clone());
+                    let segs = words
+                        .get(k)
+                        .map_or_else(|| plain(&shown(b[j])), |w| w.1.clone());
                     Cell::line(Kind::Added, Some(j + 1), None, segs)
                 })
                 .collect();
@@ -327,7 +334,10 @@ fn compare(old: &str, new: &str, options: Options) -> Computed {
             }
             // Unified shows the removed lines, then the added ones, an added line numbered in
             // the second gutter.
-            for cell in removed_cells.into_iter().chain(added_cells.into_iter().map(unified)) {
+            for cell in removed_cells
+                .into_iter()
+                .chain(added_cells.into_iter().map(unified))
+            {
                 out.unified.push(Row::pair(cell, Cell::empty()));
             }
         }
@@ -560,9 +570,8 @@ fn refresh(app: &AppWindow) {
         with(|s| s.files[side].as_ref().map(|f| f.text.clone()))
             .unwrap_or_else(|| pane_text(&g, side).into())
     });
-    let labels = with(|s| {
-        [ORIGINAL, MODIFIED].map(|side| s.files[side].as_ref().map(|f| f.name.clone()))
-    });
+    let labels =
+        with(|s| [ORIGINAL, MODIFIED].map(|side| s.files[side].as_ref().map(|f| f.name.clone())));
     g.set_original_file(labels[ORIGINAL].clone().unwrap_or_default().into());
     g.set_modified_file(labels[MODIFIED].clone().unwrap_or_default().into());
     g.set_original_stats(text::stats(&texts[ORIGINAL]).into());
@@ -615,7 +624,10 @@ mod tests {
     fn a_changed_line_is_a_removal_and_an_addition_in_a_hunk() {
         let diff = compare("a\nb\nc\n", "a\nB\nc\n", PLAIN);
 
-        assert_eq!(diff.patch, format!("{PATCH_HEADER}@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n"));
+        assert_eq!(
+            diff.patch,
+            format!("{PATCH_HEADER}@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n")
+        );
         assert_eq!(diff.summary, "+1 −1 lines");
     }
 
@@ -645,7 +657,13 @@ mod tests {
         let rows: Vec<_> = diff
             .unified
             .iter()
-            .map(|r| (r.left.kind, r.left.number.as_str(), r.left.number_b.as_str()))
+            .map(|r| {
+                (
+                    r.left.kind,
+                    r.left.number.as_str(),
+                    r.left.number_b.as_str(),
+                )
+            })
             .collect();
         assert_eq!(
             rows,
@@ -692,7 +710,10 @@ mod tests {
             ..PLAIN
         };
 
-        assert_eq!(compare("Hello", "hello", options).message, IDENTICAL_MESSAGE);
+        assert_eq!(
+            compare("Hello", "hello", options).message,
+            IDENTICAL_MESSAGE
+        );
         assert_ne!(compare("Hello", "hello", PLAIN).message, IDENTICAL_MESSAGE);
     }
 

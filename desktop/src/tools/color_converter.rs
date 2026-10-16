@@ -57,10 +57,7 @@ fn tailwind_class(c: Rgba) -> String {
     if delta == 0.0 {
         format!("bg-{name}{opacity}")
     } else {
-        format!(
-            "bg-{name}{opacity} /* nearest match, Δ{} */",
-            delta.round()
-        )
+        format!("bg-{name}{opacity} /* nearest match, Δ{} */", delta.round())
     }
 }
 
@@ -130,7 +127,8 @@ pub fn init(app: &AppWindow) {
     let weak = app.as_weak();
     g.on_picked(move |c| {
         let Some(app) = weak.upgrade() else { return };
-        app.global::<ColorConverter>().set_input(color::hex(color::from_slint(c)).into());
+        app.global::<ColorConverter>()
+            .set_input(color::hex(color::from_slint(c)).into());
         refresh(&app);
     });
     let weak = app.as_weak();
@@ -139,7 +137,10 @@ pub fn init(app: &AppWindow) {
             return false;
         };
         let g = app.global::<ColorConverter>();
-        let Some(format) = usize::try_from(i).ok().and_then(|i| g.get_formats().row_data(i)) else {
+        let Some(format) = usize::try_from(i)
+            .ok()
+            .and_then(|i| g.get_formats().row_data(i))
+        else {
             return false;
         };
         match clipboard::copy_text(&format.value) {
@@ -477,10 +478,7 @@ mod tests {
     fn tailwind_class_says_how_far_the_nearest_match_is() {
         let c = color::parse("#7F3BED").unwrap().1;
 
-        assert_eq!(
-            tailwind_class(c),
-            "bg-violet-600 /* nearest match, Δ3 */"
-        );
+        assert_eq!(tailwind_class(c), "bg-violet-600 /* nearest match, Δ3 */");
     }
 
     #[test]

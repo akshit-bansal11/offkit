@@ -303,7 +303,9 @@ fn open(app: &AppWindow, path: PathBuf) {
                 if with(|s| s.generation) == generation {
                     let g = app.global::<VideoEditor>();
                     g.set_loading(false);
-                    g.set_load_error(format!("Couldn't open {}: {e}", files::file_name(&path)).into());
+                    g.set_load_error(
+                        format!("Couldn't open {}: {e}", files::file_name(&path)).into(),
+                    );
                 }
             }
         });
@@ -314,7 +316,9 @@ fn open(app: &AppWindow, path: PathBuf) {
 /// Shows a freshly read video, unless another was opened since.
 fn show(app: &AppWindow, generation: u64, source: Source) {
     let g = app.global::<VideoEditor>();
-    let size = std::fs::metadata(&source.path).map(|m| m.len()).unwrap_or_default();
+    let size = std::fs::metadata(&source.path)
+        .map(|m| m.len())
+        .unwrap_or_default();
     let duration = source.info.duration.unwrap_or_default();
     let (w, h) = (source.stream.width as f32, source.stream.height as f32);
     let current = with(|s| {
@@ -406,7 +410,10 @@ fn request_preview(app: &AppWindow, at: f64) {
 
 /// Keeps the crop inside the frame and at least `MIN_CROP` square, in whole pixels.
 fn clamp_crop(g: &VideoEditor) {
-    let (sw, sh) = (f64::from(g.get_source_width()), f64::from(g.get_source_height()));
+    let (sw, sh) = (
+        f64::from(g.get_source_width()),
+        f64::from(g.get_source_height()),
+    );
     let side = |value: f32, room: f64| f64::from(value).round().clamp(MIN_CROP.min(room), room);
     let w = side(g.get_crop_w(), sw);
     let h = side(g.get_crop_h(), sh);
@@ -460,8 +467,7 @@ fn read_edit(g: &VideoEditor, caps: Option<&Capabilities>) -> Edit {
 /// row and whether Export is available.
 fn refresh(app: &AppWindow) {
     let g = app.global::<VideoEditor>();
-    let (caps, has_source, exporting) =
-        with(|s| (s.caps, s.source.is_some(), s.export.is_some()));
+    let (caps, has_source, exporting) = with(|s| (s.caps, s.source.is_some(), s.export.is_some()));
     let edit = read_edit(&g, caps);
     g.set_custom_size(SIZES[index(g.get_size_index(), SIZES.len())].1 == Size::Custom);
     g.set_position_label(clock(f64::from(g.get_position()), true).into());
@@ -607,11 +613,7 @@ fn atempo_chain(speed: f64) -> Vec<Filter> {
 }
 
 /// The output options for `edit` on a video with or without sound.
-fn output_args(
-    edit: &Edit,
-    has_audio: bool,
-    caps: &Capabilities,
-) -> anyhow::Result<Vec<OsString>> {
+fn output_args(edit: &Edit, has_audio: bool, caps: &Capabilities) -> anyhow::Result<Vec<OsString>> {
     let mut args: Vec<OsString> = vec!["-map".into(), "0:v:0".into()];
     if has_audio {
         args.extend(["-map".into(), "0:a:0".into()]);
@@ -660,7 +662,10 @@ fn export(app: &AppWindow) {
         Ok(output) => output,
         Err(e) => {
             let name = files::file_name(&target);
-            return finish_export(app, Err(JobError::Failed(format!("Couldn't create {name}: {e}"))));
+            return finish_export(
+                app,
+                Err(JobError::Failed(format!("Couldn't create {name}: {e}"))),
+            );
         }
     };
     let cancel = Arc::new(CancelToken::default());
@@ -920,7 +925,8 @@ mod tests {
         let input = dir.join("clip.mp4");
         make_clip(&input, 4, "320x240", true);
         let caps = ffmpeg_video::capabilities(&ff);
-        let output = reserve_replacing(&dir.join(format!("out.{}", edit.format.extension()))).unwrap();
+        let output =
+            reserve_replacing(&dir.join(format!("out.{}", edit.format.extension()))).unwrap();
         let run = Run {
             inputs: std::slice::from_ref(&input),
             media: VIDEO,
@@ -969,7 +975,11 @@ mod tests {
 
         assert_eq!((info.width, info.height), (Some(150), Some(200)));
         assert_eq!(info.audio_codec.as_deref(), Some("aac"));
-        assert!((info.duration.unwrap() - 1.0).abs() < 0.15, "{:?}", info.duration);
+        assert!(
+            (info.duration.unwrap() - 1.0).abs() < 0.15,
+            "{:?}",
+            info.duration
+        );
     }
 
     #[test]
@@ -989,6 +999,10 @@ mod tests {
 
         assert_eq!((info.width, info.height), (Some(160), Some(120)));
         assert_eq!(info.video_codec.as_deref(), Some("vp9"));
-        assert!((info.duration.unwrap() - 2.0).abs() < 0.15, "{:?}", info.duration);
+        assert!(
+            (info.duration.unwrap() - 2.0).abs() < 0.15,
+            "{:?}",
+            info.duration
+        );
     }
 }

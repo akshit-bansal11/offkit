@@ -218,16 +218,22 @@ fn convert_all(app: &AppWindow) {
     };
     sync(app);
 
-    let workers = file_queue::run(app, jobs, CONCURRENT_CONVERSIONS, apply, move |job, progress| {
-        let output = reserve_output(&job.input, out_dir.as_deref(), format.extension())
-            .map_err(|e| JobError::Failed(format!("Couldn't create the output file: {e}")))?;
-        let args = ffmpeg_audio::encode_args(format, bitrate, ff.encoders())
-            .map_err(JobError::failed)?;
-        ffmpeg_audio::transcode(&ff, &job.input, &output, job.work, args, &job.cancel, |p| {
-            progress(p)
-        })?;
-        Ok(output)
-    });
+    let workers = file_queue::run(
+        app,
+        jobs,
+        CONCURRENT_CONVERSIONS,
+        apply,
+        move |job, progress| {
+            let output = reserve_output(&job.input, out_dir.as_deref(), format.extension())
+                .map_err(|e| JobError::Failed(format!("Couldn't create the output file: {e}")))?;
+            let args = ffmpeg_audio::encode_args(format, bitrate, ff.encoders())
+                .map_err(JobError::failed)?;
+            ffmpeg_audio::transcode(&ff, &job.input, &output, job.work, args, &job.cancel, |p| {
+                progress(p)
+            })?;
+            Ok(output)
+        },
+    );
     with(|s| s.queue.track(workers));
 }
 

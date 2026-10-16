@@ -55,7 +55,8 @@ fn quantize(rgba: &[u8], count: usize) -> Vec<Rgb> {
             continue;
         }
         let [r, g, b] = [px[0], px[1], px[2]].map(u32::from);
-        let key = ((r >> shift) << (BUCKET_BITS * 2)) | ((g >> shift) << BUCKET_BITS) | (b >> shift);
+        let key =
+            ((r >> shift) << (BUCKET_BITS * 2)) | ((g >> shift) << BUCKET_BITS) | (b >> shift);
         let i = *index.entry(key).or_insert_with(|| {
             buckets.push(Bucket::default());
             buckets.len() - 1
@@ -74,7 +75,9 @@ fn quantize(rgba: &[u8], count: usize) -> Vec<Rgb> {
             break;
         }
         // Math.round on a positive average: halves round up.
-        let candidate = bucket.sum.map(|s| (f64::from(s) / f64::from(bucket.n)).round() as u8);
+        let candidate = bucket
+            .sum
+            .map(|s| (f64::from(s) / f64::from(bucket.n)).round() as u8);
         let distinct = picked.iter().all(|c| {
             (0..3)
                 .map(|i| (i32::from(c[i]) - i32::from(candidate[i])).pow(2))
@@ -97,7 +100,11 @@ fn sample(image: &DynamicImage) -> RgbaImage {
     let scale = f64::from(SAMPLE_SIZE) / f64::from(longest);
     let side = |n: u32| ((f64::from(n) * scale).round() as u32).max(1);
     image
-        .resize_exact(side(image.width()), side(image.height()), FilterType::Triangle)
+        .resize_exact(
+            side(image.width()),
+            side(image.height()),
+            FilterType::Triangle,
+        )
         .to_rgba8()
 }
 
@@ -186,7 +193,8 @@ pub fn init(app: &AppWindow) {
     let weak = app.as_weak();
     g.on_open_image(move || {
         let Some(app) = weak.upgrade() else { return };
-        if let Some(path) = files::choose_file("Choose an Image", Some(("Image", INPUT_EXTENSIONS))) {
+        if let Some(path) = files::choose_file("Choose an Image", Some(("Image", INPUT_EXTENSIONS)))
+        {
             open_image(&app, path);
         }
     });
@@ -418,7 +426,12 @@ mod tests {
 
     #[test]
     fn the_count_caps_the_palette() {
-        let fixture = [pixels([255, 0, 0], 3), pixels([0, 0, 255], 2), pixels([0, 255, 0], 1)].concat();
+        let fixture = [
+            pixels([255, 0, 0], 3),
+            pixels([0, 0, 255], 2),
+            pixels([0, 255, 0], 1),
+        ]
+        .concat();
 
         assert_eq!(quantize(&fixture, 2), [[255, 0, 0], [0, 0, 255]]);
     }
@@ -468,5 +481,4 @@ mod tests {
             "{\n  \"name\": \"Extracted Palette\",\n  \"colors\": [\n    \"#FF0000\"\n  ]\n}"
         );
     }
-
 }

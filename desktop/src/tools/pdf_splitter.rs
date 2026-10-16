@@ -15,7 +15,9 @@ use std::thread::{self, JoinHandle};
 use ::image::RgbaImage;
 use slint::{ComponentHandle, Image, Model, ModelRc, VecModel};
 
-use super::pdf_toolkit::{PDF_FILTER, Outcome, Task, TaskUpdate, count, get_pdfium, is_pdf, slint_image, unpictured_note};
+use super::pdf_toolkit::{
+    Outcome, PDF_FILTER, Task, TaskUpdate, count, get_pdfium, is_pdf, slint_image, unpictured_note,
+};
 use crate::engine::pdf::{self, PageRef};
 use crate::files::{self, candidate_name, file_name, format_size, reserve_dir, reserve_output};
 use crate::jobs::{self, CancelToken, JobError};
@@ -36,7 +38,13 @@ enum Mode {
 }
 
 impl Mode {
-    const ALL: [Mode; 5] = [Mode::EveryPage, Mode::Chunks, Mode::Ranges, Mode::Extract, Mode::Remove];
+    const ALL: [Mode; 5] = [
+        Mode::EveryPage,
+        Mode::Chunks,
+        Mode::Ranges,
+        Mode::Extract,
+        Mode::Remove,
+    ];
 
     fn label(self) -> &'static str {
         match self {
@@ -52,8 +60,12 @@ impl Mode {
         match self {
             Mode::EveryPage => "Saves each page as its own PDF, in a new folder.",
             Mode::Chunks => "Saves each run of pages as its own PDF, in a new folder.",
-            Mode::Ranges => "Saves each range as its own PDF, in a new folder. Click pages to add them.",
-            Mode::Extract => "Saves the pages typed as one PDF, in the order typed. Repeats are kept.",
+            Mode::Ranges => {
+                "Saves each range as its own PDF, in a new folder. Click pages to add them."
+            }
+            Mode::Extract => {
+                "Saves the pages typed as one PDF, in the order typed. Repeats are kept."
+            }
             Mode::Remove => "Saves a copy without the pages typed or clicked.",
         }
     }
@@ -78,7 +90,13 @@ impl Mode {
 
 /// The PDFs a split writes, as (file name, 0-based pages). `stem` names the single-file modes'
 /// output. Every name is unique, so no output overwrites another.
-fn plan(mode: Mode, page_count: u32, ranges: &str, chunk: u32, stem: &str) -> Result<Vec<(String, Vec<u32>)>, String> {
+fn plan(
+    mode: Mode,
+    page_count: u32,
+    ranges: &str,
+    chunk: u32,
+    stem: &str,
+) -> Result<Vec<(String, Vec<u32>)>, String> {
     let pad = page_count.max(1).to_string().len();
     let run_name = |a: u32, b: u32| {
         if a == b {
@@ -101,14 +119,21 @@ fn plan(mode: Mode, page_count: u32, ranges: &str, chunk: u32, stem: &str) -> Re
         }
         Mode::Ranges => pdf::parse_ranges(ranges, page_count)?
             .into_iter()
-            .map(|r| (run_name(*r.start() - 1, *r.end() - 1), r.map(|p| p - 1).collect()))
+            .map(|r| {
+                (
+                    run_name(*r.start() - 1, *r.end() - 1),
+                    r.map(|p| p - 1).collect(),
+                )
+            })
             .collect(),
         Mode::Extract => {
             let pages = pdf::flatten(&pdf::parse_ranges(ranges, page_count)?);
             vec![(format!("{stem} extract"), pages)]
         }
         Mode::Remove => {
-            let gone: HashSet<u32> = pdf::flatten(&pdf::parse_ranges(ranges, page_count)?).into_iter().collect();
+            let gone: HashSet<u32> = pdf::flatten(&pdf::parse_ranges(ranges, page_count)?)
+                .into_iter()
+                .collect();
             let kept: Vec<u32> = (0..page_count).filter(|p| !gone.contains(p)).collect();
             if kept.is_empty() {
                 return Err("That removes every page, which would leave an empty PDF.".into());
@@ -247,7 +272,10 @@ pub fn set_drop_hover(app: &AppWindow, hover: bool) {
 pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
     let Some(pdfium) = pdf::pdfium() else { return };
     let Some(path) = paths.into_iter().find(|p| is_pdf(p) && p.is_file()) else {
-        with(|s| s.task.show_error("Only a PDF can be split. Drop a .pdf file.".into()));
+        with(|s| {
+            s.task
+                .show_error("Only a PDF can be split. Drop a .pdf file.".into())
+        });
         sync(app);
         return;
     };
@@ -258,7 +286,11 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
         }
         s.reading.cancel();
         s.reading = Arc::default();
-        s.source = Some(Source { path: path.clone(), size, pages: None });
+        s.source = Some(Source {
+            path: path.clone(),
+            size,
+            pages: None,
+        });
         s.selected.clear();
         s.thumbs.clear();
         s.task.clear();
@@ -340,7 +372,9 @@ pub fn shutdown() -> Vec<JoinHandle<()>> {
 }
 
 fn selection_text(selected: &[bool]) -> String {
-    let pages: Vec<u32> = (0..selected.len() as u32).filter(|&i| selected[i as usize]).collect();
+    let pages: Vec<u32> = (0..selected.len() as u32)
+        .filter(|&i| selected[i as usize])
+        .collect();
     pdf::format_pages(&pages)
 }
 
@@ -378,24 +412,41 @@ fn split(app: &AppWindow) {
     let ranges = g.get_ranges();
     let picked = with(|s| {
         let source = s.source.as_ref()?;
-        let Some(Ok(n)) = source.pages else { return None };
+        let Some(Ok(n)) = source.pages else {
+            return None;
+        };
         let files = plan(mode, n, &ranges, chunk, &stem(&source.path)).ok()?;
         (!s.task.is_running()).then(|| (source.path.clone(), files, s.out_dir.clone()))
     });
-    let Some((input, planned, out_dir)) = picked else { return };
+    let Some((input, planned, out_dir)) = picked else {
+        return;
+    };
     let activity = if mode.single() { "Saving" } else { "Splitting" };
     with(|s| {
         s.task.start(app, activity, apply, move |cancel, progress| {
             let sources = [input.clone()];
-            let refs = |pages: &[u32]| pages.iter().map(|&i| PageRef::new(0, i)).collect::<Vec<_>>();
+            let refs = |pages: &[u32]| {
+                pages
+                    .iter()
+                    .map(|&i| PageRef::new(0, i))
+                    .collect::<Vec<_>>()
+            };
             if mode.single() {
                 let (name, pages) = &planned[0];
                 let out = reserve_output(&input.with_file_name(name), out_dir.as_deref(), "pdf")
-                    .map_err(|e| JobError::Failed(format!("Couldn't create the output file: {e}")))?;
+                    .map_err(|e| {
+                        JobError::Failed(format!("Couldn't create the output file: {e}"))
+                    })?;
                 pdf::assemble(pdfium, &sources, &refs(pages), out.path(), cancel, progress)?;
-                let saved = out.keep().map_err(|e| JobError::Failed(format!("Couldn't save the PDF: {e}")))?;
+                let saved = out
+                    .keep()
+                    .map_err(|e| JobError::Failed(format!("Couldn't save the PDF: {e}")))?;
                 return Ok(Outcome {
-                    message: format!("Saved {} · {}", file_name(&saved), count(pages.len(), "page", "pages")),
+                    message: format!(
+                        "Saved {} · {}",
+                        file_name(&saved),
+                        count(pages.len(), "page", "pages")
+                    ),
                     reveal: saved,
                 });
             }
@@ -408,7 +459,11 @@ fn split(app: &AppWindow) {
             pdf::assemble_each(pdfium, &sources, &outputs, cancel, progress)?;
             let kept = folder.keep();
             Ok(Outcome {
-                message: format!("Saved {} in “{}”", count(outputs.len(), "PDF", "PDFs"), file_name(&kept)),
+                message: format!(
+                    "Saved {} in “{}”",
+                    count(outputs.len(), "PDF", "PDFs"),
+                    file_name(&kept)
+                ),
                 reveal: kept,
             })
         })
@@ -457,8 +512,18 @@ fn sync(app: &AppWindow) {
             Some(src) => {
                 let size = format_size(src.size);
                 match &src.pages {
-                    None => (file_name(&src.path), format!("{size} · Reading…"), false, Err(String::new())),
-                    Some(Err(message)) => (file_name(&src.path), message.clone(), true, Err(String::new())),
+                    None => (
+                        file_name(&src.path),
+                        format!("{size} · Reading…"),
+                        false,
+                        Err(String::new()),
+                    ),
+                    Some(Err(message)) => (
+                        file_name(&src.path),
+                        message.clone(),
+                        true,
+                        Err(String::new()),
+                    ),
                     Some(Ok(n)) => (
                         file_name(&src.path),
                         format!("{} · {size}", count(*n as usize, "page", "pages")),
@@ -504,7 +569,10 @@ mod tests {
         let files = plan(Mode::Chunks, 12, "", 5, "doc").unwrap();
 
         let names: Vec<&str> = files.iter().map(|(n, _)| n.as_str()).collect();
-        assert_eq!(names, ["Pages 01-05.pdf", "Pages 06-10.pdf", "Pages 11-12.pdf"]);
+        assert_eq!(
+            names,
+            ["Pages 01-05.pdf", "Pages 06-10.pdf", "Pages 11-12.pdf"]
+        );
     }
 
     #[test]
@@ -526,7 +594,10 @@ mod tests {
     fn removing_every_page_is_refused() {
         let error = plan(Mode::Remove, 3, "1-3", 1, "doc").unwrap_err();
 
-        assert_eq!(error, "That removes every page, which would leave an empty PDF.");
+        assert_eq!(
+            error,
+            "That removes every page, which would leave an empty PDF."
+        );
     }
 
     #[test]

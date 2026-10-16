@@ -168,7 +168,14 @@ fn paint_abstract(w: u32, h: u32, s: f32) -> Option<Pixmap> {
     let small = 128.0 * s;
     disc(&mut p, 0.2 * fw, 0.2 * fh, small, rgb(0xf43f5e), 4.0 * s);
     let large = 192.0 * s;
-    disc(&mut p, 0.8 * fw - large, 0.8 * fh - large, large, rgb(0x3b82f6), 8.0 * s);
+    disc(
+        &mut p,
+        0.8 * fw - large,
+        0.8 * fh - large,
+        large,
+        rgb(0x3b82f6),
+        8.0 * s,
+    );
     Some(p)
 }
 
@@ -198,7 +205,13 @@ fn disc(p: &mut Pixmap, x: f32, y: f32, diameter: f32, color: Rgb, sigma: f32) {
     let mut paint = Paint::default();
     paint.set_color(color.skia(u8::MAX));
     paint.anti_alias = true;
-    layer.fill_path(&circle, &paint, FillRule::Winding, Transform::identity(), None);
+    layer.fill_path(
+        &circle,
+        &paint,
+        FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
     let overlay = PixmapPaint {
         blend_mode: BlendMode::Overlay,
         ..PixmapPaint::default()
@@ -539,7 +552,9 @@ fn use_image(app: &AppWindow, path: PathBuf) {
         .and_then(|e| e.to_str())
         .is_some_and(|e| IMAGE_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()));
     if !known {
-        let message = format!("{name} isn't an image this preview can show. Use PNG, JPEG, WebP, GIF, BMP or TIFF.");
+        let message = format!(
+            "{name} isn't an image this preview can show. Use PNG, JPEG, WebP, GIF, BMP or TIFF."
+        );
         return g.set_error(message.into());
     }
     g.set_error("".into());
@@ -665,7 +680,12 @@ mod tests {
 
     #[test]
     fn tailwind_names_the_blurs_on_its_scale() {
-        let glass = Glass { blur: 8, tint: rgb(0x0f172a), opacity: 40, ..DEFAULT };
+        let glass = Glass {
+            blur: 8,
+            tint: rgb(0x0f172a),
+            opacity: 40,
+            ..DEFAULT
+        };
 
         assert_eq!(
             tailwind(&glass),
@@ -678,7 +698,12 @@ mod tests {
     fn the_card_is_centred_at_most_448_wide_and_four_by_three() {
         assert_eq!(
             card_layout(612.0, 470.0),
-            Card { x: 82.0, y: 67.0, w: 448.0, h: 336.0 }
+            Card {
+                x: 82.0,
+                y: 67.0,
+                w: 448.0,
+                h: 336.0
+            }
         );
     }
 
@@ -686,7 +711,12 @@ mod tests {
     fn the_card_shrinks_to_fit_a_short_area() {
         assert_eq!(
             card_layout(612.0, 304.0),
-            Card { x: 146.0, y: 32.0, w: 320.0, h: 240.0 }
+            Card {
+                x: 146.0,
+                y: 32.0,
+                w: 320.0,
+                h: 240.0
+            }
         );
     }
 

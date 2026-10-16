@@ -78,7 +78,9 @@ fn describe(e: &serde_json::Error, input: &str) -> String {
         .strip_suffix(&format!(" at line {line} column {byte_column}"))
         .unwrap_or(&full);
     let text = input.split('\n').nth(line.saturating_sub(1)).unwrap_or("");
-    let column = text[..text.floor_char_boundary(byte_column)].chars().count();
+    let column = text[..text.floor_char_boundary(byte_column)]
+        .chars()
+        .count();
     format!("Line {line}, column {column}: {message}.")
 }
 
@@ -220,9 +222,7 @@ fn open_file(app: &AppWindow, path: PathBuf) {
         with(|s| s.file = None);
         g.set_input(file.text.into());
     } else {
-        g.set_file_label(
-            format!("{} · {}", file.name, format_size(file.text.len() as u64)).into(),
-        );
+        g.set_file_label(format!("{} · {}", file.name, format_size(file.text.len() as u64)).into());
         with(|s| {
             s.file = Some(InputFile {
                 name: file.name,
@@ -317,7 +317,10 @@ mod tests {
 
     #[test]
     fn pretty_indents_by_two_spaces() {
-        assert_eq!(format(r#"{"a":[1,2]}"#, PRETTY_2), json("{\n  \"a\": [\n    1,\n    2\n  ]\n}"));
+        assert_eq!(
+            format(r#"{"a":[1,2]}"#, PRETTY_2),
+            json("{\n  \"a\": [\n    1,\n    2\n  ]\n}")
+        );
     }
 
     #[test]
@@ -386,7 +389,10 @@ mod tests {
             ..PRETTY_2
         };
 
-        assert_eq!(format(r#"{"url":"a/b","w":"héllo"}"#, options), json(r#"{"url":"a/b","w":"héllo"}"#));
+        assert_eq!(
+            format(r#"{"url":"a/b","w":"héllo"}"#, options),
+            json(r#"{"url":"a/b","w":"héllo"}"#)
+        );
     }
 
     #[test]

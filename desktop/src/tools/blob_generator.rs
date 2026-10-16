@@ -46,10 +46,22 @@ enum Axis {
 
 const fn corners(v: [(i32, i32); 4]) -> Corners {
     [
-        Radius { x: v[0].0, y: v[0].1 },
-        Radius { x: v[1].0, y: v[1].1 },
-        Radius { x: v[2].0, y: v[2].1 },
-        Radius { x: v[3].0, y: v[3].1 },
+        Radius {
+            x: v[0].0,
+            y: v[0].1,
+        },
+        Radius {
+            x: v[1].0,
+            y: v[1].1,
+        },
+        Radius {
+            x: v[2].0,
+            y: v[2].1,
+        },
+        Radius {
+            x: v[3].0,
+            y: v[3].1,
+        },
     ]
 }
 
@@ -122,7 +134,14 @@ fn sanitize(mut c: Corners) -> Corners {
 /// One slider moved. `both` sets x and y together (4-point mode, or X/Y locked); `mirror`
 /// copies the edit to the diagonal corner. Only the sides touched are constrained, so the
 /// value just set never moves.
-fn edit(mut c: Corners, corner: usize, axis: Axis, value: i32, both: bool, mirror: bool) -> Corners {
+fn edit(
+    mut c: Corners,
+    corner: usize,
+    axis: Axis,
+    value: i32,
+    both: bool,
+    mirror: bool,
+) -> Corners {
     let value = clamp_percent(value);
     let targets: &[usize] = if mirror {
         &[corner, diagonal(corner)]
@@ -157,10 +176,22 @@ fn random_corners(seed: u32) -> Corners {
     let mut state = u64::from(seed);
     let mut pick = || 10 + (next(&mut state) % 81) as i32;
     sanitize([
-        Radius { x: pick(), y: pick() },
-        Radius { x: pick(), y: pick() },
-        Radius { x: pick(), y: pick() },
-        Radius { x: pick(), y: pick() },
+        Radius {
+            x: pick(),
+            y: pick(),
+        },
+        Radius {
+            x: pick(),
+            y: pick(),
+        },
+        Radius {
+            x: pick(),
+            y: pick(),
+        },
+        Radius {
+            x: pick(),
+            y: pick(),
+        },
     ])
 }
 
@@ -203,7 +234,10 @@ fn tailwind(c: &Corners, fill: Fill) -> String {
     } else {
         format!("bg-[{hex}]")
     };
-    format!("rounded-[{}] {background}", radius_value(c).replace(' ', "_"))
+    format!(
+        "rounded-[{}] {background}",
+        radius_value(c).replace(' ', "_")
+    )
 }
 
 /// A number for SVG: at most two decimals, no trailing zeros.
@@ -259,7 +293,11 @@ fn svg(c: &Corners, fill: Fill, size: u32) -> String {
 fn render(svg: &str, scale: f32) -> Result<Pixmap, String> {
     let tree =
         usvg::Tree::from_str(svg, &crate::engine::svg::options()).map_err(|e| e.to_string())?;
-    let size = tree.size().to_int_size().scale_by(scale).ok_or("empty size")?;
+    let size = tree
+        .size()
+        .to_int_size()
+        .scale_by(scale)
+        .ok_or("empty size")?;
     let mut pixmap = Pixmap::new(size.width(), size.height()).ok_or("empty size")?;
     resvg::render(
         &tree,
@@ -317,7 +355,8 @@ pub fn init(app: &AppWindow) {
     let worker = LatestWorker::spawn("blob", move |(svg, scale): (String, f32)| {
         match render(&svg, scale) {
             Ok(pixmap) => jobs::post(&weak, move |app| {
-                app.global::<BlobGenerator>().set_preview(slint_image(&pixmap));
+                app.global::<BlobGenerator>()
+                    .set_preview(slint_image(&pixmap));
             }),
             Err(e) => eprintln!("couldn't draw the blob preview: {e}"),
         }
@@ -338,7 +377,11 @@ pub fn init(app: &AppWindow) {
         let Some(app) = weak.upgrade() else { return };
         let g = app.global::<BlobGenerator>();
         let both = axis == BlobAxis::Both || g.get_lock_axes() || !g.get_eight_point();
-        let axis = if axis == BlobAxis::Y { Axis::Y } else { Axis::X };
+        let axis = if axis == BlobAxis::Y {
+            Axis::Y
+        } else {
+            Axis::X
+        };
         let mirror = g.get_mirror();
         with(|s| {
             s.corners = edit(
@@ -536,7 +579,10 @@ mod tests {
 
     #[test]
     fn css_without_gradient_is_a_flat_colour() {
-        let flat = Fill { gradient: false, ..VIOLET };
+        let flat = Fill {
+            gradient: false,
+            ..VIOLET
+        };
 
         assert_eq!(
             css(&INITIAL, flat),
@@ -546,7 +592,10 @@ mod tests {
 
     #[test]
     fn tailwind_uses_the_chosen_colour() {
-        let teal = Fill { color: rgb(0x14b8a6), gradient: true };
+        let teal = Fill {
+            color: rgb(0x14b8a6),
+            gradient: true,
+        };
 
         assert_eq!(
             tailwind(&INITIAL, teal),
@@ -557,7 +606,10 @@ mod tests {
 
     #[test]
     fn tailwind_without_gradient_is_a_flat_colour() {
-        let flat = Fill { gradient: false, ..VIOLET };
+        let flat = Fill {
+            gradient: false,
+            ..VIOLET
+        };
 
         assert_eq!(
             tailwind(&INITIAL, flat),
@@ -622,7 +674,10 @@ mod tests {
 
     #[test]
     fn svg_draws_quarter_ellipses_between_straight_sides() {
-        let flat = Fill { gradient: false, ..VIOLET };
+        let flat = Fill {
+            gradient: false,
+            ..VIOLET
+        };
 
         assert_eq!(
             svg(&INITIAL, flat, 200),

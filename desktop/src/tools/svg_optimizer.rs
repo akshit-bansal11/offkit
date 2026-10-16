@@ -80,7 +80,12 @@ impl Settings {
         add(self.comments, &["removeComments"]);
         add(
             self.metadata,
-            &["removeMetadata", "removeTitle", "removeDesc", "removeXMLProcInst"],
+            &[
+                "removeMetadata",
+                "removeTitle",
+                "removeDesc",
+                "removeXMLProcInst",
+            ],
         );
         add(self.empty, &["removeEmptyAttrs", "removeEmptyContainers"]);
         add(self.collapse_groups, &["collapseGroups"]);
@@ -88,7 +93,12 @@ impl Settings {
         add(self.styles_to_attributes, &["convertStyleToAttrs"]);
         add(
             true,
-            &["cleanupIds", "minifyStyles", "removeUnknownsAndDefaults", "preset-default"],
+            &[
+                "cleanupIds",
+                "minifyStyles",
+                "removeUnknownsAndDefaults",
+                "preset-default",
+            ],
         );
         let precision = json!({ "floatPrecision": self.precision });
         plugins.push(json!({ "name": "cleanupNumericValues", "params": precision }));
@@ -103,9 +113,17 @@ impl Settings {
             (self.comments, &["remove_comments"]),
             (
                 self.metadata,
-                &["remove_metadata", "remove_title", "remove_desc", "remove_x_m_l_proc_inst"],
+                &[
+                    "remove_metadata",
+                    "remove_title",
+                    "remove_desc",
+                    "remove_x_m_l_proc_inst",
+                ],
             ),
-            (self.empty, &["remove_empty_attrs", "remove_empty_containers"]),
+            (
+                self.empty,
+                &["remove_empty_attrs", "remove_empty_containers"],
+            ),
             (self.collapse_groups, &["collapse_groups"]),
             (self.editor_namespaces, &["remove_editors_n_s_data"]),
         ];
@@ -191,7 +209,9 @@ const JSX_ATTRIBUTES: &[(&str, &str)] = &[
 /// The website's React component wrapper: the same text replacements (not a parser), then
 /// `{...props}` on the root and the function around it.
 fn to_jsx(svg: &str) -> String {
-    let mut jsx = svg.replace("class=", "className=").replace("for=", "htmlFor=");
+    let mut jsx = svg
+        .replace("class=", "className=")
+        .replace("for=", "htmlFor=");
     for (kebab, camel) in JSX_ATTRIBUTES {
         jsx = replace_ignore_ascii_case(&jsx, &format!("{kebab}="), &format!("{camel}="));
     }
@@ -332,7 +352,8 @@ pub fn init(app: &AppWindow) {
     let weak = app.as_weak();
     g.on_preview_resized(move |width, height| {
         let Some(app) = weak.upgrade() else { return };
-        let changed = with(|s| std::mem::replace(&mut s.canvas, (width, height)) != (width, height));
+        let changed =
+            with(|s| std::mem::replace(&mut s.canvas, (width, height)) != (width, height));
         if changed {
             optimize_input(&app);
         }
@@ -468,7 +489,9 @@ fn open_in_editor(app: &AppWindow, path: PathBuf) {
         Ok(_) => {
             g.set_mode(SvgOptimizerMode::Files);
             add_to_queue(app, vec![path]);
-            g.set_note(format!("{name} is too long to edit here, so it was added to Files.").into());
+            g.set_note(
+                format!("{name} is too long to edit here, so it was added to Files.").into(),
+            );
         }
         Err(e) => g.set_error(format!("Couldn't read {name}: {e}").into()),
     }
@@ -609,7 +632,11 @@ fn save_output(app: &AppWindow) {
     }) else {
         return;
     };
-    let title = if jsx { "Save JSX" } else { "Save Optimized SVG" };
+    let title = if jsx {
+        "Save JSX"
+    } else {
+        "Save Optimized SVG"
+    };
     let Some(path) = files::choose_save_path(title, &suggested) else {
         return;
     };
@@ -638,9 +665,9 @@ fn add_to_queue(app: &AppWindow, paths: Vec<PathBuf>) {
     let g = app.global::<SvgOptimizer>();
     match others.len() {
         0 => g.set_note("".into()),
-        1 => g.set_note(
-            format!("Skipped {}: it isn't an SVG.", files::file_name(&others[0])).into(),
-        ),
+        1 => {
+            g.set_note(format!("Skipped {}: it isn't an SVG.", files::file_name(&others[0])).into())
+        }
         n => g.set_note(format!("Skipped {n} files that aren't SVGs.").into()),
     }
     sync(app);
@@ -657,7 +684,9 @@ fn optimize_all(app: &AppWindow) {
     sync(app);
     let workers = file_queue::run(app, jobs, CONCURRENT_FILES, apply, move |job, progress| {
         let name = files::file_name(&job.input);
-        let size = std::fs::metadata(&job.input).map_err(JobError::failed)?.len();
+        let size = std::fs::metadata(&job.input)
+            .map_err(JobError::failed)?
+            .len();
         if size > svg::MAX_SVG_BYTES as u64 {
             return Err(JobError::Failed(format!(
                 "{} is over the {} limit.",
@@ -762,7 +791,10 @@ mod tests {
         let optimized = optimize(INKSCAPE, &Settings::default()).unwrap();
 
         assert!(optimized.len() < INKSCAPE.len() / 2, "{optimized}");
-        assert!(optimized.contains(r#"viewBox="0 0 100 100""#), "{optimized}");
+        assert!(
+            optimized.contains(r#"viewBox="0 0 100 100""#),
+            "{optimized}"
+        );
     }
 
     #[test]
@@ -783,7 +815,10 @@ mod tests {
 
         let optimized = optimize(INKSCAPE, &settings).unwrap();
 
-        assert!(optimized.contains("<!-- Created with Inkscape -->"), "{optimized}");
+        assert!(
+            optimized.contains("<!-- Created with Inkscape -->"),
+            "{optimized}"
+        );
     }
 
     #[test]
@@ -824,7 +859,10 @@ mod tests {
     fn broken_markup_is_reported() {
         let error = optimize("<svg><g></svg>", &Settings::default()).unwrap_err();
 
-        assert!(error.starts_with("This isn't valid SVG markup ("), "{error}");
+        assert!(
+            error.starts_with("This isn't valid SVG markup ("),
+            "{error}"
+        );
     }
 
     #[test]
@@ -850,7 +888,12 @@ mod tests {
     #[test]
     fn savings_read_like_the_website_badge() {
         assert_eq!(
-            [savings(100, 58), savings(100, 100), savings(100, 112), savings(0, 0)],
+            [
+                savings(100, 58),
+                savings(100, 100),
+                savings(100, 112),
+                savings(0, 0)
+            ],
             ["42% smaller", "No change", "12% larger", ""]
         );
     }

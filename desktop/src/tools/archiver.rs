@@ -203,8 +203,7 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
         }
         added
     });
-    app.global::<Archiver>()
-        .set_error(refused.join(" ").into());
+    app.global::<Archiver>().set_error(refused.join(" ").into());
     sync(app);
 
     let weak = app.as_weak();
@@ -448,9 +447,15 @@ mod tests {
 
     #[test]
     fn the_saved_note_names_one_left_out_item() {
-        let note = saved_note(std::path::Path::new("out/photos.zip"), &["photos/latest".into()]);
+        let note = saved_note(
+            std::path::Path::new("out/photos.zip"),
+            &["photos/latest".into()],
+        );
 
-        assert_eq!(note, "Saved as photos.zip · left out 1 item: “photos/latest”");
+        assert_eq!(
+            note,
+            "Saved as photos.zip · left out 1 item: “photos/latest”"
+        );
     }
 
     #[test]

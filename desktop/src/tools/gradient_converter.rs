@@ -87,7 +87,10 @@ fn from_utility(s: &str) -> Option<String> {
         .iter()
         .find(|(short, _)| *short == dir)
         .map_or(format!("to {dir}"), |(_, long)| (*long).to_string());
-    Some(format!("linear-gradient({direction}, {})", stops.join(", ")))
+    Some(format!(
+        "linear-gradient({direction}, {})",
+        stops.join(", ")
+    ))
 }
 
 /// The website's input cleaning: a Tailwind utility becomes CSS, a `bg-[…]` value is
@@ -113,7 +116,9 @@ fn clean(input: &str) -> String {
     }
     let lower = c.to_ascii_lowercase();
     if let Some(at) = lower.find("background-image")
-        && let Some(value) = c[at + "background-image".len()..].trim_start().strip_prefix(':')
+        && let Some(value) = c[at + "background-image".len()..]
+            .trim_start()
+            .strip_prefix(':')
     {
         let value = value.split(';').next().unwrap_or_default().trim();
         if !value.is_empty() {
@@ -344,7 +349,9 @@ mod tests {
     #[test]
     fn clean_takes_background_image_out_of_a_rule() {
         assert_eq!(
-            clean(".custom-gradient {\n  background-color: red;\n  background-image: linear-gradient(red, blue);\n}"),
+            clean(
+                ".custom-gradient {\n  background-color: red;\n  background-image: linear-gradient(red, blue);\n}"
+            ),
             "linear-gradient(red, blue)"
         );
     }

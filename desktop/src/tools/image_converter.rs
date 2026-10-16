@@ -211,9 +211,21 @@ fn convert_all(app: &AppWindow) {
         (jobs, s.queue.out_dir().map(PathBuf::from))
     });
     sync(app);
-    let workers = file_queue::run(app, jobs, CONCURRENT_CONVERSIONS, apply, move |job, progress| {
-        convert(&job.input, settings, out_dir.as_deref(), &job.cancel, progress)
-    });
+    let workers = file_queue::run(
+        app,
+        jobs,
+        CONCURRENT_CONVERSIONS,
+        apply,
+        move |job, progress| {
+            convert(
+                &job.input,
+                settings,
+                out_dir.as_deref(),
+                &job.cancel,
+                progress,
+            )
+        },
+    );
     with(|s| s.queue.track(workers));
 }
 

@@ -111,7 +111,11 @@ fn from_gradient(g: &Gradient) -> Option<(Shape, Vec<Stop>)> {
     let degrees = normalize_angle(color::linear_angle_degrees(&angle));
     let shape = Shape {
         kind: g.kind,
-        angle: if g.kind == Kind::Linear { degrees } else { 135.0 },
+        angle: if g.kind == Kind::Linear {
+            degrees
+        } else {
+            135.0
+        },
         radial: SHAPES
             .iter()
             .find(|s| **s == g.orientation)
@@ -517,7 +521,11 @@ mod tests {
         assert_eq!(s.angle, 90.0);
         assert_eq!(
             stops,
-            [stop("#0F2027", 0.0), stop("#203A43", 50.0), stop("#2C5364", 100.0)]
+            [
+                stop("#0F2027", 0.0),
+                stop("#203A43", 50.0),
+                stop("#2C5364", 100.0)
+            ]
         );
     }
 

@@ -26,7 +26,12 @@ const CONCURRENT_READS: usize = 4;
 /// Row thumbnails render at twice the row's thumbnail square.
 const THUMB_EDGE: u32 = 72;
 /// Margins in points: none, a quarter, half and one inch.
-const MARGINS: [(&str, f32); 4] = [("None", 0.0), ("Small", 18.0), ("Medium", 36.0), ("Large", 72.0)];
+const MARGINS: [(&str, f32); 4] = [
+    ("None", 0.0),
+    ("Small", 18.0),
+    ("Medium", 36.0),
+    ("Large", 72.0),
+];
 const ONE_PDF: i32 = 0;
 
 /// Whether a dropped path names an image this tool takes, by extension; it's decoded later.
@@ -78,7 +83,8 @@ pub fn init(app: &AppWindow) {
     let weak = app.as_weak();
     g.on_choose_files(move || {
         let Some(app) = weak.upgrade() else { return };
-        if let Some(paths) = files::choose_files("Choose Images", Some(("Image", IMAGE_EXTENSIONS))) {
+        if let Some(paths) = files::choose_files("Choose Images", Some(("Image", IMAGE_EXTENSIONS)))
+        {
             add_paths(&app, paths);
         }
     });
@@ -158,7 +164,9 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
         s.task.clear();
         let mut added = Vec::new();
         for path in paths {
-            let Ok(meta) = std::fs::metadata(&path) else { continue };
+            let Ok(meta) = std::fs::metadata(&path) else {
+                continue;
+            };
             if !meta.is_file() || s.items.iter().any(|e| same_file(&e.path, &path)) {
                 continue;
             }
@@ -252,7 +260,9 @@ fn convert(app: &AppWindow) {
             (images, s.out_dir.clone())
         })
     });
-    let Some((images, out_dir)) = picked else { return };
+    let Some((images, out_dir)) = picked else {
+        return;
+    };
 
     if g.get_output_index() == ONE_PDF {
         let stem = images[0]
@@ -263,52 +273,69 @@ fn convert(app: &AppWindow) {
             return;
         };
         with(|s| {
-            s.task.start(app, "Creating the PDF", apply, move |cancel, progress| {
-                let out = files::reserve_replacing(&target).map_err(|e| {
-                    JobError::Failed(format!("Couldn't create {}: {e}", file_name(&target)))
-                })?;
-                pdf::images_to_pdf(pdfium, &images, layout, out.path(), cancel, progress)?;
-                let saved = out.keep().map_err(|e| {
-                    JobError::Failed(format!("Couldn't save {}: {e}", file_name(&target)))
-                })?;
-                Ok(Outcome {
-                    message: format!(
-                        "Saved {} · {}",
-                        file_name(&saved),
-                        count(images.len(), "page", "pages")
-                    ),
-                    reveal: saved,
+            s.task
+                .start(app, "Creating the PDF", apply, move |cancel, progress| {
+                    let out = files::reserve_replacing(&target).map_err(|e| {
+                        JobError::Failed(format!("Couldn't create {}: {e}", file_name(&target)))
+                    })?;
+                    pdf::images_to_pdf(pdfium, &images, layout, out.path(), cancel, progress)?;
+                    let saved = out.keep().map_err(|e| {
+                        JobError::Failed(format!("Couldn't save {}: {e}", file_name(&target)))
+                    })?;
+                    Ok(Outcome {
+                        message: format!(
+                            "Saved {} · {}",
+                            file_name(&saved),
+                            count(images.len(), "page", "pages")
+                        ),
+                        reveal: saved,
+                    })
                 })
-            })
         });
     } else {
         with(|s| {
-            s.task.start(app, "Creating PDFs", apply, move |cancel, progress| {
-                let mut first = None;
-                for (i, image) in images.iter().enumerate() {
-                    let out = reserve_output(image, out_dir.as_deref(), "pdf").map_err(|e| {
-                        JobError::Failed(format!("Couldn't create a PDF for {}: {e}", file_name(image)))
-                    })?;
-                    let share = |p: f32| progress((i as f32 + p) / images.len() as f32);
-                    pdf::images_to_pdf(pdfium, std::slice::from_ref(image), layout, out.path(), cancel, &share)
+            s.task
+                .start(app, "Creating PDFs", apply, move |cancel, progress| {
+                    let mut first = None;
+                    for (i, image) in images.iter().enumerate() {
+                        let out =
+                            reserve_output(image, out_dir.as_deref(), "pdf").map_err(|e| {
+                                JobError::Failed(format!(
+                                    "Couldn't create a PDF for {}: {e}",
+                                    file_name(image)
+                                ))
+                            })?;
+                        let share = |p: f32| progress((i as f32 + p) / images.len() as f32);
+                        pdf::images_to_pdf(
+                            pdfium,
+                            std::slice::from_ref(image),
+                            layout,
+                            out.path(),
+                            cancel,
+                            &share,
+                        )
                         .map_err(|e| match e {
                             // The PDFs already made stay: each is complete on its own.
-                            JobError::Failed(m) if i > 0 => {
-                                JobError::Failed(format!("{m} ({} saved before it.)", count(i, "PDF was", "PDFs were")))
-                            }
+                            JobError::Failed(m) if i > 0 => JobError::Failed(format!(
+                                "{m} ({} saved before it.)",
+                                count(i, "PDF was", "PDFs were")
+                            )),
                             e => e,
                         })?;
-                    let saved = out.keep().map_err(|e| {
-                        JobError::Failed(format!("Couldn't save a PDF for {}: {e}", file_name(image)))
-                    })?;
-                    first.get_or_insert(saved);
-                }
-                let reveal = first.ok_or(JobError::Cancelled)?;
-                Ok(Outcome {
-                    message: format!("Saved {}", count(images.len(), "PDF", "PDFs")),
-                    reveal,
+                        let saved = out.keep().map_err(|e| {
+                            JobError::Failed(format!(
+                                "Couldn't save a PDF for {}: {e}",
+                                file_name(image)
+                            ))
+                        })?;
+                        first.get_or_insert(saved);
+                    }
+                    let reveal = first.ok_or(JobError::Cancelled)?;
+                    Ok(Outcome {
+                        message: format!("Saved {}", count(images.len(), "PDF", "PDFs")),
+                        reveal,
+                    })
                 })
-            })
         });
     }
     sync(app);
@@ -339,7 +366,14 @@ fn sync(app: &AppWindow) {
     with(|s| {
         s.rows.set_vec(s.items.iter().map(row).collect::<Vec<_>>());
         let bytes: u64 = s.items.iter().map(|e| e.size).sum();
-        g.set_summary(format!("{} · {}", count(s.items.len(), "image", "images"), format_size(bytes)).into());
+        g.set_summary(
+            format!(
+                "{} · {}",
+                count(s.items.len(), "image", "images"),
+                format_size(bytes)
+            )
+            .into(),
+        );
         let blocked = blocked(&s.items);
         g.set_can_convert(blocked.is_none() && !s.task.is_running());
         g.set_note(blocked.unwrap_or_default().into());
@@ -390,6 +424,9 @@ mod tests {
     fn an_unreadable_image_blocks_creating() {
         let items = [item(Some(Err("bad".into())))];
 
-        assert_eq!(blocked(&items), Some("Remove the images that can't be read, then try again."));
+        assert_eq!(
+            blocked(&items),
+            Some("Remove the images that can't be read, then try again.")
+        );
     }
 }

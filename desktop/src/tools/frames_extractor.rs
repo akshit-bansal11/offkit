@@ -154,8 +154,7 @@ pub fn init(app: &AppWindow) {
     let weak = app.as_weak();
     g.on_choose_files(move || {
         let Some(app) = weak.upgrade() else { return };
-        if let Some(paths) =
-            files::choose_files("Choose Videos", Some(("Video", VIDEO_EXTENSIONS)))
+        if let Some(paths) = files::choose_files("Choose Videos", Some(("Video", VIDEO_EXTENSIONS)))
         {
             add_paths(&app, paths);
         }
@@ -332,12 +331,14 @@ fn sync(app: &AppWindow) {
                 .sum(),
             Err(_) => None,
         };
-        g.set_estimate(match total {
-            Some(0) | None => String::new(),
-            Some(1) => "About 1 frame.".into(),
-            Some(n) => format!("About {} frames.", group_thousands(n)),
-        }
-        .into());
+        g.set_estimate(
+            match total {
+                Some(0) | None => String::new(),
+                Some(1) => "About 1 frame.".into(),
+                Some(n) => format!("About {} frames.", group_thousands(n)),
+            }
+            .into(),
+        );
     });
 }
 
@@ -345,7 +346,9 @@ fn extract_all(app: &AppWindow) {
     let queued = with(|s| {
         let ff = s.ffmpeg.clone()?;
         let extraction = s.extraction.clone().ok()?;
-        let jobs = s.queue.start(|e| e.data.as_ref().map(|(info, _)| info.duration));
+        let jobs = s
+            .queue
+            .start(|e| e.data.as_ref().map(|(info, _)| info.duration));
         Some((ff, extraction, s.queue.out_dir().map(PathBuf::from), jobs))
     });
     let Some((ff, extraction, out_dir, jobs)) = queued else {
@@ -356,30 +359,47 @@ fn extract_all(app: &AppWindow) {
     // `file_queue::run` takes a `Reserved` file; a folder of frames is a `ReservedDir`, so the
     // same loop is spelled out here: skip cancelled jobs, report, catch a panic.
     let weak = app.as_weak();
-    let workers = jobs::run_pool(jobs, CONCURRENT_EXTRACTIONS, move |job: Job<Option<f64>>| {
-        if job.cancel.is_cancelled() {
-            return; // Cancelled while queued; the row already says so.
-        }
-        let post = |update: Update| {
-            let (id, token) = (job.id, job.cancel.clone());
-            jobs::post(&weak, move |app| apply(&app, id, &token, update));
-        };
-        post(Update::Running);
-        let progress = |p| post(Update::Progress(p));
-        let work = || extract(&ff, &job.input, job.work, &extraction, out_dir.as_deref(), &job.cancel, &progress);
-        let result = panic::catch_unwind(AssertUnwindSafe(work)).unwrap_or_else(|panic| {
-            let reason = panic
-                .downcast_ref::<&str>()
-                .map(|s| s.to_string())
-                .or_else(|| panic.downcast_ref::<String>().cloned())
-                .unwrap_or_default();
-            eprintln!("extracting frames from {} panicked: {reason}", job.input.display());
-            Err(JobError::Failed(
-                "Something went wrong with this file. Try again, or remove it.".into(),
-            ))
-        });
-        post(Update::Finished(result));
-    });
+    let workers = jobs::run_pool(
+        jobs,
+        CONCURRENT_EXTRACTIONS,
+        move |job: Job<Option<f64>>| {
+            if job.cancel.is_cancelled() {
+                return; // Cancelled while queued; the row already says so.
+            }
+            let post = |update: Update| {
+                let (id, token) = (job.id, job.cancel.clone());
+                jobs::post(&weak, move |app| apply(&app, id, &token, update));
+            };
+            post(Update::Running);
+            let progress = |p| post(Update::Progress(p));
+            let work = || {
+                extract(
+                    &ff,
+                    &job.input,
+                    job.work,
+                    &extraction,
+                    out_dir.as_deref(),
+                    &job.cancel,
+                    &progress,
+                )
+            };
+            let result = panic::catch_unwind(AssertUnwindSafe(work)).unwrap_or_else(|panic| {
+                let reason = panic
+                    .downcast_ref::<&str>()
+                    .map(|s| s.to_string())
+                    .or_else(|| panic.downcast_ref::<String>().cloned())
+                    .unwrap_or_default();
+                eprintln!(
+                    "extracting frames from {} panicked: {reason}",
+                    job.input.display()
+                );
+                Err(JobError::Failed(
+                    "Something went wrong with this file. Try again, or remove it.".into(),
+                ))
+            });
+            post(Update::Finished(result));
+        },
+    );
     with(|s| s.queue.track(workers));
 }
 
@@ -410,7 +430,9 @@ fn extract(
         duration: output_seconds(x, duration),
     };
     ff.run_frames(&run, cancel, |_| Ok(output_args(x)), progress)?;
-    let count = fs::read_dir(frames.path()).map_err(JobError::failed)?.count();
+    let count = fs::read_dir(frames.path())
+        .map_err(JobError::failed)?
+        .count();
     if count == 0 {
         return Err(JobError::Failed(match x.pick {
             Pick::Times(_) => "None of those times is in this video".into(),
@@ -434,9 +456,14 @@ fn extract(
 /// Stores every frame in `frames` in a ZIP at `out`, by name order. Frames are already
 /// compressed images, so they're stored as they are.
 fn zip_folder(frames: &ReservedDir, out: &Path, cancel: &CancelToken) -> Result<(), JobError> {
-    let failed = |e: &dyn std::fmt::Display| JobError::Failed(format!("Couldn't write the ZIP file: {e}"));
+    let failed =
+        |e: &dyn std::fmt::Display| JobError::Failed(format!("Couldn't write the ZIP file: {e}"));
     let mut names = fs::read_dir(frames.path())
-        .and_then(|entries| entries.map(|e| e.map(|e| e.file_name())).collect::<io::Result<Vec<_>>>())
+        .and_then(|entries| {
+            entries
+                .map(|e| e.map(|e| e.file_name()))
+                .collect::<io::Result<Vec<_>>>()
+        })
         .map_err(|e| failed(&e))?;
     names.sort();
     let file = File::create(out).map_err(|e| failed(&e))?;
@@ -555,7 +582,10 @@ fn parse_times(text: &str) -> Result<Vec<f64>, String> {
     let mut times = text
         .split([',', ';', ' ', '\n'])
         .filter(|t| !t.trim().is_empty())
-        .map(|t| parse_time(t).ok_or_else(|| format!("“{}” isn't a time. Use seconds or m:ss.", t.trim())))
+        .map(|t| {
+            parse_time(t)
+                .ok_or_else(|| format!("“{}” isn't a time. Use seconds or m:ss.", t.trim()))
+        })
         .collect::<Result<Vec<_>, _>>()?;
     if times.is_empty() {
         return Err("Type the times to take frames at.".into());
@@ -714,8 +744,14 @@ mod tests {
         x.start = Some(2.0);
 
         assert_eq!(estimate(&x, Some(10.0), Some(25.0)), Some(200));
-        assert_eq!(estimate(&extraction(Pick::Nth(10)), Some(10.0), Some(30.0)), Some(30));
-        assert_eq!(estimate(&extraction(Pick::Times(vec![1.0, 20.0])), Some(10.0), None), Some(1));
+        assert_eq!(
+            estimate(&extraction(Pick::Nth(10)), Some(10.0), Some(30.0)),
+            Some(30)
+        );
+        assert_eq!(
+            estimate(&extraction(Pick::Times(vec![1.0, 20.0])), Some(10.0), None),
+            Some(1)
+        );
         assert_eq!(estimate(&extraction(Pick::Every), Some(10.0), None), None);
     }
 
@@ -747,10 +783,21 @@ mod tests {
         x.start = Some(1.0);
         x.end = Some(3.0);
 
-        let out = extract(&ff, &input, Some(4.0), &x, None, &CancelToken::default(), &|_| {});
+        let out = extract(
+            &ff,
+            &input,
+            Some(4.0),
+            &x,
+            None,
+            &CancelToken::default(),
+            &|_| {},
+        );
 
         assert_eq!(out.as_ref().unwrap(), &dir.join("clip frames"));
-        assert_eq!(names(&dir.join("clip frames")), ["clip_000001.png", "clip_000002.png"]);
+        assert_eq!(
+            names(&dir.join("clip frames")),
+            ["clip_000001.png", "clip_000002.png"]
+        );
         fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -765,14 +812,29 @@ mod tests {
         x.image = ImageKind::Jpeg;
         x.zip = true;
 
-        let out = extract(&ff, &input, Some(3.0), &x, None, &CancelToken::default(), &|_| {}).unwrap();
+        let out = extract(
+            &ff,
+            &input,
+            Some(3.0),
+            &x,
+            None,
+            &CancelToken::default(),
+            &|_| {},
+        )
+        .unwrap();
 
         assert_eq!(out, dir.join("clip frames.zip"));
         assert_eq!(names(&dir), ["clip frames.zip", "clip.mp4"]);
         let archive = zip::ZipArchive::new(File::open(&out).unwrap()).unwrap();
-        let mut entries: Vec<_> = archive.file_names().map(|n| n.unwrap().into_owned()).collect();
+        let mut entries: Vec<_> = archive
+            .file_names()
+            .map(|n| n.unwrap().into_owned())
+            .collect();
         entries.sort();
-        assert_eq!(entries, ["clip_000001.jpg", "clip_000002.jpg", "clip_000003.jpg"]);
+        assert_eq!(
+            entries,
+            ["clip_000001.jpg", "clip_000002.jpg", "clip_000003.jpg"]
+        );
         fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -786,7 +848,16 @@ mod tests {
         let mut x = extraction(Pick::Nth(10));
         x.image = ImageKind::Webp;
 
-        extract(&ff, &input, Some(2.0), &x, None, &CancelToken::default(), &|_| {}).unwrap();
+        extract(
+            &ff,
+            &input,
+            Some(2.0),
+            &x,
+            None,
+            &CancelToken::default(),
+            &|_| {},
+        )
+        .unwrap();
 
         assert_eq!(names(&dir.join("clip frames")).len(), 5);
         fs::remove_dir_all(&dir).unwrap();
@@ -802,7 +873,15 @@ mod tests {
         let mut x = extraction(Pick::Every);
         x.start = Some(5.0);
 
-        let result = extract(&ff, &input, Some(1.0), &x, None, &CancelToken::default(), &|_| {});
+        let result = extract(
+            &ff,
+            &input,
+            Some(1.0),
+            &x,
+            None,
+            &CancelToken::default(),
+            &|_| {},
+        );
 
         assert!(
             matches!(&result, Err(JobError::Failed(m)) if m == "There are no frames in that range"),
