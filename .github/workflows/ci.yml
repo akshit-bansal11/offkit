@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/**", "wip/**"]
   pull_request:
 
 permissions:
@@ -13,7 +13,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Native Rust + Slint crate. Runs on every branch; wip/** pushes only touch desktop/.
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop -> target
+      # Chocolatey shims ffmpeg.exe and ffprobe.exe into its bin dir, already on PATH; the media tests skip without them.
+      - run: choco install ffmpeg -y --no-progress
+      - name: Fetch pdfium (when the script exists)
+        if: hashFiles('desktop/scripts/fetch-pdfium.ps1') != ''
+        shell: pwsh
+        working-directory: desktop
+        run: ./scripts/fetch-pdfium.ps1
+      - run: cargo fmt --check
+        working-directory: desktop
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: desktop
+      - run: cargo test
+        working-directory: desktop
+
   check:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/native-app'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -31,6 +58,7 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
 
   e2e-web:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/native-app'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -54,6 +82,7 @@ jobs:
 
   # The desktop app only ships for Windows, so its tests run there against the real Electron binary.
   e2e-desktop:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/native-app'
     runs-on: windows-latest
     timeout-minutes: 30
     steps:

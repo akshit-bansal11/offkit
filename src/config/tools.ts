@@ -43,7 +43,10 @@ import {
   Video,
   Wand2,
 } from "lucide-react";
+import type { Metadata } from "next";
 import type { ToolCategoryDefinition, ToolDefinition } from "@/types/tool";
+// Relative, not @/, so the Node test runner can load this module.
+import { siteConfig } from "./site.ts";
 
 export const toolCategories: ToolCategoryDefinition[] = [
   { name: "Audio", icon: AudioLines, accentColor: "#60a5fa" },
@@ -490,6 +493,28 @@ export const tools: ToolDefinition[] = [
 
 export function getToolBySlug(slug: string) {
   return tools.find((tool) => tool.slug === slug);
+}
+
+/**
+ * Route metadata for a tool page: its own title, description, canonical URL
+ * and social card text, all from the registry entry. Relative URLs resolve
+ * against metadataBase in the root layout. An unknown slug fails the build.
+ */
+export function getToolMetadata(slug: string): Metadata {
+  const tool = getToolBySlug(slug);
+  if (!tool) throw new Error(`No tool is registered with the slug "${slug}".`);
+
+  return {
+    title: tool.name,
+    description: tool.description,
+    alternates: { canonical: tool.href },
+    openGraph: {
+      title: tool.name,
+      description: tool.description,
+      url: tool.href,
+      images: [siteConfig.socialImage],
+    },
+  };
 }
 
 export const toolsByCategory = toolCategories.map((category) => ({

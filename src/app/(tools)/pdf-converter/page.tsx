@@ -291,6 +291,8 @@ function PdfConverterTool() {
     setIsProcessingPdfToImg(true);
     setErrorMessage(null);
     setPdfProgress(0);
+    // A new extraction replaces the last one, so its previews are released first.
+    for (const page of pdfPages) URL.revokeObjectURL(page.preview);
     setPdfPages([]);
 
     try {
@@ -328,7 +330,7 @@ function PdfConverterTool() {
         setPdfProgress(Math.round((pageNum / totalPages) * 100));
       }
 
-      setPdfPages((prev) => [...prev, ...extractedPages]);
+      setPdfPages(extractedPages);
     } catch (e) {
       console.error(e);
       setErrorMessage("An error occurred while reading the PDF.");

@@ -4,6 +4,7 @@ import { CheckCircle2, Copy, Search } from "lucide-react";
 import { useState } from "react";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
+import { CopyButton } from "@/components/ui/design/CopyButton";
 import { Input } from "@/components/ui/form/Input";
 import { Card, CardHeader, CardTitle } from "@/components/ui/layout/Card";
 import { getToolBySlug } from "@/config/tools";
@@ -101,6 +102,7 @@ function PaletteLibraryTool() {
                           type="button"
                           variant="ghost"
                           onClick={() => handleCopyColor(color)}
+                          aria-label={`Copy ${color.toUpperCase()}`}
                           className="group/color relative h-full flex-1 rounded-none p-0 transition-all duration-300 hover:flex-[1.15] hover:bg-transparent"
                           style={{ backgroundColor: color }}
                         >
@@ -134,6 +136,15 @@ function PaletteLibraryTool() {
                           </Button>
                         ))}
                       </div>
+                      <CopyButton
+                        value={JSON.stringify(
+                          { name: palette.name, colors: palette.colors },
+                          null,
+                          2,
+                        )}
+                        label="Copy JSON"
+                        className="mt-5"
+                      />
                     </div>
                   </div>
                 ))}

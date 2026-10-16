@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 import path from "path";
 import { fileURLToPath } from "url";
+import { securityHeaders } from "./src/config/security-headers";
 import { IS_DESKTOP } from "./src/config/target";
-import { tools } from "./src/config/tools";
 
 const repoRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -13,19 +13,21 @@ const desktopConfig: NextConfig = {
   images: { unoptimized: true },
 };
 
-// The tools left the website; their old URLs land on the matching docs entry.
+// A static export has no server to send headers; Electron sends its own policy.
 const webConfig: NextConfig = {
   pageExtensions: ["web.tsx", "tsx", "ts"],
-  redirects: async () =>
-    tools.map((tool) => ({
-      source: tool.href,
-      destination: `/docs#${tool.slug}`,
-      permanent: true,
-    })),
+  headers: async () => [
+    {
+      source: "/:path*",
+      headers: securityHeaders(process.env.NODE_ENV === "development"),
+    },
+  ],
 };
 
-// One codebase, two route sets: the desktop build only sees page.desktop.tsx
-// files and the web build only sees page.web.tsx / not-found.web.tsx.
+// One codebase, two builds. Tool pages are plain page.tsx files, so both
+// builds serve them. Only the home page differs: the desktop build picks up
+// page.desktop.tsx (the launcher) and the web build page.web.tsx (the
+// landing page) plus not-found.web.tsx and the docs.
 // Metadata files (robots, sitemap, social image) keep plain names: Next did
 // not pick them up under a compound extension.
 const nextConfig: NextConfig = {
@@ -33,6 +35,10 @@ const nextConfig: NextConfig = {
   ...(IS_DESKTOP ? desktopConfig : webConfig),
   turbopack: {
     root: repoRoot,
+    // JSZip's source build reaches Node's stream and util polyfills, whose
+    // generator check calls Function() on load and trips the CSP's eval ban.
+    // Its prebuilt browser bundle needs neither.
+    resolveAlias: { jszip: "jszip/dist/jszip.min.js" },
     // @ffmpeg/ffmpeg builds a Worker from a caller-supplied URL when
     // `classWorkerURL` is passed. This app never passes it, so that branch is
     // dead here, but Turbopack cannot resolve the dynamic URL and fails the

@@ -19,6 +19,11 @@ import { Card } from "@/components/ui/layout/Card";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { getToolBySlug } from "@/config/tools";
 import { pdfjsLib } from "@/lib/pdf/pdfjs";
+import {
+  describePageRangeProblem,
+  formatFileSize,
+  parsePageRanges,
+} from "@/lib/tools/pdf-toolkit/utils";
 
 const tool = getToolBySlug("pdf-splitter");
 
@@ -36,30 +41,6 @@ type SplitMode = "every" | "range" | "fixed";
 interface PageThumb {
   index: number;
   url: string;
-}
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function parseRanges(str: string, max: number): number[] {
-  const indices = new Set<number>();
-  for (const part of str.split(",")) {
-    const range = part.trim().split("-");
-    if (range.length === 1) {
-      const p = parseInt(range[0], 10);
-      if (p >= 1 && p <= max) indices.add(p - 1);
-    } else if (range.length === 2) {
-      const s = parseInt(range[0], 10);
-      const e = parseInt(range[1], 10);
-      if (s >= 1 && e >= s && e <= max) {
-        for (let i = s; i <= e; i++) indices.add(i - 1);
-      }
-    }
-  }
-  return Array.from(indices).sort((a, b) => a - b);
 }
 
 function bytesToPdfBlob(bytes: Uint8Array): Blob {
@@ -161,17 +142,22 @@ function PdfSplitterTool() {
         downloadBlob(blob, `${file.name.replace(".pdf", "")}_split.zip`);
         setProgress(100);
       } else if (splitMode === "range") {
-        const indices =
+        // Picked thumbnails override the typed range.
+        const selection =
           selectedPages.size > 0
-            ? Array.from(selectedPages).sort((a, b) => a - b)
-            : parseRanges(splitRange, total);
-        if (indices.length === 0) {
-          setError("No pages selected.");
+            ? {
+                pages: Array.from(selectedPages).sort((a, b) => a - b),
+                invalid: [],
+              }
+            : parsePageRanges(splitRange, total);
+        const problem = describePageRangeProblem(selection, total);
+        if (problem) {
+          setError(problem);
           setIsProcessing(false);
           return;
         }
         const newPdf = await PDFDocument.create();
-        const pages = await newPdf.copyPages(pdf, indices);
+        const pages = await newPdf.copyPages(pdf, selection.pages);
         pages.forEach((p) => newPdf.addPage(p));
         const bytes = await newPdf.save();
         downloadBlob(bytesToPdfBlob(bytes), "Extracted_Pages.pdf");
@@ -284,6 +270,7 @@ function PdfSplitterTool() {
                     setSelectedPages(new Set());
                   }}
                   placeholder="e.g. 1-3, 5, 8-10"
+                  aria-label="Page range"
                   className="h-9 max-w-xs border-white/10 bg-white/[0.04] font-mono text-sm"
                 />
               </div>
@@ -387,7 +374,10 @@ function PdfSplitterTool() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <div
+          role="alert"
+          className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+        >
           {error}
         </div>
       )}
