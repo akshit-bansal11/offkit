@@ -608,7 +608,10 @@ impl Raster {
 fn render_scale(width: f32, height: f32, dpi: f32) -> Result<f32, String> {
     let unreadable = || "This page's size can't be read.".to_string();
     let scale = dpi / POINTS_PER_INCH;
-    if ![width, height, scale].iter().all(|v| v.is_finite() && *v > 0.0) {
+    if ![width, height, scale]
+        .iter()
+        .all(|v| v.is_finite() && *v > 0.0)
+    {
         return Err(unreadable());
     }
     let pixels = width * scale * height * scale;
