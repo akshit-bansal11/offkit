@@ -571,7 +571,7 @@ mod tests {
     #[test]
     fn a_file_that_isnt_an_image_is_named_as_such() {
         let dir = temp_dir("not-image");
-        let path = dir.join("notes.png");
+        let path = dir.join("notes.txt");
         fs::write(&path, b"just text").unwrap();
 
         let error = probe(&path).unwrap_err();
