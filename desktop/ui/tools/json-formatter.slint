@@ -1,8 +1,215 @@
-// JSON Formatter: a placeholder until the text family builds it. Its state will live in the
-// `JsonFormatter` global, driven by src/tools/json_formatter.rs.
+// JSON Formatter view: a toolbar of format options, then the input and the formatted output side
+// by side, like Base64. All state lives in the `JsonFormatter` global, which Rust drives
+// (src/tools/json_formatter.rs); it formats on every change.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, DropOutline } from "../components/controls.slint";
+import { Checkbox, SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
 
-export global JsonFormatter { }
+export enum JsonStyle { pretty, minify }
+export enum JsonIndent { two, four, tab }
 
-export component JsonFormatterView inherits PlaceholderView { }
+export global JsonFormatter {
+    in-out property <JsonStyle> style;
+    in-out property <JsonIndent> indent;
+    in-out property <bool> sort-keys;
+    in-out property <string> input;
+    // "1,204 characters · 38 lines", of the input.
+    in property <string> stats;
+    in property <string> output;
+    // "data.json · 4.2 MB" while a file too long for the pane is the input.
+    in property <string> file-label;
+    in property <string> error;
+    in property <string> note;
+    in property <bool> can-copy;
+    in property <bool> can-save;
+    in property <bool> drop-hover;
+
+    // Typed into the input; Rust waits for a pause before formatting.
+    callback edited();
+    // A format option changed; Rust formats at once.
+    callback options-changed();
+    callback open-file();
+    callback remove-file();
+    callback sample();
+    callback clear();
+    callback copy-output() -> bool;
+    callback save-output();
+}
+
+// Stands in for an input pane while its text is a file too long to edit there. Shared by the
+// text tools that open big files (JSON Formatter, Diff Checker).
+export component TextFileCard inherits DropOutline {
+    in property <string> label;
+    callback remove();
+
+    border-radius: Theme.radius-group;
+    background: Theme.bg-surface-raised;
+    vertical-stretch: 1;
+    min-height: 120px;
+    min-width: Theme.pane-min-width;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: Theme.space-2;
+        padding: Theme.space-3;
+
+        HorizontalLayout {
+            alignment: center;
+            spacing: Theme.space-2;
+
+            Image {
+                source: AppIcons.file;
+                colorize: Theme.text-secondary;
+                width: Theme.icon-size;
+                height: Theme.icon-size;
+                y: (parent.height - self.height) / 2;
+            }
+            Text {
+                text: root.label;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                font-weight: Theme.weight-medium;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+        Text {
+            text: "Too long to edit here, so it's used as it is.";
+            color: Theme.text-secondary;
+            font-size: Theme.size-callout;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
+        HorizontalLayout {
+            alignment: center;
+
+            Button {
+                text: "Remove File";
+                kind: ButtonKind.plain;
+                clicked => { root.remove(); }
+            }
+        }
+    }
+}
+
+// The input pane's header badge.
+component Stats inherits Text {
+    color: Theme.text-secondary;
+    font-size: Theme.size-callout;
+    vertical-alignment: center;
+}
+
+export component JsonFormatterView inherits VerticalLayout {
+    property <bool> pretty: JsonFormatter.style == JsonStyle.pretty;
+    property <bool> has-file: JsonFormatter.file-label != "";
+
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    HorizontalLayout {
+        spacing: Theme.space-3;
+
+        SegmentedControl {
+            label: "Format";
+            options: ["Pretty", "Minify"];
+            current-index: root.pretty ? 0 : 1;
+            selected(i) => {
+                JsonFormatter.style = i == 0 ? JsonStyle.pretty : JsonStyle.minify;
+                JsonFormatter.options-changed();
+            }
+        }
+        if root.pretty: SegmentedControl {
+            label: "Indent";
+            options: ["2 Spaces", "4 Spaces", "Tab"];
+            current-index: JsonFormatter.indent == JsonIndent.two ? 0 : JsonFormatter.indent == JsonIndent.four ? 1 : 2;
+            selected(i) => {
+                JsonFormatter.indent = i == 0 ? JsonIndent.two : i == 1 ? JsonIndent.four : JsonIndent.tab;
+                JsonFormatter.options-changed();
+            }
+        }
+        Checkbox {
+            text: "Sort keys";
+            checked <=> JsonFormatter.sort-keys;
+            toggled => { JsonFormatter.options-changed(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        Button {
+            text: "Open…";
+            kind: ButtonKind.secondary;
+            clicked => { JsonFormatter.open-file(); }
+        }
+        Button {
+            text: "Sample";
+            kind: ButtonKind.secondary;
+            clicked => { JsonFormatter.sample(); }
+        }
+        Button {
+            text: "Clear";
+            kind: ButtonKind.secondary;
+            enabled: JsonFormatter.input != "" || root.has-file;
+            clicked => { JsonFormatter.clear(); }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Theme.space-4;
+        vertical-stretch: 1;
+
+        Pane {
+
+            PaneHeader {
+                title: root.has-file ? "File" : "JSON";
+
+                Stats { text: JsonFormatter.stats; }
+            }
+            if !root.has-file: TextPane {
+                label: "JSON";
+                text <=> JsonFormatter.input;
+                placeholder: "Paste JSON, or drop a .json file.";
+                drop-hover: JsonFormatter.drop-hover;
+                edited => { JsonFormatter.edited(); }
+            }
+            if root.has-file: TextFileCard {
+                label: JsonFormatter.file-label;
+                drop-hover: JsonFormatter.drop-hover;
+                remove => { JsonFormatter.remove-file(); }
+            }
+        }
+
+        Pane {
+
+            PaneHeader {
+                title: root.pretty ? "Formatted" : "Minified";
+
+                CopyButton {
+                    enabled: JsonFormatter.can-copy;
+                    copy => { return JsonFormatter.copy-output(); }
+                }
+                Button {
+                    text: "Save…";
+                    kind: ButtonKind.plain;
+                    enabled: JsonFormatter.can-save;
+                    clicked => { JsonFormatter.save-output(); }
+                }
+            }
+            TextPane {
+                label: root.pretty ? "Formatted" : "Minified";
+                text: JsonFormatter.output;
+                read-only: true;
+                placeholder: "Formatted JSON appears here.";
+            }
+        }
+    }
+
+    if JsonFormatter.error != "": Notice {
+        text: JsonFormatter.error;
+        tone: NoticeTone.error;
+    }
+    if JsonFormatter.error == "" && JsonFormatter.note != "": Notice {
+        text: JsonFormatter.note;
+    }
+}

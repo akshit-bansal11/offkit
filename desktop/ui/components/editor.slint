@@ -21,6 +21,10 @@ export component TextPane {
     in property <bool> mono: true;
     in property <bool> drop-hover;
     out property <bool> has-focus: input.has-focus;
+    // The selection as UTF-8 byte offsets, for tools that edit around it (the Markdown toolbar).
+    out property <int> selection-anchor: input.anchor-position-byte-offset;
+    out property <int> selection-cursor: input.cursor-position-byte-offset;
+    public function select(anchor: int, cursor: int) { input.focus(); input.set-selection-offsets(anchor, cursor); }
     callback edited(string);
 
     // The caret's line, for scrolling it into view.

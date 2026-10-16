@@ -264,6 +264,16 @@ export global Theme {
     // --- end css ---
 
     // --- text ---
+    // Diff Checker: a changed line takes a tint and its changed words a stronger one. Every
+    // row also carries a +/- sign, so colour is never the only cue. text-primary on each:
+    // L: added #e3f5e8 14.82, added words #b4e3c3 11.79, removed #fde8e6 14.31, removed words
+    // #f6bcb7 10.25. D: added #1c3a27 11.45, added words #2c6b44 5.86, removed #4a2220 12.52,
+    // removed words #80302c 8.11. text-secondary (line numbers) on added/removed: L 5.27/5.09,
+    // D 4.85/5.30.
+    out property <color> diff-added: dark ? #1c3a27 : #e3f5e8;
+    out property <color> diff-added-word: dark ? #2c6b44 : #b4e3c3;
+    out property <color> diff-removed: dark ? #4a2220 : #fde8e6;
+    out property <color> diff-removed-word: dark ? #80302c : #f6bcb7;
     // --- end text ---
 
     // --- dev ---
