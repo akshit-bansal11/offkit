@@ -145,7 +145,7 @@ pub(super) fn blur(pixmap: Pixmap, sigma: f32) -> Pixmap {
         .expect("a pixmap holds width × height RGBA pixels");
     let mut data = imageops::fast_blur(&image, sigma).into_raw();
     // Each channel rounds on its own, which can leave a colour a step above its alpha.
-    for px in data.chunks_exact_mut(4) {
+    for px in data.as_chunks_mut::<4>().0.iter_mut() {
         let a = px[3];
         px[..3].iter_mut().for_each(|c| *c = (*c).min(a));
     }
@@ -420,9 +420,11 @@ fn inset_shadow(canvas: &mut Pixmap, padding_box: RoundedRect, layer: &Layer, s:
         .spread(-layer.spread as f32 * s)
         .and_then(RoundedRect::path);
     if let Some(hole) = hole {
-        let mut paint = Paint::default();
-        paint.blend_mode = tiny_skia::BlendMode::Clear;
-        paint.anti_alias = true;
+        let paint = Paint {
+            blend_mode: tiny_skia::BlendMode::Clear,
+            anti_alias: true,
+            ..Paint::default()
+        };
         px.fill_path(&hole, &paint, FillRule::Winding, Transform::identity(), None);
     }
     canvas.draw_pixmap(

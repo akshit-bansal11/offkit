@@ -272,7 +272,7 @@ fn saturate(p: &mut Pixmap, s: f32) {
         [0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s],
         [0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s],
     ];
-    for px in p.data_mut().chunks_exact_mut(4) {
+    for px in p.data_mut().as_chunks_mut::<4>().0.iter_mut() {
         let (r, g, b, a) = (
             f32::from(px[0]),
             f32::from(px[1]),
