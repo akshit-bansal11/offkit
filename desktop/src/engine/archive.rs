@@ -384,7 +384,7 @@ fn unzip(source: impl Read + Seek, sink: &mut Sink) -> Result<(), JobError> {
         if entry.is_symlink() {
             sink.skip(Skip::Link, name);
         } else if entry.is_dir() {
-            sink.dir(&rel, &name)?;
+            sink.dir(&rel, &name, &mut entry)?;
         } else {
             sink.file(&rel, &name, &mut entry)?;
         }
@@ -423,9 +423,9 @@ fn untar(source: impl Read, sink: &mut Sink) -> Result<(), JobError> {
         let rel = sink.entry(&name)?;
         match kind {
             // Pre-POSIX tars mark folders as files whose names end in "/".
-            EntryType::Regular if name.ends_with('/') => sink.dir(&rel, &name)?,
+            EntryType::Regular if name.ends_with('/') => sink.dir(&rel, &name, &mut entry)?,
             EntryType::Regular | EntryType::Continuous => sink.file(&rel, &name, &mut entry)?,
-            EntryType::Directory => sink.dir(&rel, &name)?,
+            EntryType::Directory => sink.dir(&rel, &name, &mut entry)?,
             EntryType::GNUSparse => return Err(unsupported("sparse files")),
             EntryType::Symlink | EntryType::Link => {
                 sink.drain(&name, &mut entry)?;
@@ -472,6 +472,7 @@ fn tar_name(mut raw: Vec<u8>) -> Result<String, JobError> {
 fn un7z(source: impl Read + Seek, sink: &mut Sink) -> Result<(), JobError> {
     let mut archive = ArchiveReader::new(source, Password::empty()).map_err(seven_error)?;
     sink.expect(archive.archive().files.len())?;
+    check_7z_methods(archive.archive(), MAX_7Z_DICTIONARY, sink.limits.bytes)?;
     let mut failure = None;
     let result = archive.for_each_entries(|entry, data| {
         // Stopping ends one block only; later blocks still call in.
@@ -489,6 +490,63 @@ fn un7z(source: impl Read + Seek, sink: &mut Sink) -> Result<(), JobError> {
     match failure {
         Some(e) => Err(e),
         None => result.map_err(seven_error),
+    }
+}
+
+/// Decoding allocates what a coder's properties declare, before any data is read, so an archive
+/// can ask for gigabytes with a few bytes of header. Nothing this app or ordinary tools write
+/// needs more than this.
+const MAX_7Z_DICTIONARY: u64 = 256 << 20;
+
+/// Refuses a 7z whose coders declare a window or model bigger than `max_dictionary`, or whose
+/// blocks declare more unpacked bytes than `max_bytes`, before anything is decoded.
+fn check_7z_methods(
+    archive: &sevenz_rust2::Archive,
+    max_dictionary: u64,
+    max_bytes: u64,
+) -> Result<(), JobError> {
+    let mut declared = 0u64;
+    for block in &archive.blocks {
+        declared = declared.saturating_add(block.get_unpack_size());
+        for coder in &block.coders {
+            let wanted = declared_memory(coder.encoder_method_id(), coder.properties());
+            if wanted.is_some_and(|bytes| bytes > max_dictionary) {
+                return Err(failed(format!(
+                    "The archive asks for more than {} of memory to unpack, so it may be a \
+                     decompression bomb. Nothing was extracted.",
+                    format_size(max_dictionary)
+                )));
+            }
+        }
+    }
+    if declared > max_bytes {
+        return Err(failed(format!(
+            "Stopped: the archive unpacks to more than {}, so it may be a decompression bomb. \
+             Nothing was extracted.",
+            format_size(max_bytes)
+        )));
+    }
+    Ok(())
+}
+
+/// The window or model size a coder's properties declare, for the methods that allocate by it:
+/// LZMA (dictionary, 4 bytes after the first), LZMA2 (one byte of size class) and PPMd (model
+/// memory, 4 bytes after the order).
+fn declared_memory(method: &[u8], properties: &[u8]) -> Option<u64> {
+    let word = |at: usize| {
+        let bytes = properties.get(at..at + 4)?;
+        Some(u64::from(u32::from_le_bytes(bytes.try_into().ok()?)))
+    };
+    match method {
+        [0x03, 0x01, 0x01] | [0x03, 0x04, 0x01] => word(1),
+        [0x21] => {
+            let class = u64::from(*properties.first()?);
+            Some(match class {
+                0..=39 => (2 | (class & 1)) << (class / 2 + 11),
+                _ => u64::from(u32::MAX),
+            })
+        }
+        _ => None,
     }
 }
 
@@ -518,7 +576,7 @@ fn unpack_7z_entry(
             sink.drain(name, data)?;
             sink.skip(kind, name.into());
         }
-        None if entry.is_directory() => sink.dir(&rel, name)?,
+        None if entry.is_directory() => sink.dir(&rel, name, data)?,
         None => sink.file(&rel, name, data)?,
     }
     Ok(())
@@ -604,14 +662,37 @@ impl Sink<'_> {
         relative_path(name).map_err(|reason| refused(name, reason))
     }
 
-    fn dir(&mut self, rel: &Path, name: &str) -> Result<(), JobError> {
+    /// Makes a folder. A folder entry has no data, but a crafted one may claim some: it's read
+    /// past against the byte cap like any other entry's.
+    fn dir(&mut self, rel: &Path, name: &str, data: &mut dyn Read) -> Result<(), JobError> {
+        self.drain(name, data)?;
+        self.clear(rel, name)?;
         fs::create_dir_all(self.root.join(rel)).map_err(|e| unwritable(name, e))
+    }
+
+    /// Refuses a path with a link or junction already standing on it below the folder. Nothing
+    /// here creates one, so this only catches something else swapping one in mid-extraction.
+    fn clear(&self, rel: &Path, name: &str) -> Result<(), JobError> {
+        let mut at = self.root.clone();
+        for part in rel.components() {
+            at.push(part);
+            match fs::symlink_metadata(&at) {
+                Ok(meta) if meta.file_type().is_symlink() || is_reparse_point(&meta) => {
+                    return Err(refused(name, "a link appeared inside the folder"));
+                }
+                Ok(_) => {}
+                Err(e) if e.kind() == io::ErrorKind::NotFound => break,
+                Err(e) => return Err(unwritable(name, e)),
+            }
+        }
+        Ok(())
     }
 
     fn file(&mut self, rel: &Path, name: &str, data: &mut dyn Read) -> Result<(), JobError> {
         if rel.as_os_str().is_empty() {
             return Err(refused(name, "it has no file name"));
         }
+        self.clear(rel, name)?;
         let path = self.root.join(rel);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|e| unwritable(name, e))?;
@@ -750,6 +831,19 @@ fn check_part(part: &str) -> Result<(), &'static str> {
         return Err("Windows reserves that name for a device");
     }
     Ok(())
+}
+
+/// A Windows junction or symbolic link, as the attribute says; false elsewhere, where
+/// `is_symlink` already sees links.
+#[cfg(windows)]
+fn is_reparse_point(meta: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    meta.file_attributes() & REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_meta: &fs::Metadata) -> bool {
+    false
 }
 
 fn zip_error(e: ZipError) -> JobError {
@@ -1002,7 +1096,8 @@ fn not_unicode(name: &str) -> JobError {
 }
 
 /// Writes `plan` to `out` as `target` at `level` (0 stores, 9 compresses most), reporting each
-/// root's progress (its index, 0..1) and polling `cancel`. `out` is a reserved file: on an error
+/// root's progress (its index, 0..1) and polling `cancel`. Returns the files left out because
+/// they changed after the plan was made (swapped for a link, or resized). `out` is a reserved file: on an error
 /// the caller drops it, which deletes the partial archive.
 pub fn write(
     plan: &Plan,
@@ -1011,7 +1106,7 @@ pub fn write(
     out: &Path,
     cancel: &CancelToken,
     progress: &dyn Fn(usize, f32),
-) -> Result<(), JobError> {
+) -> Result<Vec<String>, JobError> {
     let file =
         File::create(out).map_err(|e| failed(format!("Couldn't create the archive: {e}")))?;
     let feeder = Feeder {
@@ -1022,6 +1117,7 @@ pub fn write(
         done: Cell::new(0),
         shown: Cell::new(0.0),
         failure: RefCell::new(None),
+        changed: RefCell::new(Vec::new()),
     };
     let written = match target {
         Target::Zip => write_zip(plan, level, file, &feeder),
@@ -1032,7 +1128,7 @@ pub fn write(
         (Some(e), _) => Err(e),
         (None, Err(_)) if cancel.is_cancelled() => Err(JobError::Cancelled),
         (None, Err(e)) => Err(failed(format!("Couldn't write the archive: {e}"))),
-        (None, Ok(())) => Ok(()),
+        (None, Ok(())) => Ok(feeder.changed.take()),
     }
 }
 
@@ -1052,12 +1148,15 @@ fn write_zip(plan: &Plan, level: u32, file: File, feeder: &Feeder) -> Result<(),
             zip.add_directory(item.name.as_str(), options)
                 .map_err(text)?;
         } else {
+            let Some(mut feed) = feeder.open(item)? else {
+                continue;
+            };
             zip.start_file(
                 &item.name,
                 options.large_file(item.size >= u64::from(u32::MAX)),
             )
             .map_err(text)?;
-            io::copy(&mut feeder.feed(item)?, &mut zip).map_err(text)?;
+            io::copy(&mut feed, &mut zip).map_err(text)?;
         }
     }
     zip.finish().map_err(text)?.flush().map_err(text)
@@ -1076,9 +1175,12 @@ fn write_tar_gz(plan: &Plan, level: u32, file: File, feeder: &Feeder) -> Result<
             header.set_size(0);
             tar.append_data(&mut header, &item.name, io::empty())
         } else {
+            let Some(feed) = feeder.open(item)? else {
+                continue;
+            };
             header.set_entry_type(EntryType::Regular);
             header.set_size(item.size);
-            tar.append_data(&mut header, &item.name, feeder.feed(item)?)
+            tar.append_data(&mut header, &item.name, feed)
         };
         appended.map_err(text)?;
     }
@@ -1099,7 +1201,10 @@ fn write_7z(plan: &Plan, level: u32, file: File, feeder: &Feeder) -> Result<(), 
         let pushed = if item.dir {
             archive.push_archive_entry(entry, None::<io::Empty>)
         } else {
-            archive.push_archive_entry(entry, Some(feeder.feed(item)?))
+            let Some(feed) = feeder.open(item)? else {
+                continue;
+            };
+            archive.push_archive_entry(entry, Some(feed))
         };
         pushed.map_err(text)?;
     }
@@ -1121,6 +1226,8 @@ struct Feeder<'a> {
     done: Cell<u64>,
     shown: Cell<f32>,
     failure: RefCell<Option<JobError>>,
+    /// Files that were no longer what the plan saw when they were opened, by archive name.
+    changed: RefCell<Vec<String>>,
 }
 
 impl Feeder<'_> {
@@ -1138,16 +1245,22 @@ impl Feeder<'_> {
         Ok(())
     }
 
-    fn feed<'f>(&'f self, item: &'f Item) -> Result<Feed<'f>, String> {
-        match File::open(&item.path) {
-            Ok(file) => Ok(Feed {
-                file,
-                left: item.size,
-                name: &item.name,
-                feeder: self,
-            }),
-            Err(e) => Err(self.fail(cant_read(&item.name, e)).to_string()),
+    /// Opens a file for archiving, or `None` (noted in `changed`) when what was opened isn't
+    /// the regular file of the planned length any more: something swapped or resized it
+    /// between the walk and now.
+    fn open<'f>(&'f self, item: &'f Item) -> Result<Option<Feed<'f>>, String> {
+        let opened = File::open(&item.path).and_then(|file| Ok((file.metadata()?, file)));
+        let (meta, file) = opened.map_err(|e| self.fail(cant_read(&item.name, e)).to_string())?;
+        if !meta.is_file() || meta.len() != item.size || is_reparse_point(&meta) {
+            self.changed.borrow_mut().push(item.name.clone());
+            return Ok(None);
         }
+        Ok(Some(Feed {
+            file,
+            left: item.size,
+            name: &item.name,
+            feeder: self,
+        }))
     }
 
     fn advance(&self, n: usize) {
@@ -1942,6 +2055,101 @@ mod tests {
         );
 
         assert!(matches!(result, Err(JobError::Cancelled)));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_tar_folder_entry_carrying_a_payload_trips_the_byte_cap() {
+        let dir = temp_dir("tar-dir-payload");
+        let path = dir.join("sneaky.tar");
+        fs::write(
+            &path,
+            tar_bytes(&[(b"folder/", EntryType::Directory, &[0; 100_000])]),
+        )
+        .unwrap();
+
+        let result = extract_with(
+            &path,
+            Limits {
+                entries: 10,
+                bytes: 1000,
+            },
+        );
+
+        assert!(
+            result
+                .unwrap_err()
+                .starts_with("Stopped: the archive unpacks to more than 1 KB")
+        );
+        assert!(!dir.join("sneaky").exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn declared_memory_is_read_from_each_methods_properties() {
+        let lzma = declared_memory(&[0x03, 0x01, 0x01], &[0x5D, 0, 0, 0, 0x40]);
+        let lzma2_small = declared_memory(&[0x21], &[18]);
+        let lzma2_max = declared_memory(&[0x21], &[40]);
+        let ppmd = declared_memory(&[0x03, 0x04, 0x01], &[6, 0, 0, 0, 0x10]);
+        let copy = declared_memory(&[0x00], &[]);
+
+        assert_eq!(
+            [lzma, lzma2_small, lzma2_max, ppmd, copy],
+            [
+                Some(0x4000_0000),
+                Some(2 << 20),
+                Some(u64::from(u32::MAX)),
+                Some(0x1000_0000),
+                None
+            ]
+        );
+    }
+
+    #[test]
+    fn a_7z_declaring_a_huge_dictionary_is_refused_before_decoding() {
+        let dir = temp_dir("7z-dictionary");
+        let path = dir.join("big-window.7z");
+        let mut archive = ArchiveWriter::new(File::create(&path).unwrap()).unwrap();
+        let mut options = Lzma2Options::from_level(1);
+        options.set_dictionary_size(4 << 20);
+        archive.set_content_methods(vec![options.into()]);
+        archive
+            .push_archive_entry(ArchiveEntry::new_file("a.txt"), Some(&b"abc"[..]))
+            .unwrap();
+        archive.finish().unwrap();
+        let reader = sevenz_rust2::Archive::open(&path).unwrap();
+
+        let result = check_7z_methods(&reader, 1 << 20, u64::MAX);
+
+        assert!(matches!(result, Err(JobError::Failed(m)) if m.contains("of memory to unpack")));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_7z_declaring_more_unpacked_bytes_than_the_cap_is_refused_before_decoding() {
+        let dir = temp_dir("7z-declared");
+        let path = dir.join("declared.7z");
+        seven_of(&path, &[("a.bin", 0, &[0; 5000])]);
+        let reader = sevenz_rust2::Archive::open(&path).unwrap();
+
+        let result = check_7z_methods(&reader, MAX_7Z_DICTIONARY, 1000);
+
+        assert!(matches!(result, Err(JobError::Failed(m)) if m.contains("unpacks to more than")));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_file_resized_after_the_plan_is_left_out_and_listed() {
+        let dir = temp_dir("write-resized");
+        let root = fixture(&dir);
+        let cancel = CancelToken::default();
+        let plan = plan(&[root.clone()], None, MAX_ENTRIES, &cancel).unwrap();
+        fs::write(root.join("readme.txt"), "changed after the walk\n").unwrap();
+
+        let out = dir.join("out.zip");
+        let left_out = write(&plan, Target::Zip, 6, &out, &cancel, &|_, _| {}).unwrap();
+
+        assert_eq!(left_out, ["project/readme.txt"]);
         fs::remove_dir_all(&dir).unwrap();
     }
 

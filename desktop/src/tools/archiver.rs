@@ -321,11 +321,13 @@ fn create(app: &AppWindow) {
         // `out` is dropped, deleting the partial archive, on any error or panic.
         let run = || -> Result<(PathBuf, Vec<String>), JobError> {
             let plan = archive::plan(&roots, Some(out.path()), MAX_ENTRIES, &cancel)?;
-            archive::write(&plan, target, level, out.path(), &cancel, &progress)?;
+            let changed = archive::write(&plan, target, level, out.path(), &cancel, &progress)?;
+            let mut left_out = plan.skipped;
+            left_out.extend(changed);
             let saved = out
                 .keep()
                 .map_err(|e| JobError::Failed(format!("Couldn't save the archive: {e}")))?;
-            Ok((saved, plan.skipped))
+            Ok((saved, left_out))
         };
         let result = panic::catch_unwind(AssertUnwindSafe(run)).unwrap_or_else(|panic| {
             let reason = panic
@@ -401,15 +403,15 @@ fn apply(app: &AppWindow, token: &Arc<CancelToken>, report: Report) {
     sync(app);
 }
 
-/// "Saved as photos.zip · left out 1 link: “photos/latest”".
+/// "Saved as photos.zip · left out 1 item: “photos/latest”": links, and files that changed.
 fn saved_note(saved: &std::path::Path, skipped: &[String]) -> String {
     let saved = format!("Saved as {}", file_name(saved));
     match skipped {
         [] => saved,
-        [one] => format!("{saved} · left out 1 link: “{}”", shown(one)),
+        [one] => format!("{saved} · left out 1 item: “{}”", shown(one)),
         [first, rest @ ..] => format!(
             "{saved} · left out {}: “{}” and {} more",
-            plural(skipped.len(), "link"),
+            plural(skipped.len(), "item"),
             shown(first),
             rest.len()
         ),
@@ -441,19 +443,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_saved_note_names_one_skipped_link() {
+    fn the_saved_note_names_one_left_out_item() {
         let note = saved_note(std::path::Path::new("out/photos.zip"), &["photos/latest".into()]);
 
-        assert_eq!(note, "Saved as photos.zip · left out 1 link: “photos/latest”");
+        assert_eq!(note, "Saved as photos.zip · left out 1 item: “photos/latest”");
     }
 
     #[test]
-    fn the_saved_note_counts_further_skipped_links() {
+    fn the_saved_note_counts_further_left_out_items() {
         let skipped = ["a/x".to_string(), "a/y".into(), "a/z".into()];
 
         let note = saved_note(std::path::Path::new("a.7z"), &skipped);
 
-        assert_eq!(note, "Saved as a.7z · left out 3 links: “a/x” and 2 more");
+        assert_eq!(note, "Saved as a.7z · left out 3 items: “a/x” and 2 more");
     }
 
     #[test]

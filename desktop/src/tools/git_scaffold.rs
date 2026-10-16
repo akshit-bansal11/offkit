@@ -30,6 +30,13 @@ const MAX_ENTRIES: usize = 20_000;
 const PREVIEW_BYTES: usize = 50_000;
 /// A .gitignore bigger than this isn't a real one; it's left unread.
 const MAX_GITIGNORE_BYTES: u64 = 1_000_000;
+/// Folder levels walked at most, even for "All levels": the tree is built and drawn recursively,
+/// so an absurdly deep folder must not be able to exhaust the stack.
+const MAX_DEPTH: usize = 256;
+/// A .gitignore line longer than this isn't a real pattern; it's skipped and counted.
+const MAX_PATTERN_CHARS: usize = 1_024;
+/// Patterns read from one .gitignore; the rest are skipped and counted.
+const MAX_PATTERNS: usize = 10_000;
 /// How long a walk runs before Stop replaces Choose Folder…, so quick walks don't flicker.
 const SHOW_STOP_AFTER: Duration = Duration::from_millis(250);
 const DEPTHS: [(&str, Option<usize>); 6] = [
@@ -88,6 +95,10 @@ struct Tree {
     links: usize,
     /// Stopped at `MAX_ENTRIES`.
     truncated: bool,
+    /// Folders below `MAX_DEPTH` were left unlisted.
+    too_deep: bool,
+    /// .gitignore lines skipped for being too long or beyond `MAX_PATTERNS`.
+    skipped_patterns: usize,
     /// Folders (and .gitignore files) that couldn't be read, by path below the root.
     unreadable: Vec<String>,
 }
@@ -179,6 +190,15 @@ impl Walker<'_> {
             return Err(JobError::Cancelled);
         }
         let loaded = self.options.gitignore && self.load_rules(dir, rel);
+        // Leaving early must still pop the rules this folder pushed.
+        let listing = self.list(dir, rel, depth);
+        if loaded {
+            self.rules.pop();
+        }
+        listing
+    }
+
+    fn list(&mut self, dir: &Path, rel: &mut Vec<String>, depth: usize) -> Result<Vec<Node>, JobError> {
         let entries = match fs::read_dir(dir).and_then(|d| d.collect::<std::io::Result<Vec<_>>>()) {
             Ok(entries) => entries,
             Err(e) => {
@@ -191,6 +211,9 @@ impl Walker<'_> {
         let mut items: Vec<_> = entries
             .into_iter()
             .filter_map(|entry| {
+                if self.cancel.is_cancelled() {
+                    return None;
+                }
                 let name = entry.file_name().to_string_lossy().into_owned();
                 // `DirEntry::file_type` doesn't follow links, so a link to a folder isn't one.
                 let kind = entry.file_type().ok()?;
@@ -203,6 +226,9 @@ impl Walker<'_> {
                 (!ignored).then_some((name, entry.path(), kind))
             })
             .collect();
+        if self.cancel.is_cancelled() {
+            return Err(JobError::Cancelled);
+        }
         let folders_first = self.options.folders_first;
         items.sort_by(|(a, _, ka), (b, _, kb)| {
             let rank = |dir: bool| u8::from(!(folders_first && dir));
@@ -231,7 +257,11 @@ impl Walker<'_> {
                 Kind::Link(target)
             } else if file_type.is_dir() {
                 self.tree.folders += 1;
-                let children = if self.options.depth.is_none_or(|max| depth < max) {
+                let wanted = self.options.depth.is_none_or(|max| depth < max);
+                if wanted && depth >= MAX_DEPTH {
+                    self.tree.too_deep = true;
+                }
+                let children = if wanted && depth < MAX_DEPTH {
                     rel.push(name.clone());
                     let children = self.folder(&path, rel, depth + 1);
                     rel.pop();
@@ -245,9 +275,6 @@ impl Walker<'_> {
                 Kind::File
             };
             nodes.push(Node { name, kind });
-        }
-        if loaded {
-            self.rules.pop();
         }
         Ok(nodes)
     }
@@ -264,9 +291,11 @@ impl Walker<'_> {
         }
         match fs::read(&path) {
             Ok(bytes) => {
+                let (patterns, skipped) = parse_gitignore(&String::from_utf8_lossy(&bytes));
+                self.tree.skipped_patterns += skipped;
                 self.rules.push(Rules {
                     base: rel.to_vec(),
-                    patterns: parse_gitignore(&String::from_utf8_lossy(&bytes)),
+                    patterns,
                 });
                 true
             }
@@ -314,6 +343,8 @@ fn hidden_on_windows(_entry: &fs::DirEntry) -> bool {
     false
 }
 
+const DOUBLE_STAR: [char; 2] = ['*', '*'];
+
 /// One .gitignore file: its folder (below the root) and its patterns, in file order.
 struct Rules {
     base: Vec<String>,
@@ -346,8 +377,23 @@ impl Pattern {
     }
 }
 
-fn parse_gitignore(text: &str) -> Vec<Pattern> {
-    text.lines().filter_map(parse_line).collect()
+/// The patterns of a .gitignore, and how many lines were skipped for being over
+/// `MAX_PATTERN_CHARS` or past `MAX_PATTERNS`.
+fn parse_gitignore(text: &str) -> (Vec<Pattern>, usize) {
+    let mut patterns = Vec::new();
+    let mut skipped = 0;
+    for line in text.lines() {
+        if line.chars().count() > MAX_PATTERN_CHARS {
+            skipped += 1;
+        } else if let Some(pattern) = parse_line(line) {
+            if patterns.len() < MAX_PATTERNS {
+                patterns.push(pattern);
+            } else {
+                skipped += 1;
+            }
+        }
+    }
+    (patterns, skipped)
 }
 
 /// One .gitignore line, or `None` for a blank line or a comment. A backslash keeps a leading
@@ -374,8 +420,17 @@ fn parse_line(line: &str) -> Option<Pattern> {
     }
     let anchored = line.contains('/');
     let line = line.strip_prefix('/').unwrap_or(line);
+    let mut parts: Vec<Vec<char>> = Vec::new();
+    for part in line.split('/') {
+        let part: Vec<char> = part.chars().collect();
+        // `**/**` means what `**` does; collapsing keeps the matcher's work small.
+        if part == DOUBLE_STAR && parts.last().is_some_and(|last| *last == DOUBLE_STAR) {
+            continue;
+        }
+        parts.push(part);
+    }
     Some(Pattern {
-        parts: line.split('/').map(|p| p.chars().collect()).collect(),
+        parts,
         negated,
         dir_only,
         anchored,
@@ -383,18 +438,28 @@ fn parse_line(line: &str) -> Option<Pattern> {
 }
 
 /// Pattern parts against path parts. A `**` part matches any number of folders when it leads
-/// or sits between parts, and everything inside when it ends the pattern.
+/// or sits between parts, and everything inside when it ends the pattern. Dynamic programming
+/// over "path positions reachable after each part", so the work is parts × path length however
+/// many `**` there are.
 fn match_parts(parts: &[Vec<char>], path: &[String]) -> bool {
-    match parts.split_first() {
-        None => path.is_empty(),
-        Some((first, rest)) if first.as_slice() == ['*', '*'] => {
-            let least = usize::from(rest.is_empty());
-            (least..=path.len()).any(|skip| match_parts(rest, &path[skip..]))
+    let mut reach = vec![false; path.len() + 1];
+    reach[0] = true;
+    for (i, part) in parts.iter().enumerate() {
+        let mut next = vec![false; path.len() + 1];
+        if *part == DOUBLE_STAR {
+            // A trailing `**` needs at least one more part of the path to match.
+            let least = usize::from(i + 1 == parts.len());
+            if let Some(first) = reach.iter().position(|r| *r) {
+                next[(first + least).min(path.len() + 1)..].fill(true);
+            }
+        } else {
+            for (at, name) in path.iter().enumerate() {
+                next[at + 1] = reach[at] && glob(part, name);
+            }
         }
-        Some((first, rest)) => path
-            .split_first()
-            .is_some_and(|(name, below)| glob(first, name) && match_parts(rest, below)),
+        reach = next;
     }
+    reach[path.len()]
 }
 
 /// One name against one glob part: `*` any run, `?` one character, `[…]` a class, `\` an
@@ -670,6 +735,17 @@ fn finish_walk(app: &AppWindow, token: &Arc<CancelToken>, result: Result<(Tree, 
     if !tree.unreadable.is_empty() {
         let names: Vec<_> = tree.unreadable.iter().map(|n| format!("“{}”", shown(n))).collect();
         notes.push(format!("Couldn't read {}.", names.join(", ")));
+    }
+    if tree.too_deep {
+        notes.push(format!(
+            "Folders more than {MAX_DEPTH} levels down aren't listed."
+        ));
+    }
+    if tree.skipped_patterns > 0 {
+        notes.push(format!(
+            "Skipped {} in .gitignore files (too long, or past the limit).",
+            plural(tree.skipped_patterns, "line")
+        ));
     }
     g.set_note(notes.join(" ").into());
     with(|s| {
@@ -997,5 +1073,77 @@ mod tests {
         let shown = preview(&text);
 
         assert_eq!(shown.len(), PREVIEW_BYTES - 10);
+    }
+
+    fn path_of(parts: usize) -> Vec<String> {
+        (0..parts).map(|i| format!("d{i}")).collect()
+    }
+
+    #[test]
+    fn a_pathological_double_star_pattern_finishes_quickly() {
+        // Unbounded recursion made this 200-deep path take longer than the age of the universe;
+        // the table-driven matcher does 50 × 200 steps, so well under a second even in debug.
+        let pattern = format!("{}x", "**/".repeat(50));
+        let rule = parse_line(&pattern).unwrap();
+        let mut path = path_of(199);
+        path.push("y".into());
+
+        let started = std::time::Instant::now();
+        let hit = rule.matches(&path, false);
+
+        assert!(!hit);
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn consecutive_double_stars_match_like_one() {
+        let many = parse_line("a/**/**/**/x").unwrap();
+        let one = parse_line("a/**/x").unwrap();
+        let deep: Vec<String> = ["a", "p", "q", "x"].map(String::from).to_vec();
+        let shallow: Vec<String> = ["a", "x"].map(String::from).to_vec();
+        let other: Vec<String> = ["b", "p", "x"].map(String::from).to_vec();
+
+        assert_eq!(many.parts.len(), one.parts.len());
+        assert_eq!(
+            [many.matches(&deep, false), many.matches(&shallow, false), many.matches(&other, false)],
+            [true, true, false]
+        );
+    }
+
+    #[test]
+    fn overlong_and_surplus_patterns_are_skipped_and_counted() {
+        let text = format!("{}
+keep
+", "a".repeat(MAX_PATTERN_CHARS + 1));
+
+        let (patterns, skipped) = parse_gitignore(&text);
+
+        assert_eq!((patterns.len(), skipped), (1, 1));
+    }
+
+    #[test]
+    fn patterns_past_the_per_file_limit_are_skipped_and_counted() {
+        let text = "x
+".repeat(MAX_PATTERNS + 3);
+
+        let (patterns, skipped) = parse_gitignore(&text);
+
+        assert_eq!((patterns.len(), skipped), (MAX_PATTERNS, 3));
+    }
+
+    #[test]
+    fn a_very_deep_tree_stops_at_the_depth_cap() {
+        let dir = temp_dir("deep");
+        let mut deep = dir.join("project");
+        for _ in 0..300 {
+            deep.push("d");
+        }
+        fs::create_dir_all(&deep).unwrap();
+
+        let tree = walk(&dir.join("project"), defaults(), &CancelToken::default()).unwrap();
+
+        assert!(tree.too_deep);
+        assert_eq!(tree.folders, MAX_DEPTH);
+        let _ = fs::remove_dir_all(&dir);
     }
 }
