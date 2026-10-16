@@ -641,18 +641,25 @@ pub fn page_file_name(page: u32, page_count: u32, ext: &str) -> String {
     format!("Page {:0width$}.{ext}", page + 1)
 }
 
+/// How `render_to_folder` draws each page.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PageImages {
+    pub dpi: f32,
+    pub format: Raster,
+}
+
 /// Renders `pages` (0-based; repeats are skipped) of `input` into `dir`, one file per page.
 /// Returns how many it wrote.
 pub fn render_to_folder(
     pdfium: &Pdfium,
     input: &Path,
     pages: &[u32],
-    dpi: f32,
-    format: Raster,
+    images: PageImages,
     dir: &Path,
     cancel: &CancelToken,
     progress: &dyn Fn(f32),
 ) -> Result<usize, JobError> {
+    let PageImages { dpi, format } = images;
     let doc = open(pdfium, input).map_err(JobError::Failed)?;
     let count = doc.pages().len().max(0) as u32;
     let mut seen = HashSet::new();
@@ -1129,7 +1136,8 @@ mod tests {
     fn ranges_accept_dashes_pasted_from_documents() {
         let ranges = parse_ranges("2–4", 10).unwrap();
 
-        assert_eq!(ranges, [2..=4]);
+        assert_eq!(ranges.len(), 1);
+        assert_eq!(ranges[0], 2..=4);
     }
 
     #[test]
@@ -1407,8 +1415,10 @@ mod tests {
             lib(),
             &src,
             &[0],
-            150.0,
-            Raster::Png,
+            PageImages {
+                dpi: 150.0,
+                format: Raster::Png,
+            },
             &out,
             &cancel,
             &progress,

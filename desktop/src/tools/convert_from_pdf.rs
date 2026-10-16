@@ -225,8 +225,10 @@ fn render(
         pdfium,
         &job.input,
         &pages,
-        settings.dpi,
-        settings.format,
+        pdf::PageImages {
+            dpi: settings.dpi,
+            format: settings.format,
+        },
         folder.path(),
         &job.cancel,
         progress,
