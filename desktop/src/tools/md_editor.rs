@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::thread::JoinHandle;
 
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
-use slint::{ComponentHandle, ModelRc, StyledText};
+use slint::{ComponentHandle, ModelRc, StyledText, VecModel};
 
 use crate::engine::text::{self, Latest};
 use crate::{AppWindow, MdBlock, MdEditor, MdFormat, MdKind, files};
@@ -623,28 +623,31 @@ fn styled(markdown: &str) -> StyledText {
 fn slint_blocks(blocks: &[Block]) -> ModelRc<MdBlock> {
     let blocks: Vec<MdBlock> = blocks
         .iter()
-        .map(|b| MdBlock {
-            kind: match b.kind {
-                Kind::Paragraph => MdKind::Paragraph,
-                Kind::Heading => MdKind::Heading,
-                Kind::Code => MdKind::Code,
-                Kind::Rule => MdKind::Rule,
-                Kind::TableRow => MdKind::TableRow,
-                Kind::Item => MdKind::Item,
-            },
-            level: b.level,
-            quote: b.quote,
-            indent: b.indent,
-            marker: b.marker.as_str().into(),
-            task: b.task,
-            text: styled(&b.text),
-            label: b.label.as_str().into(),
-            code: b.code.as_str().into(),
-            cells: ModelRc::from(b.cells.iter().map(|c| styled(c)).collect::<Vec<_>>()),
-            header: b.header,
+        .map(|b| {
+            let cells: Vec<StyledText> = b.cells.iter().map(|c| styled(c)).collect();
+            MdBlock {
+                kind: match b.kind {
+                    Kind::Paragraph => MdKind::Paragraph,
+                    Kind::Heading => MdKind::Heading,
+                    Kind::Code => MdKind::Code,
+                    Kind::Rule => MdKind::Rule,
+                    Kind::TableRow => MdKind::TableRow,
+                    Kind::Item => MdKind::Item,
+                },
+                level: b.level,
+                quote: b.quote,
+                indent: b.indent,
+                marker: b.marker.as_str().into(),
+                task: b.task,
+                text: styled(&b.text),
+                label: b.label.as_str().into(),
+                code: b.code.as_str().into(),
+                cells: ModelRc::new(VecModel::from(cells)),
+                header: b.header,
+            }
         })
         .collect();
-    ModelRc::from(blocks)
+    ModelRc::new(VecModel::from(blocks))
 }
 
 // ---- State and wiring ---------------------------------------------------------------------

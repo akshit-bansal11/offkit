@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use similar::{Algorithm, DiffOp, capture_diff_slices, group_diff_ops};
-use slint::{ComponentHandle, ModelRc};
+use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::engine::text::{self, Latest};
 use crate::files::{self, format_size};
@@ -367,7 +367,7 @@ fn slint_cell(cell: &Cell) -> DiffCell {
             .map(|s| s.text.as_str())
             .collect::<String>()
             .into(),
-        segs: ModelRc::from(segs),
+        segs: ModelRc::new(VecModel::from(segs)),
     }
 }
 
@@ -380,7 +380,7 @@ fn slint_rows(rows: &[Row]) -> ModelRc<DiffRow> {
             right: slint_cell(&row.right),
         })
         .collect();
-    ModelRc::from(rows)
+    ModelRc::new(VecModel::from(rows))
 }
 
 // ---- State and wiring ---------------------------------------------------------------------
