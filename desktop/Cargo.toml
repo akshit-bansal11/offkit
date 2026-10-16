@@ -34,8 +34,13 @@ arboard = "=3.7.0"
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "avif"] }
 
 # --- pdf ---
-# Binds the pdfium library at run time; the binary itself is not part of this build.
+# Binds the pdfium library at run time; the binary itself is not part of this build
+# (scripts/fetch-pdfium.sh fetches it).
 pdfium-render = "=0.9.4"
+# The compressor rewrites image streams in place, which pdfium can't (it re-stores images as
+# Flate). Without the default rayon and chrono features: nothing here parses in parallel or
+# stamps dates.
+lopdf = { version = "=0.45.0", default-features = false }
 
 # --- svg ---
 # Re-exports usvg and tiny-skia.

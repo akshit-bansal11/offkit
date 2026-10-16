@@ -1,8 +1,159 @@
-// Convert to PDF: a placeholder until the pdf family builds it. Its state will live in the
-// `ConvertToPdf` global, driven by src/tools/convert_to_pdf.rs.
+// Convert to PDF view: images in order, made into one PDF (a page each) or one PDF per image.
+// State lives in the `ConvertToPdf` global, driven by src/tools/convert_to_pdf.rs.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Select } from "../components/controls.slint";
+import { SegmentedControl } from "../components/fields.slint";
+import { DropZone } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
+import { OrderedList, PdfiumMissing, PdfListItem, PdfTaskState, PdfTaskStatus, TaskLine } from "pdf-toolkit.slint";
 
-export global ConvertToPdf { }
+export global ConvertToPdf {
+    in property <bool> pdfium-found: true;
+    in property <bool> drop-hover;
+    in property <[PdfListItem]> images;
+    in property <string> summary; // "3 images · 4.1 MB"
+    in property <bool> can-convert;
+    // Why Create is unavailable; empty when it isn't.
+    in property <string> note;
+    in property <bool> running;
+    in property <PdfTaskStatus> status;
+    // 0: one PDF with a page per image; 1: a PDF for each image.
+    in-out property <int> output-index;
+    in property <[string]> page-sizes;
+    in-out property <int> page-size-index;
+    in property <[string]> orientations;
+    in-out property <int> orientation-index;
+    in property <[string]> margins;
+    in-out property <int> margin-index;
+    in property <string> output-folder;
+    in property <bool> custom-output;
 
-export component ConvertToPdfView inherits PlaceholderView { }
+    callback choose-files();
+    callback move(int, int);
+    callback remove(int);
+    callback convert();
+    callback cancel();
+    callback reveal();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback get-pdfium();
+}
+
+component Settings inherits Inspector {
+    action-text: ConvertToPdf.output-index == 0 ? "Create PDF…" : "Create PDFs";
+    stop-text: "Stop";
+    can-run: ConvertToPdf.can-convert;
+    running: ConvertToPdf.running;
+    note: ConvertToPdf.note;
+    run => { ConvertToPdf.convert(); }
+    stop => { ConvertToPdf.cancel(); }
+
+    InspectorSection {
+        title: "Output";
+        footnote: ConvertToPdf.output-index == 0 ? "One PDF, a page per image, in the order listed." : "A PDF for each image, named after it.";
+
+        VerticalLayout {
+            padding: Theme.space-2;
+
+            SegmentedControl {
+                label: "Output";
+                options: ["One PDF", "PDF per image"];
+                current-index: ConvertToPdf.output-index;
+                enabled: !ConvertToPdf.running;
+                selected(i) => { ConvertToPdf.output-index = i; }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Page";
+        footnote: "Images keep their proportions and are never cropped. JPEGs go in as they are, without re-encoding.";
+
+        InspectorRow {
+            label: "Size";
+            first: true;
+
+            Select {
+                label: "Page size";
+                options: ConvertToPdf.page-sizes;
+                current-index <=> ConvertToPdf.page-size-index;
+            }
+        }
+        InspectorRow {
+            label: "Orientation";
+
+            Select {
+                label: "Orientation";
+                options: ConvertToPdf.orientations;
+                current-index <=> ConvertToPdf.orientation-index;
+                // A fitted page takes the image's own shape.
+                enabled: ConvertToPdf.page-size-index != 0;
+            }
+        }
+        InspectorRow {
+            label: "Margin";
+
+            Select {
+                label: "Margin";
+                options: ConvertToPdf.margins;
+                current-index <=> ConvertToPdf.margin-index;
+            }
+        }
+    }
+
+    if ConvertToPdf.output-index == 1: OutputFolderSection {
+        folder: ConvertToPdf.output-folder;
+        custom: ConvertToPdf.custom-output;
+        choose => { ConvertToPdf.choose-output-folder(); }
+        reset => { ConvertToPdf.reset-output-folder(); }
+    }
+}
+
+export component ConvertToPdfView inherits VerticalLayout {
+    if !ConvertToPdf.pdfium-found: PdfiumMissing {
+        action => { ConvertToPdf.get-pdfium(); }
+    }
+
+    if ConvertToPdf.pdfium-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-2;
+
+                if ConvertToPdf.images.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: ConvertToPdf.drop-hover;
+                    icon: AppIcons.tool("file-output");
+                    title: "Drop images here";
+                    hint: "JPEG, PNG, WebP, GIF, BMP and TIFF";
+                    choose => { ConvertToPdf.choose-files(); }
+                }
+                if ConvertToPdf.images.length > 0: OrderedList {
+                    vertical-stretch: 1;
+                    items: ConvertToPdf.images;
+                    summary: ConvertToPdf.summary;
+                    drop-hover: ConvertToPdf.drop-hover;
+                    icon: AppIcons.file;
+                    add-text: "Add Images…";
+                    enabled: !ConvertToPdf.running;
+                    add => { ConvertToPdf.choose-files(); }
+                    move(i, delta) => { ConvertToPdf.move(i, delta); }
+                    remove(i) => { ConvertToPdf.remove(i); }
+                }
+                if ConvertToPdf.status.state != PdfTaskState.idle: TaskLine {
+                    status: ConvertToPdf.status;
+                    reveal => { ConvertToPdf.reveal(); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

@@ -1,8 +1,167 @@
-// Convert from PDF: a placeholder until the pdf family builds it. Its state will live in the
-// `ConvertFromPdf` global, driven by src/tools/convert_from_pdf.rs.
+// Convert from PDF view: a batch of PDFs, each rendered into a folder of images, one per page.
+// All state lives in the `ConvertFromPdf` global, which Rust drives
+// (src/tools/convert_from_pdf.rs).
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Select, Slider } from "../components/controls.slint";
+import { TextField } from "../components/fields.slint";
+import { DropZone, FileItem, FileList } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
+import { PdfiumMissing } from "pdf-toolkit.slint";
 
-export global ConvertFromPdf { }
+export global ConvertFromPdf {
+    in property <bool> pdfium-found: true;
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    in property <bool> running;
+    in property <bool> can-convert;
+    in property <string> list-summary;
+    in property <[string]> formats;
+    in-out property <int> format-index;
+    in property <bool> quality-applies;
+    in-out property <float> quality: 85;
+    in property <[string]> resolutions;
+    in-out property <int> resolution-index;
+    in-out property <string> pages;
+    // Why the page ranges can't be read; empty when they can.
+    in property <string> pages-error;
+    in property <string> output-folder;
+    in property <bool> custom-output;
 
-export component ConvertFromPdfView inherits PlaceholderView { }
+    callback choose-files();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback settings-changed();
+    callback convert-all();
+    callback cancel-all();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback get-pdfium();
+}
+
+component Settings inherits Inspector {
+    action-text: "Convert All";
+    can-run: ConvertFromPdf.can-convert;
+    running: ConvertFromPdf.running;
+    run => { ConvertFromPdf.convert-all(); }
+    stop => { ConvertFromPdf.cancel-all(); }
+
+    InspectorSection {
+        title: "Images";
+        footnote: "PNG keeps text and lines crisp. JPEG is smaller for photos and scans.";
+
+        InspectorRow {
+            label: "Format";
+            first: true;
+
+            Select {
+                label: "Format";
+                options: ConvertFromPdf.formats;
+                current-index <=> ConvertFromPdf.format-index;
+                selected => { ConvertFromPdf.settings-changed(); }
+            }
+        }
+        InspectorRow {
+            label: "Resolution";
+
+            Select {
+                label: "Resolution";
+                options: ConvertFromPdf.resolutions;
+                current-index <=> ConvertFromPdf.resolution-index;
+            }
+        }
+        if ConvertFromPdf.quality-applies: VerticalLayout {
+            padding: Theme.space-3;
+            spacing: Theme.space-2;
+
+            HorizontalLayout {
+                Text {
+                    text: "JPEG quality";
+                    color: Theme.text-primary;
+                    font-size: Theme.size-body;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: round(ConvertFromPdf.quality);
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-body;
+                }
+            }
+            Slider {
+                label: "JPEG quality";
+                minimum: 10;
+                value <=> ConvertFromPdf.quality;
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Pages";
+        footnote: ConvertFromPdf.pages-error != "" ? ConvertFromPdf.pages-error : "Leave empty for every page, or type ranges like 1-3, 8.";
+
+        VerticalLayout {
+            padding: Theme.space-2;
+
+            TextField {
+                label: "Pages";
+                placeholder: "All pages";
+                text <=> ConvertFromPdf.pages;
+                invalid: ConvertFromPdf.pages-error != "";
+                edited => { ConvertFromPdf.settings-changed(); }
+            }
+        }
+    }
+
+    OutputFolderSection {
+        folder: ConvertFromPdf.output-folder;
+        custom: ConvertFromPdf.custom-output;
+        choose => { ConvertFromPdf.choose-output-folder(); }
+        reset => { ConvertFromPdf.reset-output-folder(); }
+    }
+}
+
+export component ConvertFromPdfView inherits VerticalLayout {
+    if !ConvertFromPdf.pdfium-found: PdfiumMissing {
+        action => { ConvertFromPdf.get-pdfium(); }
+    }
+
+    if ConvertFromPdf.pdfium-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+
+                if ConvertFromPdf.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: ConvertFromPdf.drop-hover;
+                    icon: AppIcons.tool("file-input");
+                    title: "Drop PDFs here";
+                    hint: "Each becomes a folder of images, one per page, next to the PDF.";
+                    choose => { ConvertFromPdf.choose-files(); }
+                }
+                if ConvertFromPdf.files.length > 0: FileList {
+                    vertical-stretch: 1;
+                    files: ConvertFromPdf.files;
+                    summary: ConvertFromPdf.list-summary;
+                    drop-hover: ConvertFromPdf.drop-hover;
+                    icon: AppIcons.file;
+                    activity: "Rendering";
+                    cancel-label: "Cancel conversion";
+                    add-text: "Add PDFs…";
+                    add => { ConvertFromPdf.choose-files(); }
+                    remove(i) => { ConvertFromPdf.remove(i); }
+                    cancel(i) => { ConvertFromPdf.cancel(i); }
+                    reveal(i) => { ConvertFromPdf.reveal(i); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}
