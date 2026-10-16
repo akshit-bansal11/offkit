@@ -181,6 +181,26 @@ export global Theme {
     // --- end audio ---
 
     // --- video ---
+    // Fits a time such as 1:02:03.5 with room to spare.
+    out property <length> video-time-field-width: 112px;
+    // The Video Editor's trim timeline, and the width of its handles.
+    out property <length> video-timeline-height: 44px;
+    out property <length> video-trim-handle-width: 12px;
+    // The playhead, the handles' grips and the kept span's border.
+    out property <length> video-line-width: 2px;
+    // Crop handles are drawn this size and grabbed within this distance.
+    out property <length> video-crop-handle-size: 10px;
+    // The Video Merger's clip thumbnails, 16:9.
+    out property <length> video-thumbnail-width: 64px;
+    out property <length> video-thumbnail-height: 36px;
+    // Video sits on black in both schemes, as in QuickTime and Photos. Only the crop draws on
+    // it, in colours meant for any picture: a white edge (21.0 on black) with a dark outline
+    // that keeps it visible on white video, over a scrim that dims what is cut away.
+    out property <color> video-canvas: #000000;
+    out property <color> video-crop-scrim: #00000099;
+    out property <color> video-crop-line: #ffffff;
+    out property <color> video-crop-outline: #00000099;
+    out property <color> video-crop-guide: #ffffff59;
     // --- end video ---
 
     // --- images ---

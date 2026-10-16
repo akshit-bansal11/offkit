@@ -8,6 +8,7 @@
 //! it goes through a second gate, the allowlists in `args`.
 
 mod args;
+mod frames;
 
 use std::collections::HashSet;
 use std::ffi::OsString;
@@ -21,6 +22,9 @@ use anyhow::{Context, anyhow, bail};
 use serde::Deserialize;
 
 pub use self::args::{Chain, Filter, Graph};
+#[cfg(test)]
+pub use self::frames::check_output_args;
+pub use self::frames::{FramesRun, VideoStream};
 use crate::files::Reserved;
 use crate::jobs::{CancelToken, JobError};
 
@@ -210,7 +214,7 @@ impl Ffmpeg {
         run: &Run,
         cancel: &CancelToken,
         prepare: impl FnOnce(&[MediaInfo]) -> anyhow::Result<Vec<OsString>>,
-        mut on_progress: impl FnMut(f32),
+        on_progress: impl FnMut(f32),
     ) -> Result<(), JobError> {
         if cancel.is_cancelled() {
             return Err(JobError::Cancelled);
@@ -231,6 +235,19 @@ impl Ffmpeg {
             .collect();
         let args =
             command_line(&inputs, output_args, run.output.path()).map_err(JobError::failed)?;
+        self.execute(args, run.duration, run.exit_prefix, cancel, on_progress)
+    }
+
+    /// Runs FFmpeg with a finished command line from `command_line` or `frames_command_line`,
+    /// reporting progress as a 0..1 fraction of `duration` seconds of output.
+    fn execute(
+        &self,
+        args: Vec<OsString>,
+        duration: Option<f64>,
+        exit_prefix: &str,
+        cancel: &CancelToken,
+        mut on_progress: impl FnMut(f32),
+    ) -> Result<(), JobError> {
         let mut child = command(&self.ffmpeg)
             .args(args)
             .stdout(Stdio::piped())
@@ -248,7 +265,7 @@ impl Ffmpeg {
         cancel.attach(child);
 
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            match (parse_progress_line(&line), run.duration) {
+            match (parse_progress_line(&line), duration) {
                 (Some(Progress::Time(t)), Some(total)) if total > 0.0 => {
                     on_progress((t / total).clamp(0.0, 1.0) as f32);
                 }
@@ -267,7 +284,7 @@ impl Ffmpeg {
             Some(Ok(status)) => {
                 let message = summarize_error(&stderr_text)
                     .unwrap_or_else(|| format!("FFmpeg exited with {status}"));
-                Err(JobError::Failed(format!("{}{message}", run.exit_prefix)))
+                Err(JobError::Failed(format!("{exit_prefix}{message}")))
             }
             Some(Err(e)) => Err(JobError::Failed(format!("FFmpeg didn't finish: {e}"))),
             None => Err(JobError::Failed("FFmpeg process lost".into())),
@@ -930,10 +947,7 @@ fn command_line(
 ) -> anyhow::Result<Vec<OsString>> {
     args::check_output_args(&output_args)?;
     let muxer = args::muxer_for(output)?;
-    let mut line: Vec<OsString> = "-hide_banner -nostdin -v error -nostats -progress pipe:1 -y"
-        .split_whitespace()
-        .map(OsString::from)
-        .collect();
+    let mut line = global_args();
     for (path, format) in inputs {
         line.extend(input_args(path, Some(format))?);
     }
@@ -941,6 +955,15 @@ fn command_line(
     line.extend(["-f".into(), muxer.into()]);
     line.push(std::path::absolute(output)?.into_os_string());
     Ok(line)
+}
+
+/// The options every FFmpeg command line starts with: progress on stdout, and `-y`, safe
+/// because every output was reserved for its run.
+fn global_args() -> Vec<OsString> {
+    "-hide_banner -nostdin -v error -nostats -progress pipe:1 -y"
+        .split_whitespace()
+        .map(OsString::from)
+        .collect()
 }
 
 // ---- Progress and errors ------------------------------------------------------------------

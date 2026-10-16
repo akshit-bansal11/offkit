@@ -109,6 +109,8 @@ const FILTERS: &[&str] = &[
     "aformat",
     "afade",
     "anull",
+    // A silent track for a clip that has none (Video Merger): it generates sound, reads nothing.
+    "anullsrc",
     "aresample",
     "asetpts",
     "asetrate",
@@ -131,6 +133,8 @@ const FILTERS: &[&str] = &[
     "palettegen",
     "paletteuse",
     "scale",
+    // Keeps frames by an expression of their number and time (Frames Extractor): arithmetic only.
+    "select",
     "setpts",
     "setsar",
     "split",
@@ -169,6 +173,12 @@ pub(super) const MUXERS: &[(&str, &str)] = &[
     ("wma", "asf"),
 ];
 
+/// The one muxer for a numbered image sequence, and the extensions it may write. Only
+/// `Ffmpeg::run_frames` uses it, with a file pattern it builds itself (`frames::frame_pattern`):
+/// no tool names the files, so a sequence can't land outside its reserved folder.
+const SEQUENCE_MUXER: &str = "image2";
+const SEQUENCE_EXTENSIONS: &[&str] = &["jpg", "png", "webp"];
+
 /// `av_get_token`'s whitespace.
 const WHITESPACE: &[char] = &[' ', '\n', '\t', '\r'];
 
@@ -184,6 +194,14 @@ pub(super) fn muxer_for(output: &Path) -> anyhow::Result<&'static str> {
         .find(|(e, _)| *e == ext)
         .map(|(_, muxer)| *muxer)
         .with_context(|| format!("FFmpeg can't write “.{ext}” files here"))
+}
+
+/// The muxer `run_frames` pins for an image sequence of `extension` files.
+pub(super) fn sequence_muxer(extension: &str) -> anyhow::Result<&'static str> {
+    if !SEQUENCE_EXTENSIONS.contains(&extension) {
+        bail!("FFmpeg can't write “.{extension}” frames here");
+    }
+    Ok(SEQUENCE_MUXER)
 }
 
 /// Refuses any output option, value or filter that isn't allowlisted (see the module docs).
@@ -600,6 +618,31 @@ mod tests {
 
         assert!(check_graph(editor).is_ok());
         assert!(check_graph(merger).is_ok());
+    }
+
+    #[test]
+    fn video_family_graphs_pass() {
+        let frames = "select=not(mod(n\\,5))";
+        let merger = "anullsrc=r=48000:cl=stereo,atrim=duration=2[a1];[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]";
+
+        assert!(check_graph(frames).is_ok());
+        assert!(check_graph(merger).is_ok());
+    }
+
+    #[test]
+    fn the_video_family_filters_take_no_file_options() {
+        assert!(check_graph("select=expr=1:filename=x").is_err());
+        assert!(check_graph("anullsrc=/r=rate.txt").is_err());
+    }
+
+    #[test]
+    fn image2_is_reachable_only_as_an_image_sequence() {
+        assert_eq!(sequence_muxer("png").unwrap(), "image2");
+        assert_eq!(
+            sequence_muxer("mp4").unwrap_err().to_string(),
+            "FFmpeg can't write “.mp4” frames here"
+        );
+        assert!(muxer_for(Path::new("frame.jpg")).is_err());
     }
 
     #[test]
