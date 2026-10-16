@@ -1,24 +1,24 @@
 //! Video Converter: owns the tool's state and wires the `VideoConverter` global
-//! (ui/tools/video-converter.slint) to the FFmpeg engine.
+//! (ui/tools/video-converter.slint) to the FFmpeg engine. The reference file-in/file-out tool.
 //!
-//! State lives on the UI thread. Background work (probing, converting) runs through
-//! `jobs::run_pool` and comes back via `jobs::post`, following the pattern in `jobs`: stable
-//! ids, and conversion results guarded by the run's cancel token.
+//! State lives on the UI thread. The file list is a `FileQueue`; probing and converting run
+//! in the background (`jobs::run_pool`, `file_queue::run`) and come back via `jobs::post`.
 
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
-use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
+use slint::ComponentHandle;
 
 use crate::engine::ffmpeg::{
-    AudioCodec, Capabilities, Container, ConvertError, ConvertJob, Ffmpeg, MediaInfo, Settings,
-    VideoCodec, reserve_output,
+    AudioCodec, Capabilities, Container, ConvertJob, Ffmpeg, MediaInfo, Settings, VideoCodec,
 };
-use crate::jobs::{self, CancelToken};
-use crate::{AppWindow, FileItem, FileStatus, VideoConverter};
+use crate::file_queue::{self, FileQueue, Summary, Update};
+use crate::files::{self, reserve_output};
+use crate::jobs::{self, CancelToken, JobError};
+use crate::select::{self, index};
+use crate::{AppWindow, FileStatus, VideoConverter};
 
 pub const SLUG: &str = "video-converter";
 const CONCURRENT_CONVERSIONS: usize = 2;
@@ -28,29 +28,22 @@ const VIDEO_EXTENSIONS: &[&str] = &[
     "3gp", "ogv", "gif",
 ];
 
-struct Entry {
-    id: u64,
-    path: PathBuf,
-    size: u64,
-    info: Option<MediaInfo>,
-    status: FileStatus,
-    progress: f32,
-    message: String,
-    output: Option<PathBuf>,
-    cancel: Arc<CancelToken>,
+/// A row's probe: `None` until it finishes, and for files it refused.
+type Probe = Option<MediaInfo>;
+
+impl Summary for Probe {
+    fn summary(&self) -> String {
+        self.as_ref().map(MediaInfo::summary).unwrap_or_default()
+    }
 }
 
 #[derive(Default)]
 struct State {
     ffmpeg: Option<Arc<Ffmpeg>>,
     caps: Option<Arc<Capabilities>>,
-    entries: Vec<Entry>,
-    next_id: u64,
-    rows: Rc<VecModel<FileItem>>,
+    queue: FileQueue<Probe>,
     video_options: Vec<VideoCodec>,
     audio_options: Vec<AudioCodec>,
-    out_dir: Option<PathBuf>,
-    workers: Vec<JoinHandle<()>>,
     convert_when_ready: bool,
     /// Why Convert All is unavailable for the current settings, if it is.
     blocked: Option<String>,
@@ -66,13 +59,14 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
     STATE.with_borrow_mut(f)
 }
 
-pub fn init(app: &AppWindow, ffmpeg: Option<Ffmpeg>) {
+pub fn init(app: &AppWindow) {
+    let ffmpeg = Ffmpeg::shared();
     let g = app.global::<VideoConverter>();
     g.set_ffmpeg_found(ffmpeg.is_some());
-    g.set_containers(strings(Container::ALL.iter().map(|c| c.label())));
+    g.set_containers(select::options(Container::ALL.iter().map(|c| c.label())));
     with(|s| {
-        g.set_files(ModelRc::from(s.rows.clone()));
-        s.ffmpeg = ffmpeg.map(Arc::new);
+        g.set_files(s.queue.rows());
+        s.ffmpeg = ffmpeg;
     });
     refresh_settings(app);
 
@@ -92,10 +86,8 @@ pub fn init(app: &AppWindow, ffmpeg: Option<Ffmpeg>) {
     let weak = app.as_weak();
     g.on_choose_files(move || {
         let Some(app) = weak.upgrade() else { return };
-        if let Some(paths) = rfd::FileDialog::new()
-            .set_title("Choose Videos")
-            .add_filter("Video", VIDEO_EXTENSIONS)
-            .pick_files()
+        if let Some(paths) =
+            files::choose_files("Choose Videos", Some(("Video", VIDEO_EXTENSIONS)))
         {
             add_paths(&app, paths);
         }
@@ -103,36 +95,24 @@ pub fn init(app: &AppWindow, ffmpeg: Option<Ffmpeg>) {
     let weak = app.as_weak();
     g.on_remove(move |i| {
         let Some(app) = weak.upgrade() else { return };
-        with(|s| {
-            let i = i as usize;
-            if s.entries.get(i).is_some_and(|e| !is_active(e.status)) {
-                s.entries.remove(i);
-                s.rows.remove(i);
-            }
-        });
+        with(|s| s.queue.remove(i as usize));
         sync(&app);
     });
     let weak = app.as_weak();
     g.on_cancel(move |i| {
         let Some(app) = weak.upgrade() else { return };
-        with(|s| {
-            if let Some(e) = s.entries.get_mut(i as usize) {
-                cancel_entry(e);
-            }
-        });
+        with(|s| s.queue.cancel(i as usize));
         sync(&app);
     });
-    g.on_cancel_all({
-        let weak = app.as_weak();
-        move || {
-            let Some(app) = weak.upgrade() else { return };
-            with(|s| s.entries.iter_mut().for_each(cancel_entry));
-            sync(&app);
-        }
+    let weak = app.as_weak();
+    g.on_cancel_all(move || {
+        let Some(app) = weak.upgrade() else { return };
+        with(|s| s.queue.cancel_all());
+        sync(&app);
     });
     g.on_reveal(|i| {
-        if let Some(output) = with(|s| s.entries.get(i as usize).and_then(|e| e.output.clone())) {
-            reveal(&output);
+        if let Some(output) = with(|s| s.queue.output(i as usize)) {
+            files::reveal(&output);
         }
     });
     let weak = app.as_weak();
@@ -145,18 +125,15 @@ pub fn init(app: &AppWindow, ffmpeg: Option<Ffmpeg>) {
     let weak = app.as_weak();
     g.on_choose_output_folder(move || {
         let Some(app) = weak.upgrade() else { return };
-        if let Some(dir) = rfd::FileDialog::new()
-            .set_title("Save Converted Videos To")
-            .pick_folder()
-        {
-            with(|s| s.out_dir = Some(dir));
+        if let Some(dir) = files::choose_folder("Save Converted Videos To") {
+            with(|s| s.queue.set_out_dir(Some(dir)));
             sync(&app);
         }
     });
     let weak = app.as_weak();
     g.on_reset_output_folder(move || {
         let Some(app) = weak.upgrade() else { return };
-        with(|s| s.out_dir = None);
+        with(|s| s.queue.set_out_dir(None));
         sync(&app);
     });
     let weak = app.as_weak();
@@ -183,49 +160,26 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
     let Some(ff) = with(|s| s.ffmpeg.clone()) else {
         return;
     };
-    let added: Vec<(u64, PathBuf)> = with(|s| {
-        let mut added = Vec::new();
-        for path in paths {
-            let Ok(meta) = std::fs::metadata(&path) else {
-                continue;
-            };
-            if !meta.is_file() || s.entries.iter().any(|e| same_file(&e.path, &path)) {
-                continue;
-            }
-            s.next_id += 1;
-            let entry = Entry {
-                id: s.next_id,
-                path: path.clone(),
-                size: meta.len(),
-                info: None,
-                status: FileStatus::Reading,
-                progress: 0.0,
-                message: String::new(),
-                output: None,
-                cancel: Arc::default(),
-            };
-            s.rows.push(item(&entry));
-            s.entries.push(entry);
-            added.push((s.next_id, path));
-        }
-        added
-    });
+    let added = with(|s| s.queue.add(paths, FileStatus::Reading, || None));
     sync(app);
 
     let weak = app.as_weak();
     jobs::run_pool(added, CONCURRENT_PROBES, move |(id, path)| {
-        let result = ff.probe(&path).map_err(|e| e.to_string());
+        let result = ff.probe_video(&path).map_err(|e| e.to_string());
         jobs::post(&weak, move |app| {
-            update(&app, id, |e| match result {
-                Ok(info) => {
-                    e.info = Some(info);
-                    e.status = FileStatus::Ready;
-                }
-                Err(message) => {
-                    e.status = FileStatus::Failed;
-                    e.message = message;
-                }
+            with(|s| {
+                s.queue.update(id, |e| match result {
+                    Ok(info) => {
+                        e.data = Some(info);
+                        e.status = FileStatus::Ready;
+                    }
+                    Err(message) => {
+                        e.status = FileStatus::Failed;
+                        e.message = message;
+                    }
+                })
             });
+            sync(&app);
         });
     });
 }
@@ -236,16 +190,13 @@ pub fn convert_when_ready(app: &AppWindow) {
     sync(app);
 }
 
-/// Cancels running conversions and waits for them, so no partial output outlives the app.
-pub fn shutdown() {
-    let workers = with(|s| {
-        s.entries.iter_mut().for_each(cancel_entry);
-        std::mem::take(&mut s.workers)
-    });
-    for worker in workers {
-        let _ = worker.join();
-    }
+/// Cancels running conversions and hands back their workers, for `tools::shutdown_all` to join.
+pub fn shutdown() -> Vec<JoinHandle<()>> {
+    with(|s| s.queue.shutdown())
 }
+
+/// The source's duration and video codec, for progress and stream copies.
+type Work = (Option<f64>, Option<String>);
 
 fn convert_all(app: &AppWindow) {
     let g = app.global::<VideoConverter>();
@@ -264,83 +215,36 @@ fn convert_all(app: &AppWindow) {
             quality: g.get_quality().round().clamp(0.0, 100.0) as u8,
             hw: caps.hw.filter(|_| g.get_hw_enabled()),
         };
-        let mut items = Vec::new();
-        for e in &mut s.entries {
-            if matches!(
-                e.status,
-                FileStatus::Ready | FileStatus::Failed | FileStatus::Cancelled
-            ) && e.info.is_some()
-            {
-                e.cancel = Arc::default();
-                e.status = FileStatus::Queued;
-                e.progress = 0.0;
-                e.message.clear();
-                e.output = None;
-                let info = e.info.as_ref();
-                items.push((
-                    e.id,
-                    e.path.clone(),
-                    info.and_then(|i| i.duration),
-                    info.and_then(|i| i.video_codec.clone()),
-                    e.cancel.clone(),
-                ));
-            }
-        }
-        s.workers.retain(|w| !w.is_finished());
-        Some((ff, caps, settings, s.out_dir.clone(), items))
+        let jobs = s.queue.start(|e| {
+            let info = e.data.as_ref()?;
+            Some((info.duration, info.video_codec.clone()))
+        });
+        Some((ff, caps, settings, s.queue.out_dir().map(PathBuf::from), jobs))
     });
-    let Some((ff, caps, settings, out_dir, items)) = queued else {
+    let Some((ff, caps, settings, out_dir, jobs)) = queued else {
         return;
     };
     sync(app);
 
-    let weak = app.as_weak();
-    let workers = jobs::run_pool(
-        items,
-        CONCURRENT_CONVERSIONS,
-        move |(id, input, duration, source_codec, cancel)| {
-            if cancel.is_cancelled() {
-                return; // Cancelled while queued; the row already says so.
-            }
-            // Every post carries this run's token; `update_run` drops it if the row has moved on.
-            let post = |f: Box<dyn FnOnce(&mut Entry) + Send>| {
-                let token = cancel.clone();
-                jobs::post(&weak, move |app| update_run(&app, id, &token, f));
-            };
-            post(Box::new(|e| e.status = FileStatus::Running));
-            let result = reserve_output(&input, out_dir.as_deref(), settings.container.extension())
-                .map_err(|e| ConvertError::Failed(format!("Couldn't create the output file: {e}")))
-                .and_then(|output| {
-                    let job = ConvertJob {
-                        input,
-                        output,
-                        settings,
-                        duration,
-                        source_codec,
-                    };
-                    ff.convert(&job, &caps, &cancel, |p| {
-                        post(Box::new(move |e| e.progress = p))
-                    })
-                    .map(|()| job.output)
-                });
-            post(Box::new(move |e| {
-                e.progress = 0.0;
-                match result {
-                    Ok(output) => {
-                        e.status = FileStatus::Done;
-                        e.message = format!("Saved as {}", file_name(&output));
-                        e.output = Some(output);
-                    }
-                    Err(ConvertError::Cancelled) => e.status = FileStatus::Cancelled,
-                    Err(ConvertError::Failed(message)) => {
-                        e.status = FileStatus::Failed;
-                        e.message = message;
-                    }
-                }
-            }));
-        },
-    );
-    with(|s| s.workers.extend(workers));
+    let workers = file_queue::run(app, jobs, CONCURRENT_CONVERSIONS, apply, move |job, progress| {
+        let (duration, source_codec): &Work = &job.work;
+        let output = reserve_output(&job.input, out_dir.as_deref(), settings.container.extension())
+            .map_err(|e| JobError::Failed(format!("Couldn't create the output file: {e}")))?;
+        let convert = ConvertJob {
+            input: job.input.clone(),
+            settings,
+            duration: *duration,
+            source_codec: source_codec.clone(),
+        };
+        ff.convert(&convert, &output, &caps, &job.cancel, progress)?;
+        Ok(output)
+    });
+    with(|s| s.queue.track(workers));
+}
+
+fn apply(app: &AppWindow, id: u64, token: &Arc<CancelToken>, update: Update) {
+    with(|s| s.queue.apply(id, token, update));
+    sync(app);
 }
 
 /// Rebuilds the codec lists for the chosen container (keeping the current codec when the
@@ -376,8 +280,8 @@ fn refresh_settings(app: &AppWindow) {
         let ai = prev_audio
             .and_then(|p| s.audio_options.iter().position(|c| *c == p))
             .unwrap_or(0);
-        g.set_video_codecs(strings(s.video_options.iter().map(|c| c.label())));
-        g.set_audio_codecs(strings(s.audio_options.iter().map(|c| c.label())));
+        g.set_video_codecs(select::options(s.video_options.iter().map(|c| c.label())));
+        g.set_audio_codecs(select::options(s.audio_options.iter().map(|c| c.label())));
         g.set_video_codec_index(vi as i32);
         g.set_audio_codec_index(ai as i32);
         let missing = match (s.video_options.is_empty(), s.audio_options.is_empty()) {
@@ -420,52 +324,20 @@ fn refresh_settings(app: &AppWindow) {
     });
 }
 
-/// Applies `f` to the entry with `id` (if it's still listed) and refreshes its row.
-fn update(app: &AppWindow, id: u64, f: impl FnOnce(&mut Entry)) {
-    with(|s| {
-        if let Some(i) = s.entries.iter().position(|e| e.id == id) {
-            f(&mut s.entries[i]);
-            s.rows.set_row_data(i, item(&s.entries[i]));
-        }
-    });
-    sync(app);
-}
-
-/// `update` for a conversion run: applies only while the row still belongs to the run that
-/// owns `token`, so a stale worker can't overwrite a newer run (or a re-added file).
-fn update_run(app: &AppWindow, id: u64, token: &Arc<CancelToken>, f: impl FnOnce(&mut Entry)) {
-    update(app, id, |e| {
-        if Arc::ptr_eq(&e.cancel, token) {
-            f(e);
-        }
-    });
-}
-
 /// Recomputes the list-level properties, and starts the pending verification conversion.
 fn sync(app: &AppWindow) {
     let g = app.global::<VideoConverter>();
     let autostart = with(|s| {
-        let running = s.entries.iter().any(|e| is_active(e.status));
-        let ready = s.caps.is_some() && s.entries.iter().all(|e| e.status != FileStatus::Reading);
-        let convertible = s.entries.iter().any(|e| {
-            matches!(
-                e.status,
-                FileStatus::Ready | FileStatus::Failed | FileStatus::Cancelled
-            ) && e.info.is_some()
-        });
+        let q = &s.queue;
+        let running = q.is_running();
+        let ready = s.caps.is_some() && q.entries().iter().all(|e| e.status != FileStatus::Reading);
+        let convertible = q.can_start(|e| e.data.is_some());
         g.set_running(running);
         g.set_can_convert(ready && !running && convertible && s.blocked.is_none());
         g.set_blocked_reason(s.blocked.clone().unwrap_or_default().into());
-        let n = s.entries.len();
-        g.set_list_summary(format!("{n} {}", if n == 1 { "video" } else { "videos" }).into());
-        g.set_custom_output(s.out_dir.is_some());
-        g.set_output_folder(
-            s.out_dir
-                .as_deref()
-                .map(file_name)
-                .unwrap_or_else(|| "Same as original".into())
-                .into(),
-        );
+        g.set_list_summary(q.count_label("video", "videos").into());
+        g.set_custom_output(q.out_dir().is_some());
+        g.set_output_folder(q.out_dir_label().into());
         let start = s.convert_when_ready && ready && convertible && s.blocked.is_none();
         if start {
             s.convert_when_ready = false;
@@ -474,115 +346,5 @@ fn sync(app: &AppWindow) {
     });
     if autostart {
         convert_all(app);
-    }
-}
-
-fn cancel_entry(e: &mut Entry) {
-    match e.status {
-        FileStatus::Queued => {
-            e.cancel.cancel();
-            e.status = FileStatus::Cancelled;
-        }
-        // The worker reports Cancelled once FFmpeg is gone and the partial file removed.
-        FileStatus::Running => e.cancel.cancel(),
-        _ => {}
-    }
-}
-
-fn is_active(status: FileStatus) -> bool {
-    matches!(status, FileStatus::Queued | FileStatus::Running)
-}
-
-fn item(e: &Entry) -> FileItem {
-    let mut detail = format_size(e.size);
-    if let Some(info) = &e.info {
-        let summary = info.summary();
-        if !summary.is_empty() {
-            detail = format!("{detail} · {summary}");
-        }
-    }
-    FileItem {
-        name: file_name(&e.path).into(),
-        detail: detail.into(),
-        status: e.status,
-        progress: e.progress,
-        message: e.message.as_str().into(),
-    }
-}
-
-fn index(i: i32, len: usize) -> usize {
-    usize::try_from(i).unwrap_or(0).min(len.saturating_sub(1))
-}
-
-fn strings<'a>(items: impl Iterator<Item = &'a str>) -> ModelRc<SharedString> {
-    ModelRc::new(VecModel::from(
-        items.map(SharedString::from).collect::<Vec<_>>(),
-    ))
-}
-
-fn file_name(path: &Path) -> String {
-    path.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
-
-fn same_file(a: &Path, b: &Path) -> bool {
-    match (a.canonicalize(), b.canonicalize()) {
-        (Ok(a), Ok(b)) => a == b,
-        _ => a == b,
-    }
-}
-
-/// Decimal units, as Finder and Explorer's details show them.
-fn format_size(bytes: u64) -> String {
-    let b = bytes as f64;
-    match bytes {
-        0..1_000 => format!("{bytes} bytes"),
-        1_000..1_000_000 => format!("{:.0} KB", b / 1e3),
-        1_000_000..1_000_000_000 => format!("{:.1} MB", b / 1e6),
-        _ => format!("{:.2} GB", b / 1e9),
-    }
-}
-
-/// Shows the file selected in the platform file manager.
-fn reveal(path: &Path) {
-    #[cfg(windows)]
-    let result = {
-        use std::os::windows::process::CommandExt;
-        // `raw_arg`: Explorer parses `/select,"<path>"` itself and rejects Rust's quoting.
-        std::process::Command::new("explorer")
-            .raw_arg(format!("/select,\"{}\"", path.display()))
-            .spawn()
-            .map(drop)
-    };
-    #[cfg(target_os = "macos")]
-    let result = std::process::Command::new("open")
-        .arg("-R")
-        .arg(path)
-        .spawn()
-        .map(drop);
-    #[cfg(not(any(windows, target_os = "macos")))]
-    let result = open::that(path.parent().unwrap_or(path));
-    if let Err(e) = result {
-        eprintln!("couldn't show {} in the file manager: {e}", path.display());
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sizes_use_decimal_units() {
-        assert_eq!(format_size(999), "999 bytes");
-        assert_eq!(format_size(12_400_000), "12.4 MB");
-        assert_eq!(format_size(3_210_000_000), "3.21 GB");
-    }
-
-    #[test]
-    fn index_is_clamped() {
-        assert_eq!(index(-1, 3), 0);
-        assert_eq!(index(7, 3), 2);
-        assert_eq!(index(0, 0), 0);
     }
 }

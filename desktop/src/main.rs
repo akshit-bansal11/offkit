@@ -1,14 +1,14 @@
 // No console window in release builds on Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod engine {
-    pub mod ffmpeg;
-}
+mod clipboard;
+mod engine;
+mod file_queue;
+mod files;
 mod jobs;
 mod registry;
-mod tools {
-    pub mod video_converter;
-}
+mod select;
+mod tools;
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -19,7 +19,6 @@ use slint::winit_030::winit::event::WindowEvent;
 use slint::winit_030::{EventResult, WinitWindowAccessor};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
-use crate::engine::ffmpeg::Ffmpeg;
 use crate::registry::Registry;
 use crate::tools::video_converter;
 
@@ -69,12 +68,16 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    video_converter::init(&app, Ffmpeg::locate());
+    tools::init_all(&app);
     install_file_drop(&app);
 
     let snapshot = std::env::var_os("OPEN_TOOLS_SNAPSHOT").map(PathBuf::from);
     let tool = std::env::var("OPEN_TOOLS_TOOL").unwrap_or_else(|_| video_converter::SLUG.into());
     select_tool(&app, &registry, video_converter::SLUG);
+    match &snapshot {
+        Some(path) => prepare_snapshot(&app, path.clone(), &tool),
+        None => apply_backdrop(&app),
+    }
     if tool != video_converter::SLUG {
         // Selecting once the sidebar has laid out lets it scroll the row into view.
         let (registry, weak) = (registry.clone(), app.as_weak());
@@ -84,13 +87,9 @@ fn main() -> anyhow::Result<()> {
             }
         });
     }
-    match &snapshot {
-        Some(path) => prepare_snapshot(&app, path.clone()),
-        None => apply_backdrop(&app),
-    }
 
     app.run()?;
-    video_converter::shutdown();
+    tools::shutdown_all();
     Ok(())
 }
 
@@ -134,9 +133,9 @@ fn sidebar_rows(registry: &Registry, query: &str) -> Vec<SidebarRow> {
         .collect()
 }
 
-/// Files dragged in from the OS file manager. winit sends one `DroppedFile` per file, so the
-/// paths are collected and handed over as one batch on the next event-loop turn: one probe
-/// pool for the whole drop, not one per file.
+/// Files dragged in from the OS file manager, for the tool showing. winit sends one
+/// `DroppedFile` per file, so the paths are collected and handed over as one batch on the next
+/// event-loop turn: one probe pool for the whole drop, not one per file.
 fn install_file_drop(app: &AppWindow) {
     let weak = app.as_weak();
     let pending: Rc<RefCell<Vec<PathBuf>>> = Rc::default();
@@ -144,21 +143,19 @@ fn install_file_drop(app: &AppWindow) {
         let Some(app) = weak.upgrade() else {
             return EventResult::Propagate;
         };
-        if app.get_current_slug() != video_converter::SLUG {
-            return EventResult::Propagate;
-        }
+        let slug = app.get_current_slug();
         match event {
-            WindowEvent::HoveredFile(_) => video_converter::set_drop_hover(&app, true),
-            WindowEvent::HoveredFileCancelled => video_converter::set_drop_hover(&app, false),
+            WindowEvent::HoveredFile(_) => tools::set_drop_hover(&app, &slug, true),
+            WindowEvent::HoveredFileCancelled => tools::set_drop_hover(&app, &slug, false),
             WindowEvent::DroppedFile(path) => {
-                video_converter::set_drop_hover(&app, false);
+                tools::set_drop_hover(&app, &slug, false);
                 let mut batch = pending.borrow_mut();
                 if batch.is_empty() {
                     let (pending, weak) = (pending.clone(), weak.clone());
                     slint::Timer::single_shot(Duration::ZERO, move || {
                         let paths = pending.take();
                         if let Some(app) = weak.upgrade() {
-                            video_converter::add_paths(&app, paths);
+                            tools::add_paths(&app, &slug, paths);
                         }
                     });
                 }
@@ -204,11 +201,11 @@ fn apply_backdrop(app: &AppWindow) {
 // ---- Verification hook --------------------------------------------------------------------
 // OPEN_TOOLS_SNAPSHOT=<png> renders the window to a PNG ~1.5 s after start, then exits.
 // Optional: OPEN_TOOLS_TOOL=<slug>, OPEN_TOOLS_THEME=light|dark,
-// OPEN_TOOLS_FILES=<path;path> (preloaded into the Video Converter) and OPEN_TOOLS_CONVERT=1
-// (start converting once probes finish), OPEN_TOOLS_ABOUT=1 (open the About sheet).
-// Lets an agent check the UI without a human.
+// OPEN_TOOLS_FILES=<path;path> (handed to that tool's `add_paths`, as a drop would be),
+// OPEN_TOOLS_CONVERT=1 (Video Converter: start converting once probes finish),
+// OPEN_TOOLS_ABOUT=1 (open the About sheet). Lets an agent check the UI without a human.
 
-fn prepare_snapshot(app: &AppWindow, path: PathBuf) {
+fn prepare_snapshot(app: &AppWindow, path: PathBuf, tool: &str) {
     if let Ok(theme) = std::env::var("OPEN_TOOLS_THEME") {
         use slint::language::ColorScheme;
         let scheme = if theme == "dark" {
@@ -219,7 +216,7 @@ fn prepare_snapshot(app: &AppWindow, path: PathBuf) {
         app.global::<Palette>().set_color_scheme(scheme);
     }
     if let Some(files) = std::env::var_os("OPEN_TOOLS_FILES") {
-        video_converter::add_paths(app, std::env::split_paths(&files).collect());
+        tools::add_paths(app, tool, std::env::split_paths(&files).collect());
     }
     if std::env::var_os("OPEN_TOOLS_CONVERT").is_some() {
         video_converter::convert_when_ready(app);

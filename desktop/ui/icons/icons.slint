@@ -2,9 +2,11 @@
 // Slint resolves image paths at compile time, so every icon is listed here by name.
 // Adding a tool icon: copy `<name>.svg` from lucide-static into this folder and add a line to
 // `tool()`. The registry test `every_tool_icon_is_mapped` fails until both exist.
+// Adding an interface icon: copy the svg in and add a property inside your family's block below,
+// so parallel families never edit the same lines.
 
 export global AppIcons {
-    // Interface icons.
+    // --- shared ---
     out property <image> search: @image-url("search.svg");
     out property <image> close: @image-url("x.svg");
     out property <image> folder: @image-url("folder.svg");
@@ -17,6 +19,38 @@ export global AppIcons {
     out property <image> check: @image-url("check.svg");
     out property <image> trash: @image-url("trash-2.svg");
     out property <image> film: @image-url("film.svg");
+    out property <image> copy: @image-url("copy.svg");
+    out property <image> minus: @image-url("minus.svg");
+    out property <image> swap: @image-url("arrow-left-right.svg");
+    out property <image> file: @image-url("file.svg");
+    // --- end shared ---
+
+    // --- audio ---
+    // --- end audio ---
+
+    // --- video ---
+    // --- end video ---
+
+    // --- images ---
+    // --- end images ---
+
+    // --- pdf ---
+    // --- end pdf ---
+
+    // --- svg ---
+    // --- end svg ---
+
+    // --- colors ---
+    // --- end colors ---
+
+    // --- css ---
+    // --- end css ---
+
+    // --- text ---
+    // --- end text ---
+
+    // --- dev ---
+    // --- end dev ---
 
     // Tool icons, keyed by the `icon` field of tools.json.
     public pure function tool(name: string) -> image {

@@ -1,0 +1,372 @@
+// Form controls for editor-style tools (text, colours, CSS, SVG, dev), styled from Theme tokens
+// only, like controls.slint. Each draws FocusRing and is fully keyboard-operable.
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { FocusRing, IconButton } from "controls.slint";
+
+// Single-line text field. `invalid` draws the boundary in the danger colour; say why next to it.
+export component TextField {
+    in-out property <string> text <=> input.text;
+    in property <string> placeholder;
+    // The accessible name. A visible label beside the field should read the same.
+    in property <string> label;
+    in property <bool> enabled <=> input.enabled;
+    in property <bool> mono;
+    in property <bool> invalid;
+    out property <bool> has-focus: input.has-focus;
+    callback edited(string);
+    callback accepted(string);
+
+    public function focus-input() {
+        input.focus();
+        input.select-all();
+    }
+
+    height: Theme.control-height;
+    min-width: 64px;
+    horizontal-stretch: 1;
+    forward-focus: input;
+    accessible-role: text-input;
+    accessible-label: root.label;
+    accessible-value: root.text;
+    accessible-placeholder-text: root.placeholder;
+    accessible-enabled: root.enabled;
+
+    Rectangle {
+        border-radius: Theme.radius-control;
+        background: Theme.bg-control;
+        border-width: 1px;
+        border-color: root.invalid ? Theme.danger : Theme.border-control;
+        opacity: root.enabled ? 1 : Theme.opacity-disabled;
+    }
+
+    Rectangle {
+        x: Theme.space-2;
+        width: parent.width - 2 * Theme.space-2;
+
+        Text {
+            width: 100%;
+            text: input.text == "" ? root.placeholder : "";
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            font-family: input.font-family;
+            vertical-alignment: center;
+            overflow: elide;
+            accessible-role: none;
+        }
+
+        input := TextInput {
+            width: 100%;
+            height: 100%;
+            color: Theme.text-primary;
+            font-size: Theme.size-body;
+            font-family: root.mono ? Theme.font-family-mono : Theme.font-family;
+            vertical-alignment: center;
+            selection-background-color: Theme.selection-fill;
+            selection-foreground-color: Theme.text-primary;
+            single-line: true;
+            accessible-role: none;
+            edited => { root.edited(self.text); }
+            accepted => { root.accepted(self.text); }
+        }
+    }
+
+    FocusRing { has-focus: input.has-focus; }
+}
+
+export component Checkbox {
+    in-out property <bool> checked;
+    in property <string> text;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+
+    min-height: Theme.control-height;
+    min-width: layout.min-width;
+    horizontal-stretch: 0;
+    forward-focus: fs;
+    accessible-role: checkbox;
+    accessible-label: root.text;
+    accessible-checkable: true;
+    accessible-checked: root.checked;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { root.flip(); }
+
+    function flip() {
+        if (root.enabled) {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+
+    layout := HorizontalLayout {
+        spacing: Theme.space-2;
+        alignment: start;
+
+        Rectangle {
+            width: Theme.icon-size;
+            height: Theme.icon-size;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.radius-nested;
+            background: root.checked ? Theme.accent : Theme.bg-control;
+            border-width: root.checked ? 0 : 1px;
+            border-color: Theme.border-control;
+            opacity: root.enabled ? 1 : Theme.opacity-disabled;
+            animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+
+            Image {
+                source: AppIcons.check;
+                colorize: Theme.on-accent;
+                width: Theme.icon-size-small;
+                height: Theme.icon-size-small;
+                opacity: root.checked ? 1 : 0;
+            }
+
+            FocusRing { has-focus: fs.has-focus; radius: parent.border-radius; }
+        }
+        Text {
+            text: root.text;
+            color: Theme.text-primary;
+            font-size: Theme.size-body;
+            vertical-alignment: center;
+            opacity: root.enabled ? 1 : Theme.opacity-disabled;
+        }
+    }
+
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.flip(); }
+    }
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == " ") {
+                root.flip();
+                return accept;
+            }
+            reject
+        }
+    }
+}
+
+// Mutually exclusive options in one row, a radio group: Encode | Decode. One Tab stop; the arrow
+// keys move the selection. The selected segment is accent-filled, like a primary button, so the
+// state is never carried by a faint tint (on-accent on accent: L 5.57, D 4.89).
+// Controlled: bind `current-index` to your state and update that state in `selected`; the
+// control never assigns `current-index` itself, so the binding survives a selection.
+export component SegmentedControl {
+    in property <[string]> options;
+    in property <int> current-index;
+    in property <string> label;
+    in property <bool> enabled: true;
+    callback selected(int);
+
+    height: Theme.control-height;
+    min-width: layout.min-width;
+    horizontal-stretch: 0;
+    forward-focus: fs;
+    accessible-role: radio-group;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+
+    function pick(i: int) {
+        if (root.enabled && i >= 0 && i < root.options.length && i != root.current-index) {
+            root.selected(i);
+        }
+    }
+
+    Rectangle {
+        border-radius: Theme.radius-control;
+        background: Theme.bg-control-track;
+        border-width: 1px;
+        border-color: Theme.border-control;
+        opacity: root.enabled ? 1 : Theme.opacity-disabled;
+    }
+
+    layout := HorizontalLayout {
+        padding: 2px;
+        spacing: 2px;
+
+        for option[i] in root.options: segment := Rectangle {
+            property <bool> current: i == root.current-index;
+            min-width: label-text.preferred-width + 2 * Theme.space-3;
+            horizontal-stretch: 1;
+            border-radius: Theme.radius-nested;
+            background: segment.current ? Theme.accent : segment-ta.pressed ? Theme.bg-pressed : segment-ta.has-hover ? Theme.bg-hover : transparent;
+            accessible-role: radio-button;
+            accessible-label: option;
+            accessible-checkable: true;
+            accessible-checked: segment.current;
+            accessible-action-default => { root.pick(i); }
+            animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+
+            label-text := Text {
+                text: option;
+                color: segment.current ? Theme.on-accent : Theme.text-primary;
+                font-size: Theme.size-body;
+                font-weight: Theme.weight-medium;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                opacity: root.enabled ? 1 : Theme.opacity-disabled;
+            }
+
+            segment-ta := TouchArea {
+                enabled: root.enabled;
+                mouse-cursor: pointer;
+                clicked => { root.pick(i); }
+            }
+        }
+    }
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == Key.LeftArrow || event.text == Key.UpArrow) {
+                root.pick(root.current-index - 1);
+                return accept;
+            }
+            if (event.text == Key.RightArrow || event.text == Key.DownArrow) {
+                root.pick(root.current-index + 1);
+                return accept;
+            }
+            reject
+        }
+    }
+
+    FocusRing { has-focus: fs.has-focus; }
+}
+
+// A number typed or stepped: Up/Down or the minus and plus buttons move by `step`; a typed value
+// applies on Enter or when focus leaves the field, clamped to the range. `unit` follows ("px").
+export component NumberField {
+    in-out property <float> value;
+    in property <float> minimum: 0;
+    in property <float> maximum: 100;
+    in property <float> step: 1;
+    in property <string> label;
+    in property <string> unit;
+    in property <bool> enabled: true;
+    callback changed(float);
+
+    function set(v: float) {
+        let next = clamp(v, root.minimum, root.maximum);
+        if (next != root.value) {
+            root.value = next;
+            root.changed(next);
+        }
+        // Also tidies the text after an out-of-range or unreadable entry.
+        field.text = root.value;
+    }
+
+    changed value => { field.text = root.value; }
+
+    height: Theme.control-height;
+    min-width: layout.min-width;
+    horizontal-stretch: 0;
+    forward-focus: field;
+    // The one accessible node: the field inside it is `none`, as in Slint's own SpinBox.
+    accessible-role: spinbox;
+    accessible-label: root.label;
+    accessible-value: root.value + root.unit;
+    accessible-value-minimum: root.minimum;
+    accessible-value-maximum: root.maximum;
+    accessible-value-step: root.step;
+    accessible-enabled: root.enabled;
+    accessible-action-increment => { root.set(root.value + root.step); }
+    accessible-action-decrement => { root.set(root.value - root.step); }
+
+    layout := HorizontalLayout {
+        spacing: Theme.space-1;
+
+        FocusScope {
+            width: 72px;
+            focus-on-click: false;
+            focus-on-tab-navigation: false;
+            // Capture, not key-pressed: the field's TextInput would take Up/Down as caret moves.
+            capture-key-pressed(event) => {
+                if (event.text == Key.UpArrow) {
+                    root.set(root.value + root.step);
+                    return accept;
+                }
+                if (event.text == Key.DownArrow) {
+                    root.set(root.value - root.step);
+                    return accept;
+                }
+                reject
+            }
+
+            field := TextField {
+                text: root.value;
+                label: root.label;
+                accessible-role: none;
+                enabled: root.enabled;
+                invalid: !self.text.is-float() && self.text != "";
+                accepted(text) => { root.set(text.is-float() ? text.to-float() : root.value); }
+                changed has-focus => {
+                    if (!self.has-focus) {
+                        root.set(self.text.is-float() ? self.text.to-float() : root.value);
+                    }
+                }
+            }
+        }
+        if root.unit != "": Text {
+            text: root.unit;
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            vertical-alignment: center;
+        }
+        IconButton {
+            icon: AppIcons.minus;
+            label: "Decrease " + root.label;
+            enabled: root.enabled && root.value > root.minimum;
+            clicked => { root.set(root.value - root.step); }
+        }
+        IconButton {
+            icon: AppIcons.plus;
+            label: "Increase " + root.label;
+            enabled: root.enabled && root.value < root.maximum;
+            clicked => { root.set(root.value + root.step); }
+        }
+    }
+}
+
+// A colour swatch beside its hex code. Slint can't parse colours, so Rust parses `hex` (on
+// `edited` or `accepted`) and sets `color`, and sets `invalid` while the text isn't a colour.
+// A full picker is the Colors family's job.
+export component ColorWell {
+    in property <color> color;
+    in-out property <string> hex <=> field.text;
+    in property <string> label;
+    in property <bool> invalid;
+    in property <bool> enabled: true;
+    callback edited(string);
+    callback accepted(string);
+
+    height: Theme.control-height;
+    min-width: layout.min-width;
+
+    layout := HorizontalLayout {
+        spacing: Theme.space-2;
+
+        // Decorative: the hex code beside it names the colour.
+        Rectangle {
+            width: Theme.control-height;
+            border-radius: Theme.radius-control;
+            background: root.color;
+            border-width: 1px;
+            border-color: Theme.border-control;
+        }
+        field := TextField {
+            label: root.label;
+            mono: true;
+            invalid: root.invalid;
+            enabled: root.enabled;
+            edited(text) => { root.edited(text); }
+            accepted(text) => { root.accepted(text); }
+        }
+    }
+}

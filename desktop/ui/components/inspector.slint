@@ -1,8 +1,12 @@
 // Inspector building blocks, in the grouped-list idiom of iOS Settings: a section title over a
 // rounded card of rows. Mark the first row of a card with `first: true`; later rows draw the
-// inset separator above themselves.
+// inset separator above themselves. `Inspector` is the right-hand panel of a file tool, with
+// the sections scrolling above one primary action.
 
+import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, IconButton } from "controls.slint";
 
 export component InspectorSection {
     in property <string> title;
@@ -92,6 +96,99 @@ export component InspectorRow {
             padding-top: Theme.space-1;
             padding-bottom: Theme.space-1;
             @children
+        }
+    }
+}
+
+// The right-hand panel of a file tool: its sections (the children) scroll; the primary action
+// stays at the bottom, swapped for Stop while a batch runs. Give it `width: Theme.inspector-width`.
+export component Inspector inherits Rectangle {
+    in property <string> action-text; // "Convert All"
+    in property <string> stop-text: "Stop All";
+    in property <bool> can-run;
+    in property <bool> running;
+    // Why the action is unavailable, shown above it; empty when it isn't.
+    in property <string> note;
+    callback run();
+    callback stop();
+
+    background: Theme.bg-grouped;
+
+    // Hairline between the file list and the inspector.
+    Rectangle {
+        x: 0;
+        width: 1px;
+        background: Theme.separator;
+    }
+
+    VerticalLayout {
+        ScrollView {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-4;
+                spacing: Theme.space-5;
+                alignment: start;
+
+                @children
+            }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: Theme.separator;
+        }
+
+        VerticalLayout {
+            padding: Theme.space-4;
+            spacing: Theme.space-2;
+
+            if root.note != "": Text {
+                text: root.note;
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                wrap: word-wrap;
+            }
+            if !root.running: Button {
+                text: root.action-text;
+                kind: ButtonKind.primary;
+                enabled: root.can-run;
+                height: Theme.control-height-large;
+                clicked => { root.run(); }
+            }
+            if root.running: Button {
+                text: root.stop-text;
+                kind: ButtonKind.secondary;
+                height: Theme.control-height-large;
+                clicked => { root.stop(); }
+            }
+        }
+    }
+}
+
+// "Save to": next to the source files, or a chosen folder (Rust: `FileQueue::out_dir_label`).
+export component OutputFolderSection inherits InspectorSection {
+    in property <string> folder; // "Same as original" or the folder's name
+    in property <bool> custom;
+    in property <string> reset-label: "Save next to the source files";
+    callback choose();
+    callback reset();
+
+    title: "Save to";
+
+    InspectorRow {
+        label: root.folder;
+        first: true;
+
+        if root.custom: IconButton {
+            icon: AppIcons.close;
+            label: root.reset-label;
+            clicked => { root.reset(); }
+        }
+        Button {
+            text: "Choose…";
+            kind: ButtonKind.plain;
+            clicked => { root.choose(); }
         }
     }
 }

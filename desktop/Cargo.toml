@@ -9,7 +9,10 @@ publish = false
 name = "open-tools"
 path = "src/main.rs"
 
+# One section per family, so a family adding a crate edits only its own hunk. Every version is
+# pinned with `=` and checked against crates.io; no GPL/AGPL crates (the app is MIT).
 [dependencies]
+# --- shared ---
 slint = { version = "=1.18.1", features = ["unstable-winit-030"] }
 rfd = "=0.17.2"
 window-vibrancy = "=0.8.1"
@@ -19,6 +22,39 @@ anyhow = "=1.0.104"
 # Already in the tree via Slint's image loader; used only by the snapshot hook.
 png = "=0.18.1"
 open = "=5.4.4"
+arboard = "=3.7.0"
+
+# --- audio ---
+
+# --- video ---
+
+# --- images ---
+# Codecs listed explicitly, without the default `rayon` feature (the AVIF encoder, rav1e, still
+# pulls rayon in). AVIF is encode-only: decoding needs the dav1d C library.
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "avif"] }
+
+# --- pdf ---
+# Binds the pdfium library at run time; the binary itself is not part of this build.
+pdfium-render = "=0.9.4"
+
+# --- svg ---
+# Re-exports usvg and tiny-skia.
+resvg = "=0.48.1"
+
+# --- colors ---
+
+# --- css ---
+
+# --- text ---
+base64 = "=0.23.1"
+similar = "=3.2.0"
+pulldown-cmark = "=0.13.4"
+
+# --- dev ---
+zip = "=9.0.3"
+tar = "=0.4.46"
+flate2 = "=1.1.10"
+sevenz-rust2 = "=0.24.0"
 
 [build-dependencies]
 slint-build = "=1.18.1"

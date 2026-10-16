@@ -1,28 +1,45 @@
-//! Native FFmpeg engine: find the binaries, probe media, detect working hardware encoders,
-//! build conversion arguments and run a conversion with progress and cancellation.
+//! Native FFmpeg engine, shared by the audio and video families: find the binaries, probe
+//! media, list encoders, and run FFmpeg with progress and cancellation (`Ffmpeg::run`). The
+//! Video Converter's own pieces (hardware detection, conversion arguments) live here too.
+//!
+//! Untrusted input goes through one gate: `probe` refuses anything that isn't a single local
+//! media file (see `ALLOWED_DEMUXERS`), and `run` probes every input again right before it
+//! starts and hands it to FFmpeg only through `input_args`. What a tool asks FFmpeg to do with
+//! it goes through a second gate, the allowlists in `args`.
+
+mod args;
 
 use std::collections::HashSet;
 use std::ffi::OsString;
-use std::fs::{self, OpenOptions};
 use std::io::{self, BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{Arc, OnceLock};
 use std::thread;
 
 use anyhow::{Context, anyhow, bail};
 use serde::Deserialize;
 
-use crate::jobs::CancelToken;
+pub use self::args::{Chain, Filter, Graph};
+use crate::files::Reserved;
+use crate::jobs::{CancelToken, JobError};
 
 pub struct Ffmpeg {
     ffmpeg: PathBuf,
     ffprobe: PathBuf,
+    encoders: OnceLock<HashSet<String>>,
 }
 
 impl Ffmpeg {
-    /// Looks next to the executable, then in `app/vendor/<os>/` (development builds), then on
+    /// The FFmpeg every tool shares, located once; `None` when it isn't installed.
+    pub fn shared() -> Option<Arc<Ffmpeg>> {
+        static SHARED: OnceLock<Option<Arc<Ffmpeg>>> = OnceLock::new();
+        SHARED.get_or_init(|| Self::locate().map(Arc::new)).clone()
+    }
+
+    /// Looks next to the executable, then in `desktop/vendor/<os>/` (development builds), then on
     /// PATH. Both `ffmpeg` and `ffprobe` must sit in the same directory.
-    pub fn locate() -> Option<Self> {
+    fn locate() -> Option<Self> {
         let exe_dir = std::env::current_exe()
             .ok()
             .and_then(|p| p.parent().map(Path::to_path_buf));
@@ -42,15 +59,20 @@ impl Ffmpeg {
             .find_map(|dir| {
                 let bin = |name: &str| dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
                 let (ffmpeg, ffprobe) = (bin("ffmpeg"), bin("ffprobe"));
-                (ffmpeg.is_file() && ffprobe.is_file()).then_some(Self { ffmpeg, ffprobe })
+                (ffmpeg.is_file() && ffprobe.is_file()).then(|| Self {
+                    ffmpeg,
+                    ffprobe,
+                    encoders: OnceLock::new(),
+                })
             })
     }
 
     /// Reads a file's streams and container. Also the gate for untrusted input: anything that
-    /// isn't a single local media file (see `ALLOWED_DEMUXERS`) is rejected here, and
-    /// `convert` probes again right before running, so a file swapped after it was added
-    /// can't slip through.
-    pub fn probe(&self, path: &Path) -> anyhow::Result<MediaInfo> {
+    /// isn't a single local media file (see `ALLOWED_DEMUXERS`) is rejected here, and `run`
+    /// probes again right before running, so a file swapped after it was added can't slip
+    /// through. Accepts audio-only files. `media` is how the tool names what it expects, for
+    /// the error its row shows: "Not {media} FFmpeg can read" (e.g. "a video").
+    pub fn probe(&self, path: &Path, media: &str) -> anyhow::Result<MediaInfo> {
         let out = command(&self.ffprobe)
             .args([
                 "-v",
@@ -67,20 +89,40 @@ impl Ffmpeg {
             if String::from_utf8_lossy(&out.stderr).contains("not on whitelist") {
                 bail!(UNSUPPORTED);
             }
-            bail!("Not a video FFmpeg can read");
+            bail!("Not {media} FFmpeg can read");
         }
         MediaInfo::from_ffprobe_json(&out.stdout)
+    }
+
+    /// `probe` for the Video Converter: the file must also hold a video stream.
+    pub fn probe_video(&self, path: &Path) -> anyhow::Result<MediaInfo> {
+        let info = self.probe(path, VIDEO)?;
+        require_video(&info)?;
+        Ok(info)
+    }
+
+    /// The names of the encoders compiled into this FFmpeg (e.g. "libx264", "libopus"), read
+    /// once and then cached. The first call runs FFmpeg, so make it off the UI thread.
+    pub fn encoders(&self) -> &HashSet<String> {
+        self.encoders.get_or_init(|| {
+            match command(&self.ffmpeg)
+                .args(["-hide_banner", "-encoders"])
+                .output()
+            {
+                Ok(out) => parse_encoders(&String::from_utf8_lossy(&out.stdout)),
+                Err(e) => {
+                    eprintln!("couldn't list FFmpeg's encoders: {e}");
+                    HashSet::new()
+                }
+            }
+        })
     }
 
     /// Lists compiled-in encoders, then proves each hardware encoder works with a tiny trial
     /// encode: an encoder being listed says nothing about the GPU or driver present. Takes
     /// about a second with a GPU, so call it off the UI thread.
     pub fn capabilities(&self) -> Capabilities {
-        let encoders = command(&self.ffmpeg)
-            .args(["-hide_banner", "-encoders"])
-            .output()
-            .map(|out| parse_encoders(&String::from_utf8_lossy(&out.stdout)))
-            .unwrap_or_default();
+        let encoders = self.encoders().clone();
         // The first family with any working encoder wins; machines rarely have two.
         let (hw, hw_codecs) = HwFamily::ALL
             .into_iter()
@@ -127,44 +169,76 @@ impl Ffmpeg {
             .is_ok_and(|s| s.success())
     }
 
-    /// Runs one conversion into its already-reserved output (see `reserve_output`), reporting
-    /// progress as a 0..1 fraction. On failure or cancellation the partial output is removed.
+    /// Runs one conversion into `output`, reporting progress as a 0..1 fraction. On failure
+    /// or cancellation, dropping `output` removes the partial file.
     pub fn convert(
         &self,
         job: &ConvertJob,
+        output: &Reserved,
         caps: &Capabilities,
         cancel: &CancelToken,
-        mut on_progress: impl FnMut(f32),
-    ) -> Result<(), ConvertError> {
-        let result = self.run(job, caps, cancel, &mut on_progress);
-        if result.is_err() {
-            // We created this file in `reserve_output`, so removing it can't destroy user data.
-            let _ = fs::remove_file(&job.output);
-        }
-        result
+        on_progress: impl FnMut(f32),
+    ) -> Result<(), JobError> {
+        let uses_hw = job.settings.hw.is_some() && caps.hw_encodes(job.settings.video);
+        let run = Run {
+            inputs: std::slice::from_ref(&job.input),
+            media: VIDEO,
+            output,
+            duration: job.duration,
+            exit_prefix: if uses_hw {
+                "Hardware encoder failed: "
+            } else {
+                ""
+            },
+        };
+        let prepare = |infos: &[MediaInfo]| {
+            infos.iter().try_for_each(require_video)?;
+            build_args(job, caps)
+        };
+        self.run(&run, cancel, prepare, on_progress)
     }
 
-    fn run(
+    /// Runs FFmpeg for any tool. Probes every input again first (it may have changed since it
+    /// was added), then asks `prepare`, given those fresh probes, for the output options. Those
+    /// must pass the allowlists in `args` (build filtergraphs with `Graph`); anything else is
+    /// refused before FFmpeg starts. The inputs, each pinned to its probed demuxer, go before
+    /// them, and `run.output` after, with the muxer its extension names. Reports progress as a
+    /// 0..1 fraction of `run.duration`. The caller drops `run.output` on failure, which removes
+    /// the partial file, and keeps it on success.
+    pub fn run(
         &self,
-        job: &ConvertJob,
-        caps: &Capabilities,
+        run: &Run,
         cancel: &CancelToken,
-        on_progress: &mut impl FnMut(f32),
-    ) -> Result<(), ConvertError> {
+        prepare: impl FnOnce(&[MediaInfo]) -> anyhow::Result<Vec<OsString>>,
+        mut on_progress: impl FnMut(f32),
+    ) -> Result<(), JobError> {
         if cancel.is_cancelled() {
-            return Err(ConvertError::Cancelled);
+            return Err(JobError::Cancelled);
         }
         // Re-probe and pin the demuxer that probe accepted: the file may have changed since.
-        let info = self.probe(&job.input).map_err(ConvertError::failed)?;
-        let args = build_args(job, caps, &info.format).map_err(ConvertError::failed)?;
+        let infos = run
+            .inputs
+            .iter()
+            .map(|input| self.probe(input, run.media))
+            .collect::<anyhow::Result<Vec<_>>>()
+            .map_err(JobError::failed)?;
+        let output_args = prepare(&infos).map_err(JobError::failed)?;
+        let inputs: Vec<(&Path, &str)> = run
+            .inputs
+            .iter()
+            .zip(&infos)
+            .map(|(path, info)| (path.as_path(), info.format.as_str()))
+            .collect();
+        let args =
+            command_line(&inputs, output_args, run.output.path()).map_err(JobError::failed)?;
         let mut child = command(&self.ffmpeg)
             .args(args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| ConvertError::Failed(format!("Couldn't start FFmpeg: {e}")))?;
+            .map_err(|e| JobError::Failed(format!("Couldn't start FFmpeg: {e}")))?;
         let (Some(stdout), Some(mut stderr)) = (child.stdout.take(), child.stderr.take()) else {
-            return Err(ConvertError::Failed("FFmpeg output unavailable".into()));
+            return Err(JobError::Failed("FFmpeg output unavailable".into()));
         };
         let stderr_reader = thread::spawn(move || {
             let mut text = String::new();
@@ -174,7 +248,7 @@ impl Ffmpeg {
         cancel.attach(child);
 
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            match (parse_progress_line(&line), job.duration) {
+            match (parse_progress_line(&line), run.duration) {
                 (Some(Progress::Time(t)), Some(total)) if total > 0.0 => {
                     on_progress((t / total).clamp(0.0, 1.0) as f32);
                 }
@@ -186,22 +260,17 @@ impl Ffmpeg {
         let status = cancel.detach().map(|mut child| child.wait());
         let stderr_text = stderr_reader.join().unwrap_or_default();
         if cancel.is_cancelled() {
-            return Err(ConvertError::Cancelled);
+            return Err(JobError::Cancelled);
         }
         match status {
             Some(Ok(status)) if status.success() => Ok(()),
             Some(Ok(status)) => {
                 let message = summarize_error(&stderr_text)
                     .unwrap_or_else(|| format!("FFmpeg exited with {status}"));
-                let uses_hw = job.settings.hw.is_some() && caps.hw_encodes(job.settings.video);
-                Err(ConvertError::Failed(if uses_hw {
-                    format!("Hardware encoder failed: {message}")
-                } else {
-                    message
-                }))
+                Err(JobError::Failed(format!("{}{message}", run.exit_prefix)))
             }
-            Some(Err(e)) => Err(ConvertError::Failed(format!("FFmpeg didn't finish: {e}"))),
-            None => Err(ConvertError::Failed("FFmpeg process lost".into())),
+            Some(Err(e)) => Err(JobError::Failed(format!("FFmpeg didn't finish: {e}"))),
+            None => Err(JobError::Failed("FFmpeg process lost".into())),
         }
     }
 }
@@ -220,26 +289,28 @@ fn command(program: &Path) -> Command {
     cmd
 }
 
+/// One FFmpeg run, for any tool (see `Ffmpeg::run`).
+pub struct Run<'a> {
+    /// The files FFmpeg reads, in `-i` order.
+    pub inputs: &'a [PathBuf],
+    /// What the tool expects its inputs to be, for `probe`'s error (e.g. "an audio file").
+    pub media: &'a str,
+    /// Reserved with `files::reserve_output` or `files::reserve_replacing`: a file created for
+    /// this run, so `-y` overwrites nothing else.
+    pub output: &'a Reserved,
+    /// Seconds of output, for progress; `None` leaves progress at 0 until FFmpeg finishes.
+    pub duration: Option<f64>,
+    /// Put before FFmpeg's own error when it exits with one; usually "".
+    pub exit_prefix: &'a str,
+}
+
 pub struct ConvertJob {
     pub input: PathBuf,
-    pub output: PathBuf,
     pub settings: Settings,
     /// Input duration in seconds, for progress; `None` leaves progress at 0.
     pub duration: Option<f64>,
     /// The input's video codec as ffprobe names it (e.g. "hevc"), for stream copies.
     pub source_codec: Option<String>,
-}
-
-#[derive(Debug)]
-pub enum ConvertError {
-    Cancelled,
-    Failed(String),
-}
-
-impl ConvertError {
-    fn failed(e: anyhow::Error) -> Self {
-        Self::Failed(e.to_string())
-    }
 }
 
 // ---- Probing ------------------------------------------------------------------------------
@@ -290,6 +361,17 @@ const ALLOWED_DEMUXERS: &[&str] = &[
 ];
 
 const UNSUPPORTED: &str = "This file type isn't supported";
+/// How the Video Converter names its inputs in `probe`'s error.
+const VIDEO: &str = "a video";
+
+fn require_video(info: &MediaInfo) -> anyhow::Result<()> {
+    if info.video_codec.is_none() {
+        bail!("No video stream found");
+    }
+    Ok(())
+}
+
+// --- require_audio: pasted verbatim by families that need it ---
 
 /// The demuxer to pin for a probed file, or why the file is refused.
 fn allowed_demuxer(format_name: &str) -> anyhow::Result<&str> {
@@ -319,6 +401,7 @@ fn input_args(path: &Path, format: Option<&str>) -> io::Result<Vec<OsString>> {
     Ok(args)
 }
 
+/// What `probe` read from a file. The video fields are `None` for an audio-only file.
 #[derive(Debug, Clone)]
 pub struct MediaInfo {
     /// The demuxer ffprobe chose (first name of its `format_name`, e.g. "mov").
@@ -362,16 +445,16 @@ impl MediaInfo {
                 .iter()
                 .find(|s| s.codec_type.as_deref() == Some(kind))
         };
-        let video = of("video").ok_or_else(|| anyhow!("No video stream found"))?;
+        let video = of("video");
         Ok(Self {
             format,
             duration: out
                 .format
                 .and_then(|f| f.duration)
                 .and_then(|d| d.parse().ok()),
-            width: video.width,
-            height: video.height,
-            video_codec: video.codec_name.clone(),
+            width: video.and_then(|s| s.width),
+            height: video.and_then(|s| s.height),
+            video_codec: video.and_then(|s| s.codec_name.clone()),
             audio_codec: of("audio").and_then(|s| s.codec_name.clone()),
         })
     }
@@ -718,8 +801,47 @@ pub struct Settings {
 }
 
 /// 4:2:0 encoders reject odd widths and heights (e.g. 641×481), so every re-encode rounds
-/// the frame down to even dimensions. A no-op for even sizes.
-const EVEN_SIZE: &str = "-vf scale=trunc(iw/2)*2:trunc(ih/2)*2";
+/// the frame down to even dimensions: `-vf scale=trunc(iw/2)*2:trunc(ih/2)*2`. A no-op for
+/// even sizes.
+fn even_size() -> [OsString; 2] {
+    let scale = Filter::new("scale")
+        .arg("trunc(iw/2)*2")
+        .arg("trunc(ih/2)*2");
+    [
+        "-vf".into(),
+        Graph::new().chain(Chain::new().then(scale)).arg(),
+    ]
+}
+
+/// GIF output: 12 fps, at most 640 px wide, with a palette made from the video itself.
+fn gif_palette() -> [OsString; 2] {
+    let first = Chain::new()
+        .then(Filter::new("fps").arg(12))
+        .then(
+            Filter::new("scale")
+                .arg("min(640,iw)")
+                .arg(-1)
+                .opt("flags", "lanczos"),
+        )
+        .then(Filter::new("split"))
+        .output("a")
+        .output("b");
+    let palette = Chain::new()
+        .input("a")
+        .then(Filter::new("palettegen"))
+        .output("p");
+    let apply = Chain::new()
+        .input("b")
+        .input("p")
+        .then(Filter::new("paletteuse"));
+    let graph = Graph::new().chain(first).chain(palette).chain(apply);
+    ["-vf".into(), graph.arg()]
+}
+
+/// Whitespace-separated words as arguments; no word holds a space.
+fn words(text: &str) -> impl Iterator<Item = OsString> + '_ {
+    text.split_whitespace().map(OsString::from)
+}
 
 /// Linear map of quality 0..=100 onto an encoder's own scale.
 fn lerp(q: u8, at_0: i32, at_100: i32) -> i32 {
@@ -727,19 +849,12 @@ fn lerp(q: u8, at_0: i32, at_100: i32) -> i32 {
     at_0 + ((at_100 - at_0) * q + 50 * (at_100 - at_0).signum()) / 100
 }
 
-/// `input_format` is the demuxer `probe` reported for `job.input`.
-pub fn build_args(
-    job: &ConvertJob,
-    caps: &Capabilities,
-    input_format: &str,
-) -> anyhow::Result<Vec<OsString>> {
+/// The Video Converter's output options for `job`, for `Ffmpeg::run`.
+pub fn build_args(job: &ConvertJob, caps: &Capabilities) -> anyhow::Result<Vec<OsString>> {
     let s = &job.settings;
-    // Output options as whitespace-separated words; no word below contains a space.
-    let mut o: Vec<String> = Vec::new();
-    let mut push = |words: &str| o.extend(words.split_whitespace().map(str::to_owned));
-    push("-map 0:v:0");
+    let mut o: Vec<OsString> = words("-map 0:v:0").collect();
     if s.audio != AudioCodec::None {
-        push("-map 0:a:0?");
+        o.extend(words("-map 0:a:0?"));
     }
 
     let q = s.quality;
@@ -748,23 +863,25 @@ pub fn build_args(
         s.hw.filter(|_| caps.hw_encodes(s.video))
             .and_then(|f| f.encoder(s.video).map(|e| (f, e)));
     match (s.video, hw_encoder) {
-        (VideoCodec::Copy, _) => push("-c:v copy"),
-        (VideoCodec::Gif, _) => push(
-            "-vf fps=12,scale='min(640,iw)':-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse -loop 0",
-        ),
+        (VideoCodec::Copy, _) => o.extend(words("-c:v copy")),
+        (VideoCodec::Gif, _) => {
+            o.extend(gif_palette());
+            o.extend(words("-loop 0"));
+        }
         (_, Some((family, encoder))) => {
-            push(&format!(
-                "-c:v {encoder} {} -pix_fmt {} {EVEN_SIZE}",
+            o.extend(words(&format!(
+                "-c:v {encoder} {} -pix_fmt {}",
                 family.quality_args(q),
                 family.pix_fmt()
-            ));
+            )));
+            o.extend(even_size());
         }
         (codec, None) => {
             let encoder = caps
                 .software_encoder(codec)
                 .ok_or_else(|| anyhow!("This FFmpeg build has no {} encoder", codec.label()))?;
-            push(&format!("-c:v {encoder}"));
-            push(&match encoder {
+            o.extend(words(&format!("-c:v {encoder}")));
+            o.extend(words(&match encoder {
                 "libx264" => format!("-preset medium -crf {} -pix_fmt yuv420p", lerp(q, 34, 16)),
                 "libx265" => format!(
                     "-preset medium -crf {} -pix_fmt yuv420p -x265-params log-level=error",
@@ -782,8 +899,8 @@ pub fn build_args(
                 "prores_ks" => "-profile:v 2".into(),
                 "mpeg4" => format!("-q:v {}", lerp(q, 20, 2)),
                 _ => String::new(),
-            });
-            push(EVEN_SIZE);
+            }));
+            o.extend(even_size());
         }
     }
     let hevc_out = match s.video {
@@ -792,58 +909,38 @@ pub fn build_args(
         _ => false,
     };
     if hevc_out && matches!(s.container, Container::Mp4 | Container::Mov) {
-        push("-tag:v hvc1"); // Apple players only recognise HEVC tagged as hvc1.
+        o.extend(words("-tag:v hvc1")); // Apple players only recognise HEVC tagged as hvc1.
     }
-    push(s.audio.args());
-    push("-sn -dn");
+    o.extend(words(s.audio.args()));
+    o.extend(words("-sn -dn"));
     if matches!(s.container, Container::Mp4 | Container::Mov) {
-        push("-movflags +faststart");
+        o.extend(words("-movflags +faststart"));
     }
+    Ok(o)
+}
 
-    // `-y` is safe: `reserve_output` created the output file itself, so nothing else is overwritten.
-    let mut args: Vec<OsString> = "-hide_banner -nostdin -v error -nostats -progress pipe:1 -y"
+/// The whole command line for `Ffmpeg::run`: global options (progress on stdout; `-y`, safe
+/// because the output was reserved), each input through `input_args` pinned to its probed
+/// demuxer, then `output_args` once they pass `args::check_output_args`, and the output with
+/// its muxer pinned and its path made absolute (so a name like `http:x` stays a file).
+fn command_line(
+    inputs: &[(&Path, &str)],
+    output_args: Vec<OsString>,
+    output: &Path,
+) -> anyhow::Result<Vec<OsString>> {
+    args::check_output_args(&output_args)?;
+    let muxer = args::muxer_for(output)?;
+    let mut line: Vec<OsString> = "-hide_banner -nostdin -v error -nostats -progress pipe:1 -y"
         .split_whitespace()
         .map(OsString::from)
         .collect();
-    args.extend(input_args(&job.input, Some(input_format))?);
-    args.extend(o.into_iter().map(OsString::from));
-    args.push(job.output.as_os_str().into());
-    Ok(args)
-}
-
-// ---- Output naming ------------------------------------------------------------------------
-
-/// `<stem>.<ext>`, then `<stem> (1).<ext>`, `<stem> (2).<ext>`, …
-pub fn candidate_name(stem: &str, ext: &str, n: u32) -> String {
-    if n == 0 {
-        format!("{stem}.{ext}")
-    } else {
-        format!("{stem} ({n}).{ext}")
+    for (path, format) in inputs {
+        line.extend(input_args(path, Some(format))?);
     }
-}
-
-/// Picks the first free output name in `dir` (default: the input's folder) and creates the
-/// file atomically, so the input and existing files are never overwritten, even when two
-/// jobs race for the same name.
-pub fn reserve_output(input: &Path, dir: Option<&Path>, ext: &str) -> io::Result<PathBuf> {
-    let dir = dir.or_else(|| input.parent()).unwrap_or(Path::new("."));
-    let stem = input
-        .file_stem()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "output".into());
-    for n in 0..10_000 {
-        let candidate = dir.join(candidate_name(&stem, ext, n));
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&candidate)
-        {
-            Ok(_) => return Ok(candidate),
-            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
-            Err(e) => return Err(e),
-        }
-    }
-    Err(io::Error::other("no free output name"))
+    line.extend(output_args);
+    line.extend(["-f".into(), muxer.into()]);
+    line.push(std::path::absolute(output)?.into_os_string());
+    Ok(line)
 }
 
 // ---- Progress and errors ------------------------------------------------------------------
@@ -907,19 +1004,22 @@ pub fn summarize_error(stderr: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::files::reserve_output;
+    use std::fs;
 
-    fn args(s: Settings, caps: &Capabilities) -> Vec<String> {
-        build_args(&job(s), caps, "mov")
-            .unwrap()
-            .into_iter()
+    fn strings(args: Vec<OsString>) -> Vec<String> {
+        args.into_iter()
             .map(|a| a.to_string_lossy().into_owned())
             .collect()
+    }
+
+    fn args(s: Settings, caps: &Capabilities) -> Vec<String> {
+        strings(build_args(&job(s), caps).unwrap())
     }
 
     fn job(settings: Settings) -> ConvertJob {
         ConvertJob {
             input: "in.mov".into(),
-            output: "out.x".into(),
             settings,
             duration: None,
             source_codec: None,
@@ -979,11 +1079,53 @@ mod tests {
         assert!(has(&a, &["-pix_fmt", "yuv420p"]));
         assert!(has(&a, &["-c:a", "aac", "-b:a", "192k"]));
         assert!(has(&a, &["-movflags", "+faststart"]));
-        assert!(has(&a, &["-progress", "pipe:1"]));
-        let input = std::path::absolute("in.mov").unwrap();
-        assert_eq!(a.last().map(String::as_str), Some("out.x"));
-        assert!(a.iter().any(|x| *x == input.to_string_lossy()));
-        assert_eq!(a.last().map(String::as_str), Some("out.x"));
+    }
+
+    #[test]
+    fn command_line_ends_with_the_pinned_muxer_and_the_absolute_output() {
+        let output_args = vec![OsString::from("-c:a"), OsString::from("aac")];
+
+        let a = strings(command_line(&[], output_args, Path::new("http:out.m4a")).unwrap());
+
+        let output = std::path::absolute("http:out.m4a").unwrap();
+        assert!(has(&a, &["-progress", "pipe:1", "-y"]));
+        assert!(has(
+            &a,
+            &["-c:a", "aac", "-f", "ipod", &output.to_string_lossy()]
+        ));
+        assert_eq!(a.iter().filter(|x| *x == "-f").count(), 1);
+    }
+
+    #[test]
+    fn every_video_converter_setting_passes_the_output_allowlist() {
+        let caps = full_caps();
+        let refused: Vec<_> = Container::ALL
+            .iter()
+            .flat_map(|c| {
+                let audio = c.audio_codecs().iter();
+                c.video_codecs()
+                    .iter()
+                    .flat_map(move |v| audio.clone().map(move |a| settings(*c, *v, *a)))
+            })
+            .chain([{
+                let mut hw = settings(Container::Mp4, VideoCodec::Hevc, AudioCodec::Aac);
+                hw.hw = Some(HwFamily::Nvenc);
+                hw
+            }])
+            .filter(|s| args::check_output_args(&build_args(&job(*s), &caps).unwrap()).is_err())
+            .collect();
+
+        assert!(refused.is_empty(), "{refused:?}");
+    }
+
+    #[test]
+    fn command_line_refuses_an_output_it_has_no_single_file_muxer_for() {
+        let result = command_line(&[], Vec::new(), Path::new("frame%04d.png"));
+
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "FFmpeg can't write “.png” files here"
+        );
     }
 
     #[test]
@@ -1060,24 +1202,38 @@ mod tests {
     }
 
     #[test]
-    fn input_is_hardened_before_dash_i() {
-        let a = args(
-            settings(Container::Mp4, VideoCodec::H264, AudioCodec::Aac),
-            &full_caps(),
-        );
-        let input = std::path::absolute("in.mov").unwrap();
-        let input = input.to_string_lossy();
+    fn every_input_is_hardened_before_its_dash_i() {
+        let inputs = [(Path::new("a.mov"), "mov"), (Path::new("b.wav"), "wav")];
+
+        let a = strings(command_line(&inputs, Vec::new(), Path::new("out.mp4")).unwrap());
+
         let formats = ALLOWED_DEMUXERS.join(",");
-        let hardened = ["-protocol_whitelist", "file", "-format_whitelist", &formats];
-        assert!(has(
-            &a,
-            &[&hardened[..], &["-f", "mov", "-i", &input]].concat()
-        ));
-        assert_eq!(a.iter().filter(|x| *x == "-i").count(), 1);
-        // A relative name that looks like a URL becomes an absolute file path.
+        let hardened = |name: &str, format: &str| {
+            let input = std::path::absolute(name).unwrap();
+            let input = input.to_string_lossy();
+            let gate = ["-protocol_whitelist", "file", "-format_whitelist", &formats];
+            has(&a, &[&gate[..], &["-f", format, "-i", &input]].concat())
+        };
+        assert!(hardened("a.mov", "mov"));
+        assert!(hardened("b.wav", "wav"));
+        assert_eq!(a.iter().filter(|x| *x == "-i").count(), 2);
+    }
+
+    #[test]
+    fn a_url_like_relative_name_becomes_an_absolute_file_path() {
         let probe: Vec<_> = input_args(Path::new("http:evil"), None).unwrap();
+
         assert_eq!(probe[4], "-i");
         assert!(Path::new(&probe[5]).is_absolute());
+    }
+
+    #[test]
+    fn command_line_refuses_inputs_outside_the_input_list() {
+        let output_args = vec![OsString::from("-i"), OsString::from("secret.mp4")];
+
+        let result = command_line(&[], output_args, Path::new("out.mp4"));
+
+        assert!(result.is_err());
     }
 
     #[test]
@@ -1171,13 +1327,7 @@ mod tests {
     #[test]
     fn copied_hevc_into_mp4_is_tagged_hvc1() {
         let mut j = job(settings(Container::Mp4, VideoCodec::Copy, AudioCodec::Copy));
-        let words = |j: &ConvertJob| -> Vec<String> {
-            build_args(j, &full_caps(), "mov")
-                .unwrap()
-                .into_iter()
-                .map(|a| a.to_string_lossy().into_owned())
-                .collect()
-        };
+        let words = |j: &ConvertJob| strings(build_args(j, &full_caps()).unwrap());
         assert!(!has(&words(&j), &["-tag:v", "hvc1"]));
         j.source_codec = Some("hevc".into());
         assert!(has(&words(&j), &["-tag:v", "hvc1"]));
@@ -1202,7 +1352,7 @@ mod tests {
     fn missing_encoder_is_an_error() {
         let caps = Capabilities::with(&["aac"], None);
         let s = settings(Container::Mp4, VideoCodec::H264, AudioCodec::Aac);
-        assert!(build_args(&job(s), &caps, "mov").is_err());
+        assert!(build_args(&job(s), &caps).is_err());
     }
 
     #[test]
@@ -1250,31 +1400,6 @@ mod tests {
         assert_eq!(parse_progress_line("frame=12"), None);
         assert_eq!(parse_progress_line("garbage"), None);
         assert_eq!(parse_progress_line(""), None);
-    }
-
-    #[test]
-    fn output_names_never_collide() {
-        assert_eq!(candidate_name("clip", "mp4", 0), "clip.mp4");
-        assert_eq!(candidate_name("clip", "mp4", 2), "clip (2).mp4");
-
-        let dir = std::env::temp_dir().join(format!("open-tools-names-{}", std::process::id()));
-        fs::create_dir_all(&dir).unwrap();
-        let input = dir.join("clip.mp4");
-        fs::write(&input, b"source").unwrap();
-        fs::write(dir.join("clip (1).mp4"), b"existing").unwrap();
-
-        // Same container in the same folder: the input itself is taken, so is (1).
-        let first = reserve_output(&input, None, "mp4").unwrap();
-        assert_eq!(first, dir.join("clip (2).mp4"));
-        let second = reserve_output(&input, None, "mp4").unwrap();
-        assert_eq!(second, dir.join("clip (3).mp4"));
-        assert_eq!(fs::read(&input).unwrap(), b"source");
-        assert_eq!(fs::read(dir.join("clip (1).mp4")).unwrap(), b"existing");
-        assert_eq!(
-            reserve_output(&input, None, "webm").unwrap(),
-            dir.join("clip.webm")
-        );
-        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
@@ -1329,13 +1454,29 @@ Error opening output file o4.mkv.";
         let info = MediaInfo::from_ffprobe_json(json).unwrap();
         assert_eq!(info.format, "mov");
         assert_eq!(info.summary(), "0:42 · 1920×1080 · H.264 / AAC");
-        assert!(MediaInfo::from_ffprobe_json(br#"{"streams":[{"codec_type":"audio"}]}"#).is_err());
     }
+
+    // This used to assert that parsing rejects audio-only files. Probing now accepts them for
+    // the audio tools, and the Video Converter's own check (`require_video`) rejects them.
+    #[test]
+    fn audio_only_files_parse_but_are_not_videos() {
+        let json = br#"{"streams":[{"codec_type":"audio","codec_name":"mp3"}],"format":{"duration":"61","format_name":"mp3"}}"#;
+
+        let info = MediaInfo::from_ffprobe_json(json).unwrap();
+
+        assert_eq!(info.summary(), "1:01 · MP3");
+        assert_eq!(
+            require_video(&info).unwrap_err().to_string(),
+            "No video stream found"
+        );
+    }
+
+    // --- require_audio tests: pasted verbatim by families that need it ---
 
     // ---- Runs the real FFmpeg; skipped (with a note) when it isn't installed. ----
 
-    fn real_ffmpeg(test: &str) -> Option<(Ffmpeg, PathBuf)> {
-        let Some(ff) = Ffmpeg::locate() else {
+    fn real_ffmpeg(test: &str) -> Option<(Arc<Ffmpeg>, PathBuf)> {
+        let Some(ff) = Ffmpeg::shared() else {
             eprintln!("note: FFmpeg not found; skipping a test that runs it");
             return None;
         };
@@ -1366,19 +1507,19 @@ Error opening output file o4.mkv.";
         ext: &str,
         settings: Settings,
     ) -> MediaInfo {
-        let source = ff.probe(input).unwrap();
+        let source = ff.probe_video(input).unwrap();
+        let output = reserve_output(input, None, ext).unwrap();
         let job = ConvertJob {
             input: input.to_path_buf(),
-            output: reserve_output(input, None, ext).unwrap(),
             settings,
             duration: source.duration,
             source_codec: source.video_codec,
         };
         let mut last = 0.0;
-        ff.convert(&job, caps, &CancelToken::default(), |p| last = p)
+        ff.convert(&job, &output, caps, &CancelToken::default(), |p| last = p)
             .unwrap_or_else(|e| panic!("{settings:?}: {e:?}"));
         assert!(last > 0.99, "progress ended at {last}");
-        ff.probe(&job.output).unwrap()
+        ff.probe_video(&output.keep().unwrap()).unwrap()
     }
 
     #[test]
@@ -1429,7 +1570,6 @@ Error opening output file o4.mkv.";
         let output = reserve_output(&input, None, "mkv").unwrap();
         let job = ConvertJob {
             input,
-            output: output.clone(),
             settings: settings(Container::Mkv, VideoCodec::Av1, AudioCodec::Opus),
             duration: Some(30.0),
             source_codec: None,
@@ -1442,10 +1582,12 @@ Error opening output file o4.mkv.";
                 cancel.cancel();
             })
         };
-        let result = ff.convert(&job, &caps, &cancel, |_| {});
+        let result = ff.convert(&job, &output, &caps, &cancel, |_| {});
         canceller.join().unwrap();
-        assert!(matches!(result, Err(ConvertError::Cancelled)), "{result:?}");
-        assert!(!output.exists());
+        assert!(matches!(result, Err(JobError::Cancelled)), "{result:?}");
+        let partial = output.path().to_path_buf();
+        drop(output);
+        assert!(!partial.exists());
         fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -1506,24 +1648,26 @@ Error opening output file o4.mkv.";
         let caps = ff.capabilities();
         for input in [&hls, &relative, &absolute] {
             assert!(
-                ff.probe(input).is_err(),
+                ff.probe_video(input).is_err(),
                 "probe accepted {}",
                 input.display()
             );
+            let output = reserve_output(input, None, "mkv").unwrap();
             let job = ConvertJob {
                 input: input.clone(),
-                output: reserve_output(input, None, "mkv").unwrap(),
                 settings: settings(Container::Mkv, VideoCodec::H264, AudioCodec::Aac),
                 duration: None,
                 source_codec: None,
             };
             let started = std::time::Instant::now();
-            let result = ff.convert(&job, &caps, &CancelToken::default(), |_| {});
-            assert!(matches!(result, Err(ConvertError::Failed(_))), "{result:?}");
-            assert!(!job.output.exists(), "{} left output", input.display());
+            let result = ff.convert(&job, &output, &caps, &CancelToken::default(), |_| {});
+            assert!(matches!(result, Err(JobError::Failed(_))), "{result:?}");
+            let partial = output.path().to_path_buf();
+            drop(output);
+            assert!(!partial.exists(), "{} left output", input.display());
             assert!(started.elapsed() < std::time::Duration::from_secs(5));
         }
-        let message = ff.probe(&relative).unwrap_err().to_string();
+        let message = ff.probe_video(&relative).unwrap_err().to_string();
         assert_eq!(message, "This file type isn't supported");
 
         // Even if probe were bypassed, ffmpeg itself refuses the network for the playlist.
@@ -1563,10 +1707,141 @@ Error opening output file o4.mkv.";
             let stderr = String::from_utf8_lossy(&out.stderr);
             assert!(stderr.contains("Format not on whitelist"), "{stderr}");
             assert_eq!(
-                ff.probe(input).unwrap_err().to_string(),
+                ff.probe(input, "an audio file").unwrap_err().to_string(),
                 "This file type isn't supported"
             );
         }
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The generic runner as the audio tools use it: an audio-only input, any output options.
+    #[test]
+    fn run_converts_an_audio_only_file() {
+        let Some((ff, dir)) = real_ffmpeg("run-audio") else {
+            return;
+        };
+        let input = dir.join("tone.wav");
+        let status = command(&ff.ffmpeg)
+            .args(["-v", "error", "-y", "-f", "lavfi", "-i", "sine=duration=1"])
+            .arg(&input)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        assert!(ff.probe_video(&input).is_err());
+        let output = reserve_output(&input, None, "flac").unwrap();
+        let run = Run {
+            inputs: std::slice::from_ref(&input),
+            media: "an audio file",
+            output: &output,
+            duration: Some(1.0),
+            exit_prefix: "",
+        };
+        let mut last = 0.0;
+
+        let result = ff.run(
+            &run,
+            &CancelToken::default(),
+            |infos| {
+                assert_eq!(infos[0].audio_codec.as_deref(), Some("pcm_s16le"));
+                Ok(["-c:a", "flac"].map(OsString::from).to_vec())
+            },
+            |p| last = p,
+        );
+
+        assert!(result.is_ok(), "{result:?}");
+        assert!(last > 0.99, "progress ended at {last}");
+        let info = ff.probe(&output.keep().unwrap(), "an audio file").unwrap();
+        assert_eq!(info.audio_codec.as_deref(), Some("flac"));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A review ran `amovie` through `-filter_complex` and read an arbitrary file; `run` must
+    /// refuse it before FFmpeg starts, and the reserved output must not survive.
+    #[test]
+    fn run_refuses_a_file_reading_filter_before_ffmpeg_starts() {
+        let Some((ff, dir)) = real_ffmpeg("run-refused") else {
+            return;
+        };
+        let input = dir.join("tone.wav");
+        let status = command(&ff.ffmpeg)
+            .args(["-v", "error", "-y", "-f", "lavfi", "-i", "sine=duration=1"])
+            .arg(&input)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        let output = reserve_output(&input, None, "flac").unwrap();
+        let run = Run {
+            inputs: std::slice::from_ref(&input),
+            media: "an audio file",
+            output: &output,
+            duration: Some(1.0),
+            exit_prefix: "",
+        };
+        let graph = format!("amovie={}[out]", input.display());
+
+        let result = ff.run(
+            &run,
+            &CancelToken::default(),
+            |_| {
+                Ok(["-filter_complex", &graph, "-map", "[out]"]
+                    .map(OsString::from)
+                    .to_vec())
+            },
+            |_| {},
+        );
+
+        let message = match result {
+            Err(JobError::Failed(message)) => message,
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(message, "FFmpeg filter “amovie” isn't allowed");
+        let partial = output.path().to_path_buf();
+        drop(output);
+        assert!(!partial.exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The GIF palette graph, built with `Graph`, must mean to FFmpeg what it meant as text.
+    #[test]
+    fn converts_to_gif_through_the_built_palette_graph() {
+        let Some((ff, dir)) = real_ffmpeg("gif") else {
+            return;
+        };
+        let input = dir.join("clip.mp4");
+        make_clip(&ff, &input, 1, "800x450");
+        let caps = ff.capabilities();
+        let s = settings(Container::Gif, VideoCodec::Gif, AudioCodec::None);
+
+        let info = convert(&ff, &caps, &input, "gif", s);
+
+        assert_eq!(info.video_codec.as_deref(), Some("gif"));
+        assert_eq!((info.width, info.height), (Some(640), Some(360)));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Every muxer `run` may pin exists in this FFmpeg.
+    #[test]
+    fn every_pinned_muxer_exists() {
+        let Some((ff, dir)) = real_ffmpeg("muxers") else {
+            return;
+        };
+        let out = command(&ff.ffmpeg)
+            .args(["-hide_banner", "-muxers"])
+            .output()
+            .unwrap();
+        let listing = String::from_utf8_lossy(&out.stdout);
+        let known: HashSet<&str> = listing
+            .lines()
+            .filter_map(|l| l.split_whitespace().nth(1))
+            .flat_map(|names| names.split(','))
+            .collect();
+
+        let missing: Vec<_> = args::MUXERS
+            .iter()
+            .filter(|(_, muxer)| !known.contains(muxer))
+            .collect();
+
+        assert!(missing.is_empty(), "{missing:?}");
         fs::remove_dir_all(&dir).unwrap();
     }
 

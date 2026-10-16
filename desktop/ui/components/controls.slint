@@ -24,6 +24,17 @@ export component FocusRing {
     }
 }
 
+// The boundary of anything files can be dropped on: its resting border, then the accent
+// outline while files are dragged over the window. Give it a `border-radius` and `background`.
+export component DropOutline inherits Rectangle {
+    in property <bool> drop-hover;
+    in property <color> resting: Theme.border-control;
+
+    border-width: root.drop-hover ? Theme.drop-outline-width : 1px;
+    border-color: root.drop-hover ? Theme.accent-text : root.resting;
+    animate border-color { duration: Theme.dur-base; easing: Theme.ease; }
+}
+
 export enum ButtonKind { primary, secondary, plain }
 
 export component Button {
@@ -426,7 +437,7 @@ export component Select {
 
             for option[i] in root.options: item := Rectangle {
                 height: 26px;
-                border-radius: Theme.radius-control - 2px;
+                border-radius: Theme.radius-nested;
                 background: item-ta.has-hover ? Theme.accent : transparent;
 
                 HorizontalLayout {

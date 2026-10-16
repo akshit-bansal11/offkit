@@ -10,6 +10,7 @@
 //!   `run_pool`, so N files never mean N processes at once.
 
 use std::collections::VecDeque;
+use std::fmt;
 use std::process::Child;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -51,6 +52,19 @@ pub fn run_pool<T: Send + 'static>(
             })
         })
         .collect()
+}
+
+/// How a job ended when it didn't succeed. `Failed` carries the message its row shows.
+#[derive(Debug)]
+pub enum JobError {
+    Cancelled,
+    Failed(String),
+}
+
+impl JobError {
+    pub fn failed(e: impl fmt::Display) -> Self {
+        Self::Failed(e.to_string())
+    }
 }
 
 /// Cancellation for one job. A job running an external process registers the child so
