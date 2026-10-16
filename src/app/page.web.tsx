@@ -1,5 +1,5 @@
 // page.web.tsx
-// Landing page for the website build: what Open Tools is, where to download it, what is inside.
+// Landing page for the website build: what Open Tools is, every tool to open in the browser, and the Windows download.
 
 import { Download } from "lucide-react";
 import type { Metadata } from "next";
@@ -9,15 +9,20 @@ import { SiteShell } from "@/components/site/SiteShell";
 import { Button } from "@/components/ui/Button";
 import { siteConfig } from "@/config/site";
 import { tools, toolsByCategory } from "@/config/tools";
-import type { ToolDefinition } from "@/types/tool";
+
+const TITLE = "Open Tools: file tools that run on your device";
 
 export const metadata: Metadata = {
-  title: { absolute: "Open Tools: file tools that run on your PC" },
+  title: { absolute: TITLE },
   description: siteConfig.description,
   alternates: { canonical: "/" },
+  openGraph: {
+    title: TITLE,
+    description: siteConfig.description,
+    url: "/",
+    images: [siteConfig.socialImage],
+  },
 };
-
-const toolDocsHref = (tool: ToolDefinition) => `/docs#${tool.slug}`;
 
 export default function Home() {
   return (
@@ -28,8 +33,9 @@ export default function Home() {
             Open Tools
           </h1>
           <p className="mt-4 max-w-2xl text-center text-base leading-7 text-muted-foreground sm:text-lg">
-            {tools.length} file tools for Windows. Everything runs on your PC
-            and nothing is uploaded.
+            {tools.length} file tools that run on your device. Use them here in
+            your browser, or download the Windows app. Your files are never
+            uploaded.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">
@@ -59,12 +65,9 @@ export default function Home() {
           </p>
         </section>
 
-        <section aria-labelledby="inside" className="w-full">
-          <h2
-            id="inside"
-            className="mb-6 text-2xl font-semibold tracking-tight"
-          >
-            What is inside
+        <section aria-labelledby="tools" className="w-full">
+          <h2 id="tools" className="mb-6 text-2xl font-semibold tracking-tight">
+            Tools
           </h2>
           <div className="grid w-full grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
             {toolsByCategory.map((category) => (
@@ -72,7 +75,6 @@ export default function Home() {
                 key={category.name}
                 category={category}
                 tools={category.tools}
-                toolHref={toolDocsHref}
                 headingLevel="h3"
               />
             ))}
@@ -87,23 +89,26 @@ export default function Home() {
             <div>
               <dt className="font-medium">No uploads</dt>
               <dd className="mt-2 text-sm leading-6 text-muted-foreground">
-                Your files are read and written on your own machine by engines
-                that ship inside the app: FFmpeg, ImageMagick and pdf.js.
+                Your files are read and written on your own device by engines
+                that run there, in the browser and in the app alike: FFmpeg,
+                ImageMagick and pdf.js.
               </dd>
             </div>
             <div>
-              <dt className="font-medium">No network</dt>
+              <dt className="font-medium">No file traffic</dt>
               <dd className="mt-2 text-sm leading-6 text-muted-foreground">
-                The app blocks outbound requests. The one exception is Git
-                Scaffold, which asks GitHub for a repository&apos;s file list
-                when you use it.
+                No tool sends your files anywhere. The one tool that goes online
+                is Git Scaffold, which asks GitHub for a repository&apos;s file
+                list when you use it. The Windows app blocks every other
+                outbound request.
               </dd>
             </div>
             <div>
-              <dt className="font-medium">No account, no telemetry</dt>
+              <dt className="font-medium">No account</dt>
               <dd className="mt-2 text-sm leading-6 text-muted-foreground">
-                There is nothing to sign in to, and the app collects nothing
-                about you or your files.
+                There is nothing to sign in to. This website counts page views
+                and reports script errors, and never sees your files. The
+                Windows app collects nothing.
               </dd>
             </div>
           </dl>

@@ -10,14 +10,12 @@ interface ToolPillProps {
   tool: ToolDefinition;
   isInDevelopment?: boolean;
   accentColor?: string;
-  href?: string;
 }
 
 export function ToolPill({
   tool,
   isInDevelopment = false,
   accentColor,
-  href,
 }: ToolPillProps) {
   const Icon = tool.icon;
   const label = tool.shortName ?? tool.name;
@@ -61,7 +59,7 @@ export function ToolPill({
 
   return (
     <Link
-      href={href ?? tool.href}
+      href={tool.href}
       className={pillClass}
       style={
         accentColor

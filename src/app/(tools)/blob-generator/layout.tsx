@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("blob-generator");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "CSS Blob Generator",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("blob-generator");
 
 export default function Layout({
   children,

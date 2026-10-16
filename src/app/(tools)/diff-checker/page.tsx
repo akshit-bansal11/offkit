@@ -226,7 +226,7 @@ function DiffCheckerTool() {
             </Badge>
             <Badge
               variant="outline"
-              className="border-white/15 bg-white/[0.06] px-2 py-0.5 text-white/80"
+              className="bg-green-500/10 text-green-400 border-green-500/20 px-2 py-0.5"
             >
               Added
             </Badge>
@@ -245,22 +245,22 @@ function DiffCheckerTool() {
               {diffResult.map((part, index) => {
                 if (part.added) {
                   return (
-                    <span
+                    <ins
                       key={index}
-                      className="rounded-sm bg-white/[0.12] px-0.5 font-semibold text-white/85"
+                      className="rounded-sm bg-green-500/20 px-0.5 font-semibold text-green-300 no-underline"
                     >
                       {part.value}
-                    </span>
+                    </ins>
                   );
                 }
                 if (part.removed) {
                   return (
-                    <span
+                    <del
                       key={index}
                       className="bg-red-500/20 text-red-300 line-through opacity-70 px-0.5 rounded-sm"
                     >
                       {part.value}
-                    </span>
+                    </del>
                   );
                 }
                 return (

@@ -8,7 +8,6 @@ interface CategoryCardProps {
   category: ToolCategoryDefinition;
   tools: ToolDefinition[];
   inDevelopmentSlugs?: Set<string>;
-  toolHref?: (tool: ToolDefinition) => string;
   headingLevel?: "h2" | "h3";
 }
 
@@ -16,7 +15,6 @@ export function CategoryCard({
   category,
   tools,
   inDevelopmentSlugs,
-  toolHref,
   headingLevel = "h2",
 }: CategoryCardProps) {
   const Heading = headingLevel;
@@ -89,7 +87,6 @@ export function CategoryCard({
                 tool={tool}
                 isInDevelopment={inDevelopmentSlugs?.has(tool.slug)}
                 accentColor={accent}
-                href={toolHref?.(tool)}
               />
             ))}
           </div>

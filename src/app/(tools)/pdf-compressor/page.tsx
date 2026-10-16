@@ -1,9 +1,9 @@
 "use client";
 
 import { Download, File, ImageIcon, Loader2, Minimize2, X } from "lucide-react";
-import { PDFDocument } from "pdf-lib";
 import React, { useState } from "react";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { NotSmallerNotice } from "@/components/tools/pdf/NotSmallerNotice";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
@@ -11,7 +11,9 @@ import { FileDropZoneCard } from "@/components/ui/interaction/FileDropZoneCard";
 import { Card } from "@/components/ui/layout/Card";
 import { Slider } from "@/components/ui/Slider";
 import { getToolBySlug } from "@/config/tools";
+import { compressPdf } from "@/lib/pdf/compress";
 import { pdfjsLib } from "@/lib/pdf/pdfjs";
+import { formatFileSize } from "@/lib/tools/pdf-toolkit/utils";
 
 const tool = getToolBySlug("pdf-compressor");
 
@@ -24,18 +26,6 @@ export default function PdfCompressorPage() {
   );
 }
 
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function bytesToPdfBlob(bytes: Uint8Array): Blob {
-  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(arrayBuffer).set(bytes);
-  return new Blob([arrayBuffer], { type: "application/pdf" });
-}
-
 function PdfCompressorTool() {
   const [file, setFile] = useState<File | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -46,10 +36,12 @@ function PdfCompressorTool() {
   const [error, setError] = useState<string | null>(null);
   const [outputSize, setOutputSize] = useState<number | null>(null);
   const [outputUrl, setOutputUrl] = useState<string | null>(null);
+  const [notSmaller, setNotSmaller] = useState(false);
 
   const handleFile = async (f: File) => {
     setFile(f);
     setError(null);
+    setNotSmaller(false);
     setOutputSize(null);
     setOutputUrl(null);
     try {
@@ -66,44 +58,23 @@ function PdfCompressorTool() {
     setIsProcessing(true);
     setProgress(0);
     setError(null);
+    setNotSmaller(false);
     if (outputUrl) URL.revokeObjectURL(outputUrl);
     setOutputUrl(null);
+    setOutputSize(null);
 
     try {
-      const buf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-      const total = pdf.numPages;
-      const newPdf = await PDFDocument.create();
-
-      for (let i = 1; i <= total; i++) {
-        const page = await pdf.getPage(i);
-        const vp = page.getViewport({ scale: renderScale });
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d")!;
-        canvas.width = vp.width;
-        canvas.height = vp.height;
-        await page.render({ canvas, canvasContext: ctx, viewport: vp }).promise;
-        const blob = await new Promise<Blob | null>((res) =>
-          canvas.toBlob(res, "image/jpeg", jpegQuality / 100),
-        );
-        if (blob) {
-          const imgBytes = await blob.arrayBuffer();
-          const jpegImg = await newPdf.embedJpg(imgBytes);
-          const newPage = newPdf.addPage([jpegImg.width, jpegImg.height]);
-          newPage.drawImage(jpegImg, {
-            x: 0,
-            y: 0,
-            width: jpegImg.width,
-            height: jpegImg.height,
-          });
-        }
-        setProgress(Math.round((i / total) * 90));
+      const blob = await compressPdf(file, {
+        scale: renderScale,
+        quality: jpegQuality,
+        onProgress: (fraction) => setProgress(Math.round(fraction * 90)),
+      });
+      if (blob) {
+        setOutputSize(blob.size);
+        setOutputUrl(URL.createObjectURL(blob));
+      } else {
+        setNotSmaller(true);
       }
-
-      const bytes = await newPdf.save();
-      const blob = bytesToPdfBlob(bytes);
-      setOutputSize(blob.size);
-      setOutputUrl(URL.createObjectURL(blob));
       setProgress(100);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Compression failed.");
@@ -156,6 +127,7 @@ function PdfCompressorTool() {
               setPageCount(0);
               setOutputSize(null);
               setOutputUrl(null);
+              setNotSmaller(false);
             }}
           >
             <X className="size-4" />
@@ -257,6 +229,10 @@ function PdfCompressorTool() {
               </div>
             )}
 
+            {notSmaller && !isProcessing && (
+              <NotSmallerNotice className="flex-1" />
+            )}
+
             <div className="ml-auto flex items-center gap-2">
               {outputUrl && (
                 <Button
@@ -297,7 +273,10 @@ function PdfCompressorTool() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <div
+          role="alert"
+          className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+        >
           {error}
         </div>
       )}

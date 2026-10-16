@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "release/**",
     "next-env.d.ts",
     "color-space/**",
+    ".claude/worktrees/**",
+    "desktop/target/**",
   ]),
 ]);
 

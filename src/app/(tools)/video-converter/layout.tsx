@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("video-converter");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "Video Converter",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("video-converter");
 
 export default function Layout({
   children,
