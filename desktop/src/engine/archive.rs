@@ -2143,7 +2143,7 @@ mod tests {
         let dir = temp_dir("write-resized");
         let root = fixture(&dir);
         let cancel = CancelToken::default();
-        let plan = plan(&[root.clone()], None, MAX_ENTRIES, &cancel).unwrap();
+        let plan = plan(std::slice::from_ref(&root), None, MAX_ENTRIES, &cancel).unwrap();
         fs::write(root.join("readme.txt"), "changed after the walk\n").unwrap();
 
         let out = dir.join("out.zip");
