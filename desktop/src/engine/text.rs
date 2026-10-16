@@ -79,6 +79,36 @@ pub fn counted(n: usize, one: &str, many: &str) -> String {
     format!("{grouped} {}", if n == 1 { one } else { many })
 }
 
+/// `text` as literal text inside the markup that `slint::StyledText::from_markdown` reads. Every
+/// ASCII punctuation mark is backslash-escaped, so nothing in it can open emphasis, a link or an
+/// HTML tag. Leading and trailing spaces become no-break spaces, which markdown would otherwise
+/// strip (or, four of them, read as a code block). Tabs become four spaces, line breaks one.
+pub fn styled_literal(text: &str) -> String {
+    const INTERPOLATION: char = '\u{e541}';
+    let is_blank = |c: char| c == ' ' || c == '\t';
+    let start = text.len() - text.trim_start_matches(is_blank).len();
+    let end = text.trim_end_matches(is_blank).len().max(start);
+    let mut out = String::with_capacity(text.len() + text.len() / 4);
+    for (i, c) in text.char_indices() {
+        let edge = i < start || i >= end;
+        match c {
+            ' ' if edge => out.push('\u{a0}'),
+            '\t' if edge => out.push_str("\u{a0}\u{a0}\u{a0}\u{a0}"),
+            '\t' => out.push_str("    "),
+            '\r' | '\n' => out.push(' '),
+            // Slint reads this private-use character as "insert a value here" and refuses the
+            // markup that holds it.
+            INTERPOLATION => out.push('\u{fffd}'),
+            c if c.is_ascii_punctuation() => {
+                out.push('\\');
+                out.push(c);
+            }
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 /// A text file read whole.
 pub struct TextFile {
     pub name: String,
@@ -197,6 +227,34 @@ mod tests {
         let path = dir.join(name);
         std::fs::write(&path, bytes).unwrap();
         path
+    }
+
+    #[test]
+    fn styled_literals_render_markup_characters_as_typed() {
+        let nasty = "# **x** _y_ [l](javascript:y) <u>z</u> &amp; \\ `c` 1. - > | ~~s~~";
+
+        let styled = slint::StyledText::from_markdown(&styled_literal(nasty));
+
+        assert_eq!(styled, Ok(slint::StyledText::from_plain_text(nasty)));
+    }
+
+    #[test]
+    fn styled_literals_replace_slints_interpolation_character() {
+        let styled = slint::StyledText::from_markdown(&styled_literal("a\u{e541}b"));
+
+        assert_eq!(styled, Ok(slint::StyledText::from_plain_text("a\u{fffd}b")));
+    }
+
+    #[test]
+    fn styled_literals_keep_indentation() {
+        let styled = slint::StyledText::from_markdown(&styled_literal("    if x:\tgo  "));
+
+        assert_eq!(
+            styled,
+            Ok(slint::StyledText::from_plain_text(
+                "\u{a0}\u{a0}\u{a0}\u{a0}if x:    go\u{a0}\u{a0}"
+            ))
+        );
     }
 
     #[test]

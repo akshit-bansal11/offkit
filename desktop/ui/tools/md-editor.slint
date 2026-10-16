@@ -1,8 +1,346 @@
-// Markdown Editor: a placeholder until the text family builds it. Its state will live in the
-// `MdEditor` global, driven by src/tools/md_editor.rs.
+// Markdown Editor view: a formatting toolbar, the Markdown on the left and its preview on the
+// right. All state lives in the `MdEditor` global, which Rust drives (src/tools/md_editor.rs):
+// it parses the text into blocks and this file draws each kind.
 
-import { PlaceholderView } from "placeholder.slint";
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, IconButton } from "../components/controls.slint";
+import { Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
 
-export global MdEditor { }
+export enum MdKind { paragraph, heading, code, rule, table-row, item }
+export enum MdFormat { bold, italic, code, heading-1, heading-2, heading-3, link, quote, bullet, numbered, rule, table }
 
-export component MdEditorView inherits PlaceholderView { }
+// One block of the preview. `text` and `cells` are styled text; `label` is the block as plain
+// text, for screen readers. `task` is 0 for no checkbox, 1 unchecked, 2 checked.
+export struct MdBlock {
+    kind: MdKind,
+    level: int,
+    quote: int,
+    indent: int,
+    marker: string,
+    task: int,
+    text: styled-text,
+    label: string,
+    code: string,
+    cells: [styled-text],
+    header: bool,
+}
+
+export global MdEditor {
+    in-out property <string> text;
+    in property <[MdBlock]> blocks;
+    // "1,204 characters · 38 lines", of the Markdown.
+    in property <string> stats;
+    in property <string> error;
+    in property <string> note;
+    in property <bool> drop-hover;
+    // Where the toolbar left the selection, in UTF-8 byte offsets; `select-count` changes each
+    // time so the view re-applies it even when the offsets repeat.
+    in property <int> select-anchor;
+    in property <int> select-cursor;
+    in property <int> select-count;
+
+    // Typed into the Markdown; Rust waits for a pause before redrawing the preview.
+    callback edited();
+    // A toolbar button, with the selection it acts on.
+    callback format(MdFormat, int, int);
+    callback open-file();
+    callback save-file();
+    callback export-html();
+    callback reset();
+    callback open-link(string);
+}
+
+// One block of the preview: its quote bars, its marker, then its content.
+component MdBlockView {
+    in property <MdBlock> block;
+    callback link-clicked(string);
+
+    property <bool> flowing: root.block.kind == MdKind.paragraph || root.block.kind == MdKind.item;
+
+    accessible-role: text;
+    accessible-label: root.block.label;
+
+    HorizontalLayout {
+        spacing: Theme.space-2;
+        padding-left: root.block.indent * Theme.space-5;
+        padding-bottom: root.block.kind == MdKind.heading ? Theme.space-2 : Theme.space-3;
+
+        for bar in root.block.quote: Rectangle {
+            width: 3px;
+            background: Theme.border-control;
+        }
+
+        if root.block.kind == MdKind.item && root.block.task == 0: Text {
+            width: Theme.space-5;
+            text: root.block.marker;
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            horizontal-alignment: right;
+            vertical-alignment: top;
+        }
+        if root.block.kind == MdKind.item && root.block.task != 0: Rectangle {
+            width: Theme.icon-size-small;
+            height: Theme.icon-size-small;
+            border-radius: Theme.radius-nested;
+            border-width: 1px;
+            border-color: Theme.border-control;
+            background: root.block.task == 2 ? Theme.accent : transparent;
+
+            if root.block.task == 2: Image {
+                source: AppIcons.check;
+                colorize: Theme.on-accent;
+                width: Theme.icon-size-small - 4px;
+                height: Theme.icon-size-small - 4px;
+            }
+        }
+
+        if root.flowing: StyledText {
+            horizontal-stretch: 1;
+            text: root.block.text;
+            default-color: Theme.text-primary;
+            default-font-size: Theme.size-body;
+            default-font-family: Theme.font-family;
+            link-color: Theme.accent-text;
+            link-clicked(url) => { root.link-clicked(url); }
+        }
+
+        if root.block.kind == MdKind.heading: VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: Theme.space-1;
+
+            StyledText {
+                text: root.block.text;
+                default-color: Theme.text-primary;
+                default-font-family: Theme.font-family;
+                default-font-size: root.block.level == 1 ? Theme.size-large-title : root.block.level == 2 ? Theme.size-title : root.block.level == 3 ? Theme.size-headline : Theme.size-body;
+                link-color: Theme.accent-text;
+            }
+            if root.block.level <= 2: Rectangle {
+                height: 1px;
+                background: Theme.separator;
+            }
+        }
+
+        if root.block.kind == MdKind.code: Rectangle {
+            horizontal-stretch: 1;
+            height: code-text.preferred-height + 2 * Theme.space-2;
+            border-radius: Theme.radius-control;
+            background: Theme.bg-grouped;
+
+            code-text := Text {
+                x: Theme.space-2;
+                y: Theme.space-2;
+                width: parent.width - 2 * Theme.space-2;
+                text: root.block.code;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                font-family: Theme.font-family-mono;
+                wrap: word-wrap;
+            }
+        }
+
+        if root.block.kind == MdKind.rule: Rectangle {
+            horizontal-stretch: 1;
+            height: 1px;
+            background: Theme.separator;
+        }
+
+        if root.block.kind == MdKind.table-row: HorizontalLayout {
+            horizontal-stretch: 1;
+
+            for cell in root.block.cells: Rectangle {
+                horizontal-stretch: 1;
+                min-width: 0;
+                height: cell-text.preferred-height + 2 * Theme.space-1;
+                border-width: 1px;
+                border-color: Theme.separator;
+                background: root.block.header ? Theme.bg-control-track : transparent;
+
+                cell-text := StyledText {
+                    x: Theme.space-2;
+                    y: Theme.space-1;
+                    width: parent.width - 2 * Theme.space-2;
+                    text: cell;
+                    default-color: Theme.text-primary;
+                    default-font-size: Theme.size-body;
+                    default-font-family: Theme.font-family;
+                    link-color: Theme.accent-text;
+                    link-clicked(url) => { root.link-clicked(url); }
+                }
+            }
+        }
+    }
+}
+
+export component MdEditorView inherits VerticalLayout {
+    // Re-applies the selection the toolbar chose once Rust has put the new text in the pane.
+    property <int> select-count: MdEditor.select-count;
+
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    changed select-count => {
+        editor.select(MdEditor.select-anchor, MdEditor.select-cursor);
+    }
+
+    HorizontalLayout {
+        spacing: Theme.space-1;
+
+        IconButton {
+            icon: AppIcons.bold;
+            label: "Bold";
+            clicked => { MdEditor.format(MdFormat.bold, editor.selection-anchor, editor.selection-cursor); }
+        }
+        IconButton {
+            icon: AppIcons.italic;
+            label: "Italic";
+            clicked => { MdEditor.format(MdFormat.italic, editor.selection-anchor, editor.selection-cursor); }
+        }
+        IconButton {
+            icon: AppIcons.code;
+            label: "Inline code";
+            clicked => { MdEditor.format(MdFormat.code, editor.selection-anchor, editor.selection-cursor); }
+        }
+        Rectangle { width: Theme.space-2; }
+        IconButton {
+            icon: AppIcons.heading-1;
+            label: "Heading 1";
+            clicked => { MdEditor.format(MdFormat.heading-1, editor.selection-anchor, editor.selection-cursor); }
+        }
+        IconButton {
+            icon: AppIcons.heading-2;
+            label: "Heading 2";
+            clicked => { MdEditor.format(MdFormat.heading-2, editor.selection-anchor, editor.selection-cursor); }
+        }
+        IconButton {
+            icon: AppIcons.heading-3;
+            label: "Heading 3";
+            clicked => { MdEditor.format(MdFormat.heading-3, editor.selection-anchor, editor.selection-cursor); }
+        }
+        Rectangle { width: Theme.space-2; }
+        IconButton {
+            icon: AppIcons.link;
+            label: "Link";
+            clicked => { MdEditor.format(MdFormat.link, editor.selection-anchor, editor.selection-cursor); }
+        }
+        IconButton {
+            icon: AppIcons.quote;
+            label: "Quote";
+            clicked => { MdEditor.format(MdFormat.quote, editor.selection-anchor, editor.selection-cursor); }
+        }
+        IconButton {
+            icon: AppIcons.bullet-list;
+            label: "Bulleted list";
+            clicked => { MdEditor.format(MdFormat.bullet, editor.selection-anchor, editor.selection-cursor); }
+        }
+        IconButton {
+            icon: AppIcons.numbered-list;
+            label: "Numbered list";
+            clicked => { MdEditor.format(MdFormat.numbered, editor.selection-anchor, editor.selection-cursor); }
+        }
+        IconButton {
+            icon: AppIcons.rule;
+            label: "Horizontal rule";
+            clicked => { MdEditor.format(MdFormat.rule, editor.selection-anchor, editor.selection-cursor); }
+        }
+        IconButton {
+            icon: AppIcons.table;
+            label: "Table";
+            clicked => { MdEditor.format(MdFormat.table, editor.selection-anchor, editor.selection-cursor); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        HorizontalLayout {
+            spacing: Theme.space-3;
+
+            Button {
+                text: "Open…";
+                kind: ButtonKind.secondary;
+                clicked => { MdEditor.open-file(); }
+            }
+            Button {
+                text: "Save…";
+                kind: ButtonKind.secondary;
+                clicked => { MdEditor.save-file(); }
+            }
+            Button {
+                text: "Export HTML…";
+                kind: ButtonKind.secondary;
+                clicked => { MdEditor.export-html(); }
+            }
+            Button {
+                text: "Reset";
+                kind: ButtonKind.plain;
+                clicked => { MdEditor.reset(); }
+            }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Theme.space-4;
+        vertical-stretch: 1;
+
+        Pane {
+            PaneHeader {
+                title: "Markdown";
+
+                Text {
+                    text: MdEditor.stats;
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-callout;
+                    vertical-alignment: center;
+                }
+            }
+            editor := TextPane {
+                label: "Markdown";
+                text <=> MdEditor.text;
+                placeholder: "Write Markdown, or drop a .md file.";
+                drop-hover: MdEditor.drop-hover;
+                edited => { MdEditor.edited(); }
+            }
+        }
+
+        Pane {
+            PaneHeader {
+                title: "Preview";
+            }
+            Rectangle {
+                vertical-stretch: 1;
+                border-radius: Theme.radius-group;
+                background: Theme.bg-surface-raised;
+                clip: true;
+                accessible-role: groupbox;
+                accessible-label: "Preview";
+
+                ScrollView {
+                    VerticalLayout {
+                        padding: Theme.space-4;
+                        alignment: start;
+
+                        for block in MdEditor.blocks: MdBlockView {
+                            block: block;
+                            link-clicked(url) => { MdEditor.open-link(url); }
+                        }
+                    }
+                }
+                if MdEditor.blocks.length == 0: Text {
+                    text: "Nothing to preview yet.";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-body;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    if MdEditor.error != "": Notice {
+        text: MdEditor.error;
+        tone: NoticeTone.error;
+    }
+    if MdEditor.error == "" && MdEditor.note != "": Notice {
+        text: MdEditor.note;
+    }
+}
