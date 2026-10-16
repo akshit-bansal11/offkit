@@ -8,15 +8,24 @@
 //!
 //! The trim is applied inside the filtergraph, before speed and pitch: the website's output
 //! `-ss`/`-to` ran after its filters, so at any speed but 1× it cut the wrong stretch.
+//!
+//! Play renders the edited stretch to a temporary WAV and plays it in the app. The audio
+//! output lives on its own thread (`Engine`), which the UI thread only sends commands to and
+//! reads a report from, so it never waits on the device. While the user is listening, a change
+//! to a setting that then holds still re-renders the preview and carries on from the same spot.
 
 use std::cell::RefCell;
 use std::ffi::OsString;
+use std::fs::File;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::mpsc::{self, Sender};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 
 use anyhow::bail;
+use rodio::{Decoder, DeviceSinkBuilder, MixerDeviceSink, Player};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::engine::ffmpeg::{Chain, Ffmpeg, Filter, Graph};
@@ -32,6 +41,13 @@ use crate::{AppWindow, AudioEditor, AudioEditorStage};
 pub const SLUG: &str = "audio-editor";
 /// Bars in the waveform; drawn scaled to the view's width.
 const BARS: usize = 240;
+/// How often the playhead follows the engine and the settings are checked.
+const TICK: Duration = Duration::from_millis(50);
+/// How long the settings must hold still before a playing preview is re-rendered.
+const SETTLE: Duration = Duration::from_millis(400);
+/// How often the engine thread refreshes its report between commands.
+const POLL: Duration = Duration::from_millis(30);
+const ENGINE_GONE: &str = "Audio playback stopped unexpectedly. Press Play to try again.";
 
 // ---- Logic --------------------------------------------------------------------------------
 
@@ -56,6 +72,57 @@ impl Edit {
     fn output_seconds(&self) -> f64 {
         (self.end - self.start).max(0.0) / self.speed
     }
+
+    /// The source time heard `output` seconds into this edit's preview. The preview is the kept
+    /// stretch at `speed`, so the playhead covers `speed` source seconds per second; it stays
+    /// within the kept stretch.
+    fn source_time(&self, output: f64) -> f64 {
+        (self.start + output * self.speed).max(self.start).min(self.end)
+    }
+
+    /// How far into this edit's preview `source` falls: the inverse of `source_time`, so a
+    /// seek outside the kept stretch lands on its nearest edge.
+    fn output_time(&self, source: f64) -> f64 {
+        (source.max(self.start).min(self.end) - self.start) / self.speed
+    }
+}
+
+/// Where playback is.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum PlayState {
+    /// Nothing loaded in the engine, or it was stopped.
+    #[default]
+    Idle,
+    Playing,
+    Paused,
+    /// Played to the end; Play starts again from the beginning.
+    Ended,
+}
+
+impl PlayState {
+    /// After Play / Pause (or the space bar): playing pauses, anything else plays.
+    fn toggled(self) -> Self {
+        match self {
+            Self::Playing => Self::Paused,
+            Self::Idle | Self::Paused | Self::Ended => Self::Playing,
+        }
+    }
+
+    /// After the engine reports the end of the preview.
+    fn finished(self) -> Self {
+        match self {
+            Self::Playing => Self::Ended,
+            other => other,
+        }
+    }
+}
+
+/// Where to carry on from, and whether to play, once the preview being rendered is ready.
+#[derive(Debug, Clone, Copy)]
+struct Resume {
+    /// A time in the source, in seconds.
+    at: f64,
+    play: bool,
 }
 
 /// The website's tolerances: below these a setting counts as untouched.
@@ -147,6 +214,184 @@ fn sample_rate(
     Ok(header.sample_rate)
 }
 
+// ---- Sound --------------------------------------------------------------------------------
+
+/// What the UI thread asks of the engine thread.
+enum Command {
+    /// Plays a preview from `at` seconds in: the new `wav`, or (`None`) the one it still holds.
+    /// `serial` names this load in the engine's reports.
+    Open {
+        wav: Option<Reserved>,
+        at: f64,
+        play: bool,
+        serial: u64,
+    },
+    Play,
+    Pause,
+    /// Jumps within the loaded preview, in seconds.
+    Seek(f64),
+    /// Stops playing; with `release`, also lets go of (and so deletes) the preview file.
+    Stop { release: bool },
+}
+
+/// What the engine thread tells the UI thread, refreshed every `POLL`.
+#[derive(Default)]
+struct Report {
+    /// The `Open` this describes; a report for an older one is stale and ignored.
+    serial: u64,
+    /// Seconds into the preview.
+    position: f64,
+    /// The preview has played to its end.
+    ended: bool,
+    /// What went wrong since the UI last looked; taken when read.
+    error: Option<String>,
+}
+
+fn lock(report: &Mutex<Report>) -> MutexGuard<'_, Report> {
+    // A poisoned lock only means the engine thread panicked mid-update; its fields stay valid.
+    report.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// The UI thread's end of a running engine.
+struct Audio {
+    commands: Sender<Command>,
+    report: Arc<Mutex<Report>>,
+}
+
+/// Owns the audio output and the player on the engine thread: the output stream is `!Send` on
+/// some platforms, so it is created there, lazily, on the first Play. No device (a server, CI,
+/// headphones unplugged) is an error in the report rather than a crash, and the next Play tries
+/// again.
+struct Engine {
+    report: Arc<Mutex<Report>>,
+    sink: Option<MixerDeviceSink>,
+    player: Option<Player>,
+    /// The preview file; kept open by the player only while it plays.
+    wav: Option<Reserved>,
+    serial: u64,
+}
+
+impl Engine {
+    fn new(report: Arc<Mutex<Report>>) -> Self {
+        Self {
+            report,
+            sink: None,
+            player: None,
+            wav: None,
+            serial: 0,
+        }
+    }
+
+    /// Serves commands until the UI thread drops its sender.
+    fn run(mut self, commands: mpsc::Receiver<Command>) {
+        loop {
+            match commands.recv_timeout(POLL) {
+                Ok(command) => self.apply(command),
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => return,
+            }
+            self.publish();
+        }
+    }
+
+    fn apply(&mut self, command: Command) {
+        let result = match command {
+            Command::Open {
+                wav,
+                at,
+                play,
+                serial,
+            } => {
+                self.serial = serial;
+                self.open(wav, at, play)
+            }
+            Command::Play => {
+                if let Some(player) = &self.player {
+                    player.play();
+                }
+                Ok(())
+            }
+            Command::Pause => {
+                if let Some(player) = &self.player {
+                    player.pause();
+                }
+                Ok(())
+            }
+            Command::Seek(at) => self.seek(at),
+            Command::Stop { release } => {
+                // The player holds the file open, so it goes first.
+                self.player = None;
+                if release {
+                    self.wav = None;
+                }
+                Ok(())
+            }
+        };
+        if let Err(message) = result {
+            lock(&self.report).error = Some(message);
+        }
+    }
+
+    fn open(&mut self, wav: Option<Reserved>, at: f64, play: bool) -> Result<(), String> {
+        // Release the old file before a new one replaces it: Windows won't delete an open file.
+        self.player = None;
+        if wav.is_some() {
+            self.wav = wav;
+        }
+        let Some(wav) = &self.wav else {
+            return Err("There is no preview to play".into());
+        };
+        if self.sink.is_none() {
+            let mut sink = DeviceSinkBuilder::open_default_sink()
+                .map_err(|e| format!("No audio output is available: {e}"))?;
+            sink.log_on_drop(false);
+            self.sink = Some(sink);
+        }
+        let Some(sink) = &self.sink else {
+            return Err("No audio output is available".into());
+        };
+        let file = File::open(wav.path())
+            .map_err(|e| format!("Couldn't open the preview: {e}"))?;
+        let decoder = Decoder::try_from(file)
+            .map_err(|e| format!("Couldn't read the preview: {e}"))?;
+        let player = Player::connect_new(sink.mixer());
+        // Paused until it is in place, so a jump doesn't play the first moments.
+        player.pause();
+        player.append(decoder);
+        if at > 0.0 {
+            player
+                .try_seek(Duration::from_secs_f64(at))
+                .map_err(|e| format!("Couldn't jump to that point: {e}"))?;
+        }
+        if play {
+            player.play();
+        }
+        self.player = Some(player);
+        Ok(())
+    }
+
+    fn seek(&self, at: f64) -> Result<(), String> {
+        match &self.player {
+            Some(player) => player
+                .try_seek(Duration::from_secs_f64(at.max(0.0)))
+                .map_err(|e| format!("Couldn't jump to that point: {e}")),
+            None => Ok(()),
+        }
+    }
+
+    fn publish(&self) {
+        let mut report = lock(&self.report);
+        report.serial = self.serial;
+        match &self.player {
+            Some(player) => {
+                report.position = player.get_pos().as_secs_f64();
+                report.ended = player.empty();
+            }
+            None => report.ended = false,
+        }
+    }
+}
+
 // ---- State --------------------------------------------------------------------------------
 
 #[derive(Default)]
@@ -161,8 +406,20 @@ struct State {
     load: Option<Arc<CancelToken>>,
     export: Option<Arc<CancelToken>>,
     preview: Option<Arc<CancelToken>>,
-    /// The last preview, open in the user's player; replacing or dropping it deletes the file.
-    preview_file: Option<Reserved>,
+    /// The engine thread, started by the first Play.
+    audio: Option<Audio>,
+    play: PlayState,
+    /// The `Open` the UI expects reports for.
+    serial: u64,
+    /// The settings the engine's preview was rendered with: positions map through these.
+    rendered: Option<Edit>,
+    /// The settings a preview was last asked for, so a failed one isn't retried until they change.
+    requested: Option<Edit>,
+    /// Set while a preview is being rendered, taken when it lands.
+    resume: Option<Resume>,
+    /// The settings last seen and since when, to tell when they have held still.
+    settling: Option<(Edit, Instant)>,
+    ticker: slint::Timer,
     exported: Option<PathBuf>,
     workers: Vec<JoinHandle<()>>,
 }
@@ -285,10 +542,24 @@ pub fn init(app: &AppWindow) {
         g.set_export_message("Export cancelled".into());
     });
     let weak = app.as_weak();
-    g.on_preview(move || {
+    g.on_toggle_playback(move || {
         if let Some(app) = weak.upgrade() {
-            preview(&app);
+            toggle(&app);
         }
+    });
+    let weak = app.as_weak();
+    g.on_seek(move |seconds| {
+        if let Some(app) = weak.upgrade() {
+            seek(&app, f64::from(seconds));
+        }
+    });
+    let weak = app.as_weak();
+    with(|s| {
+        s.ticker.start(slint::TimerMode::Repeated, TICK, move || {
+            if let Some(app) = weak.upgrade() {
+                tick(&app);
+            }
+        });
     });
     g.on_reveal(|| {
         if let Some(path) = with(|s| s.exported.clone()) {
@@ -321,13 +592,13 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
             token.cancel();
         }
     }
+    halt(app, true);
     let token = begin(Slot::Load);
     let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or_default();
     with(|s| {
         s.file = Some(path.clone());
         s.duration = 0.0;
         s.sample_rate = None;
-        s.preview_file = None;
         s.exported = None;
     });
     let g = app.global::<AudioEditor>();
@@ -407,9 +678,9 @@ fn close(app: &AppWindow) {
             token.cancel();
         }
     }
+    halt(app, true);
     with(|s| {
         s.file = None;
-        s.preview_file = None;
         s.exported = None;
     });
     let g = app.global::<AudioEditor>();
@@ -528,11 +799,225 @@ fn export(app: &AppWindow) {
     });
 }
 
-/// Renders the edited stretch to a temporary WAV and opens it in the user's default player:
-/// live playback would need an audio-output crate (such as rodio), which the app doesn't have.
-fn preview(app: &AppWindow) {
+// ---- Playback -----------------------------------------------------------------------------
+
+/// Records `play` and shows it: the buttons, and whether the playhead is drawn.
+fn set_play_state(app: &AppWindow, play: PlayState) {
+    with(|s| s.play = play);
+    let g = app.global::<AudioEditor>();
+    g.set_playing(play == PlayState::Playing);
+    g.set_ended(play == PlayState::Ended);
+    g.set_playhead_visible(play != PlayState::Idle);
+}
+
+/// Sends `command` to the engine, if one is running. If its thread has died, the next Play
+/// starts a fresh one.
+fn send(app: &AppWindow, command: Command) {
+    let Some(commands) = with(|s| s.audio.as_ref().map(|a| a.commands.clone())) else {
+        return;
+    };
+    if commands.send(command).is_err() {
+        with(|s| s.audio = None);
+        set_play_state(app, PlayState::Idle);
+        let g = app.global::<AudioEditor>();
+        g.set_playback_message(ENGINE_GONE.into());
+    }
+}
+
+/// Starts the engine thread if it isn't running.
+fn ensure_engine() {
+    if with(|s| s.audio.is_some()) {
+        return;
+    }
+    let (commands, receiver) = mpsc::channel();
+    let report = Arc::new(Mutex::new(Report::default()));
+    let shared = report.clone();
+    // The engine is built inside the thread: its output stream can't be sent to one.
+    spawn(move || Engine::new(shared).run(receiver));
+    with(|s| s.audio = Some(Audio { commands, report }));
+}
+
+/// Stops playing and hides the playhead. With `release`, the engine also lets go of the
+/// preview, for when the file closes or another opens.
+fn halt(app: &AppWindow, release: bool) {
+    with(|s| {
+        s.serial += 1;
+        s.resume = None;
+        s.settling = None;
+        if release {
+            s.rendered = None;
+            s.requested = None;
+        }
+    });
+    send(app, Command::Stop { release });
+    set_play_state(app, PlayState::Idle);
+    if release {
+        app.global::<AudioEditor>().set_playback_message("".into());
+    }
+}
+
+/// Plays the engine's preview, rendered with `edit`, from the source time `at`: `wav` is a
+/// freshly rendered one, `None` is the one the engine still holds. `play` false leaves it paused.
+fn open_preview(app: &AppWindow, wav: Option<Reserved>, edit: Edit, at: f64, play: bool) {
+    ensure_engine();
+    let serial = with(|s| {
+        s.serial += 1;
+        s.rendered = Some(edit);
+        s.settling = None;
+        s.serial
+    });
+    let seconds = edit.output_time(at);
+    let g = app.global::<AudioEditor>();
+    g.set_playback_message("".into());
+    g.set_playhead(edit.source_time(seconds) as f32);
+    let state = if play {
+        PlayState::Playing
+    } else {
+        PlayState::Paused
+    };
+    set_play_state(app, state);
+    let command = Command::Open {
+        wav,
+        at: seconds,
+        play,
+        serial,
+    };
+    send(app, command);
+}
+
+/// Plays from the source time `at`, or loads the preview there paused: straight away when the
+/// engine holds one for the current settings, else once one has been rendered.
+fn start_at(app: &AppWindow, at: f64, play: bool) {
+    let edit = current_edit(app);
+    if with(|s| s.rendered) == Some(edit) {
+        open_preview(app, None, edit, at, play);
+    } else {
+        with(|s| s.resume = Some(Resume { at, play }));
+        render(app);
+    }
+}
+
+/// Play, Pause, Replay and the space bar.
+fn toggle(app: &AppWindow) {
+    let state = with(|s| s.play);
+    match state {
+        PlayState::Playing => send(app, Command::Pause),
+        PlayState::Paused => send(app, Command::Play),
+        PlayState::Idle | PlayState::Ended => {
+            start_at(app, current_edit(app).start, true);
+            return;
+        }
+    }
+    set_play_state(app, state.toggled());
+}
+
+/// A click or drag on the waveform: jump to the source time `at`, clamped to the kept stretch.
+fn seek(app: &AppWindow, at: f64) {
+    let edit = current_edit(app);
+    let at = at.max(edit.start).min(edit.end);
+    let (state, rendered, rendering) = with(|s| {
+        if let Some(resume) = &mut s.resume {
+            resume.at = at;
+        }
+        (s.play, s.rendered, s.preview.is_some())
+    });
+    match (state, rendered) {
+        (PlayState::Playing | PlayState::Paused, Some(basis)) => {
+            let seconds = basis.output_time(at);
+            send(app, Command::Seek(seconds));
+            app.global::<AudioEditor>()
+                .set_playhead(basis.source_time(seconds) as f32);
+        }
+        // The engine's player is spent: load the preview again, paused at the new spot.
+        (PlayState::Ended, Some(basis)) => open_preview(app, None, basis, at, false),
+        // A drag on a preview still rendering only moves where it will start.
+        _ if rendering => {}
+        _ => start_at(app, at, true),
+    }
+}
+
+/// Once a tick: follow the engine, and re-render if the settings have moved.
+fn tick(app: &AppWindow) {
+    let g = app.global::<AudioEditor>();
+    if !matches!(g.get_stage(), AudioEditorStage::Ready) {
+        return;
+    }
+    if app.get_current_slug().as_str() != SLUG {
+        // Another tool is showing; whatever was playing stops.
+        if with(|s| s.play) != PlayState::Idle {
+            halt(app, false);
+        }
+        return;
+    }
+    follow(app);
+    refresh_settled(app);
+}
+
+/// Moves the playhead to where the engine is, and notices the preview ending or failing.
+fn follow(app: &AppWindow) {
+    let heard = with(|s| {
+        if s.play == PlayState::Idle {
+            return None;
+        }
+        let shared = s.audio.as_ref()?.report.clone();
+        let mut report = lock(&shared);
+        if report.serial != s.serial {
+            return None;
+        }
+        Some((report.position, report.ended, report.error.take(), s.rendered))
+    });
+    let Some((position, ended, error, rendered)) = heard else {
+        return;
+    };
+    let g = app.global::<AudioEditor>();
+    if let Some(message) = error {
+        // A failed jump leaves the player running, so stop it rather than only hide it.
+        halt(app, false);
+        g.set_playback_message(message.into());
+        return;
+    }
+    let Some(edit) = rendered else {
+        return;
+    };
+    if ended {
+        let finished = with(|s| s.play).finished();
+        set_play_state(app, finished);
+        g.set_playhead(edit.end as f32);
+    } else {
+        g.set_playhead(edit.source_time(position) as f32);
+    }
+}
+
+/// While the user is listening, re-renders the preview once the settings have held still, so
+/// dragging a slider doesn't start a render per step, and carries on from the same spot.
+fn refresh_settled(app: &AppWindow) {
+    let edit = current_edit(app);
+    let due = with(|s| {
+        if s.play == PlayState::Idle || s.requested == Some(edit) {
+            return false;
+        }
+        match s.settling {
+            Some((seen, since)) if seen == edit => since.elapsed() >= SETTLE,
+            _ => {
+                s.settling = Some((edit, Instant::now()));
+                false
+            }
+        }
+    });
+    if due {
+        let play = with(|s| s.play) == PlayState::Playing;
+        let at = f64::from(app.global::<AudioEditor>().get_playhead());
+        with(|s| s.resume = Some(Resume { at, play }));
+        render(app);
+    }
+}
+
+/// Renders the edited stretch to a temporary WAV and hands it to the engine, to play from
+/// wherever `resume` says.
+fn render(app: &AppWindow) {
     let g = app.global::<AudioEditor>();
     let edit = current_edit(app);
+    with(|s| s.requested = Some(edit));
     let prepared = with(|s| Some((s.ffmpeg.clone()?, s.file.clone()?, s.sample_rate)));
     let Some((ff, input, rate)) = prepared else {
         return;
@@ -540,8 +1025,8 @@ fn preview(app: &AppWindow) {
     let graph = match graph(&edit, rate) {
         Ok(graph) => graph,
         Err(e) => {
-            g.set_export_failed(true);
-            g.set_export_message(e.to_string().into());
+            with(|s| s.resume = None);
+            g.set_playback_message(e.to_string().into());
             return;
         }
     };
@@ -553,20 +1038,24 @@ fn preview(app: &AppWindow) {
         post_current(&weak, Slot::Preview, &token, move |app| {
             let g = app.global::<AudioEditor>();
             g.set_previewing(false);
-            with(|s| s.preview = None);
+            let resume = with(|s| {
+                s.preview = None;
+                s.resume.take()
+            });
             match result {
+                // The user moved to another tool while it rendered: nothing should start
+                // playing, and dropping the file deletes it.
+                Ok(_) if app.get_current_slug().as_str() != SLUG => {}
                 Ok(wav) => {
-                    if let Err(e) = open::that(wav.path()) {
-                        g.set_export_failed(true);
-                        g.set_export_message(format!("Couldn't open the preview: {e}").into());
-                    }
-                    // Kept until the next preview or until the app closes, while it plays.
-                    with(|s| s.preview_file = Some(wav));
+                    let resume = resume.unwrap_or(Resume {
+                        at: edit.start,
+                        play: false,
+                    });
+                    open_preview(app, Some(wav), edit, resume.at, resume.play);
                 }
                 Err(JobError::Cancelled) => {}
                 Err(JobError::Failed(message)) => {
-                    g.set_export_failed(true);
-                    g.set_export_message(format!("Preview failed: {message}").into());
+                    g.set_playback_message(format!("Preview failed: {message}").into());
                 }
             }
         });
@@ -579,7 +1068,8 @@ fn set_formats(app: &AppWindow) {
         .set_formats(select::options(labels.into_iter()));
 }
 
-/// Cancels the load, export and preview, deletes the preview file, and hands back the threads.
+/// Cancels the load, export and preview, stops playback (the engine thread ends and deletes the
+/// preview file once its sender is dropped), and hands back the threads.
 pub fn shutdown() -> Vec<JoinHandle<()>> {
     with(|s| {
         for token in [s.load.take(), s.export.take(), s.preview.take()]
@@ -588,7 +1078,8 @@ pub fn shutdown() -> Vec<JoinHandle<()>> {
         {
             token.cancel();
         }
-        s.preview_file = None;
+        s.ticker.stop();
+        s.audio = None;
         std::mem::take(&mut s.workers)
     })
 }
@@ -715,6 +1206,77 @@ mod tests {
     #[test]
     fn speeds_show_two_decimals() {
         assert_eq!(speed_label(1.0), "1.00×");
+    }
+
+    #[test]
+    fn the_playhead_starts_at_the_trim_start() {
+        assert_eq!(edit().source_time(0.0), 1.0);
+    }
+
+    #[test]
+    fn the_playhead_moves_at_the_playback_speed() {
+        let faster = Edit {
+            speed: 2.0,
+            ..edit()
+        };
+        let slower = Edit {
+            speed: 0.5,
+            ..edit()
+        };
+
+        assert_eq!(faster.source_time(1.0), 3.0);
+        assert_eq!(slower.source_time(1.0), 1.5);
+    }
+
+    #[test]
+    fn the_playhead_stops_at_the_trim_end() {
+        assert_eq!(edit().source_time(60.0), 5.5);
+    }
+
+    #[test]
+    fn a_seek_maps_back_through_the_speed() {
+        let faster = Edit {
+            speed: 2.0,
+            ..edit()
+        };
+
+        assert_eq!(faster.output_time(3.0), 1.0);
+        assert_eq!(faster.source_time(faster.output_time(3.0)), 3.0);
+    }
+
+    #[test]
+    fn a_seek_outside_the_trim_lands_on_its_nearest_edge() {
+        let faster = Edit {
+            speed: 2.0,
+            ..edit()
+        };
+
+        assert_eq!(faster.output_time(0.0), 0.0);
+        assert_eq!(faster.output_time(99.0), faster.output_seconds());
+    }
+
+    #[test]
+    fn play_pauses_and_resumes() {
+        assert_eq!(PlayState::Idle.toggled(), PlayState::Playing);
+        assert_eq!(PlayState::Playing.toggled(), PlayState::Paused);
+        assert_eq!(PlayState::Paused.toggled(), PlayState::Playing);
+    }
+
+    #[test]
+    fn play_after_the_end_starts_again() {
+        assert_eq!(PlayState::Ended.toggled(), PlayState::Playing);
+    }
+
+    #[test]
+    fn only_a_playing_preview_ends() {
+        assert_eq!(PlayState::Playing.finished(), PlayState::Ended);
+        assert_eq!(PlayState::Paused.finished(), PlayState::Paused);
+        assert_eq!(PlayState::Idle.finished(), PlayState::Idle);
+    }
+
+    #[test]
+    fn nothing_plays_until_asked() {
+        assert_eq!(PlayState::default(), PlayState::Idle);
     }
 
     // ---- Runs the real FFmpeg; skipped (with a note) when it isn't installed. ----
