@@ -9,7 +9,7 @@ import { AppIcons } from "../icons/icons.slint";
 import { FocusRing, SearchField } from "../components/controls.slint";
 import { CopyButton, Notice, NoticeTone } from "../components/editor.slint";
 
-export struct PaletteSwatch {
+export struct LibrarySwatch {
     color: color,
     hex: string,
     // The label reads in white on this colour, rather than black.
@@ -19,7 +19,7 @@ export struct PaletteSwatch {
 export struct PaletteCard {
     index: int,
     name: string,
-    swatches: [PaletteSwatch],
+    swatches: [LibrarySwatch],
 }
 
 export struct PaletteSection {
@@ -41,7 +41,7 @@ export global PaletteLibrary {
 
 // One colour of a palette: a button that copies its hex, which it shows.
 component SwatchButton inherits Rectangle {
-    in property <PaletteSwatch> swatch;
+    in property <LibrarySwatch> swatch;
     in property <bool> first;
     in property <bool> last;
 

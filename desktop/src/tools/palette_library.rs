@@ -10,7 +10,7 @@ use serde::Serialize;
 use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::engine::color::{self, Rgba};
-use crate::{AppWindow, PaletteCard, PaletteLibrary, PaletteSection, PaletteSwatch, clipboard};
+use crate::{AppWindow, LibrarySwatch, PaletteCard, PaletteLibrary, PaletteSection, clipboard};
 
 pub const SLUG: &str = "palette-library";
 
@@ -159,10 +159,10 @@ fn show(app: &AppWindow, query: &str) {
 
 fn card(i: usize) -> PaletteCard {
     let (name, colors) = PALETTES[i];
-    let swatches: Vec<PaletteSwatch> = colors
+    let swatches: Vec<LibrarySwatch> = colors
         .iter()
         .filter_map(|hex| color::parse(hex))
-        .map(|(_, c)| PaletteSwatch {
+        .map(|(_, c)| LibrarySwatch {
             color: color::slint_color(c),
             hex: color::hex(c).into(),
             light_ink: light_ink(c),
