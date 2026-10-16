@@ -633,12 +633,12 @@ mod tests {
 
     #[test]
     fn four_times_faster_is_two_doublings() {
-        assert_eq!(tempo_text(4.0), "atempo=2.0,atempo=2.0");
+        assert_eq!(tempo_text(4.0), "atempo=2.0,atempo=2.000000");
     }
 
     #[test]
     fn a_quarter_speed_is_two_halvings() {
-        assert_eq!(tempo_text(0.25), "atempo=0.5,atempo=0.5");
+        assert_eq!(tempo_text(0.25), "atempo=0.5,atempo=0.500000");
     }
 
     #[test]
@@ -660,7 +660,7 @@ mod tests {
 
         assert_eq!(
             graph_text(&shifted, Some(44100)),
-            "atrim=start=1.000:end=5.500,asetpts=PTS-STARTPTS,asetrate=88200,atempo=0.5,aresample=44100"
+            "atrim=start=1.000:end=5.500,asetpts=PTS-STARTPTS,asetrate=88200,atempo=0.500000,aresample=44100"
         );
     }
 
