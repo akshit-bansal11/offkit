@@ -133,12 +133,9 @@ fn paint_checker(pixmap: &mut Pixmap, cell: f32) {
     );
     for row in 0..rows {
         for column in (row % 2..columns).step_by(2) {
-            if let Some(rect) = tiny_skia::Rect::from_xywh(
-                column as f32 * cell,
-                row as f32 * cell,
-                cell,
-                cell,
-            ) {
+            if let Some(rect) =
+                tiny_skia::Rect::from_xywh(column as f32 * cell, row as f32 * cell, cell, cell)
+            {
                 pixmap.fill_rect(rect, &paint, tiny_skia::Transform::identity(), None);
             }
         }
@@ -241,7 +238,8 @@ mod tests {
 
     /// A 2×2 opaque red PNG in a fresh temp folder.
     fn red_png(test: &str) -> (PathBuf, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("open-tools-svg-{test}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("open-tools-svg-{test}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("red.png");
         ::image::RgbaImage::from_pixel(2, 2, ::image::Rgba([255, 0, 0, 255]))
@@ -362,8 +360,9 @@ mod tests {
 
     #[test]
     fn a_huge_declared_size_renders_within_the_pixmap_cap() {
-        let tree = parse(r#"<svg xmlns="http://www.w3.org/2000/svg" width="100000" height="50000"/>"#)
-            .unwrap();
+        let tree =
+            parse(r#"<svg xmlns="http://www.w3.org/2000/svg" width="100000" height="50000"/>"#)
+                .unwrap();
 
         let pixmap = render(&tree, 1.0).unwrap();
 
@@ -380,8 +379,14 @@ mod tests {
 
     #[test]
     fn hex_accepts_short_and_long_forms_with_or_without_hash() {
-        assert_eq!(parse_hex("#ABC"), Some(("#aabbcc".into(), [0xaa, 0xbb, 0xcc])));
-        assert_eq!(parse_hex(" 3b82f6 "), Some(("#3b82f6".into(), [0x3b, 0x82, 0xf6])));
+        assert_eq!(
+            parse_hex("#ABC"),
+            Some(("#aabbcc".into(), [0xaa, 0xbb, 0xcc]))
+        );
+        assert_eq!(
+            parse_hex(" 3b82f6 "),
+            Some(("#3b82f6".into(), [0x3b, 0x82, 0xf6]))
+        );
     }
 
     #[test]
