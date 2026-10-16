@@ -25,7 +25,6 @@ use ::image::{
 use anyhow::{Context, anyhow, bail};
 use slint::{Rgba8Pixel, SharedPixelBuffer};
 
-
 /// The widest or tallest image any tool opens. Large panoramas fit; a file claiming more is
 /// refused before its pixels are allocated.
 pub const MAX_SIDE: u32 = 32_768;
@@ -111,16 +110,16 @@ impl Format {
             Self::Jpeg => "JPEG has no transparency, so transparent areas turn white.",
             Self::Avif => "AVIF files are small, but saving one takes a few seconds per photo.",
             Self::Gif => "GIF holds at most 256 colours, so photos lose detail.",
-            Self::Ico => "Holds every icon size from 16 to 256 pixels that the image is large enough for.",
+            Self::Ico => {
+                "Holds every icon size from 16 to 256 pixels that the image is large enough for."
+            }
             Self::Png | Self::WebP | Self::Tiff | Self::Bmp => "",
         }
     }
 
     /// The format that saves like `source`, if the tools write it.
     fn of(source: ImageFormat) -> Option<Self> {
-        Self::ALL
-            .into_iter()
-            .find(|f| f.image_format() == source)
+        Self::ALL.into_iter().find(|f| f.image_format() == source)
     }
 
     fn image_format(self) -> ImageFormat {
@@ -174,9 +173,9 @@ fn reader(path: &Path) -> anyhow::Result<(ImageReader<BufReader<File>>, ImageFor
         Some(ImageFormat::Avif) => bail!(AVIF_INPUT),
         Some(format) => Ok((reader, format)),
         None if ext == "avif" => bail!(AVIF_INPUT),
-        None if matches!(ext.as_str(), "heic" | "heif" | "hif") => bail!(
-            "HEIC images aren't supported yet. Convert the photo to JPEG or PNG first"
-        ),
+        None if matches!(ext.as_str(), "heic" | "heif" | "hif") => {
+            bail!("HEIC images aren't supported yet. Convert the photo to JPEG or PNG first")
+        }
         None => bail!("Not an image Open Tools can read"),
     }
 }
@@ -235,7 +234,11 @@ fn swaps_sides(orientation: Orientation) -> bool {
 }
 
 fn native_source(format: ImageFormat, (w, h): (u32, u32), orientation: Orientation) -> Source {
-    let (width, height) = if swaps_sides(orientation) { (h, w) } else { (w, h) };
+    let (width, height) = if swaps_sides(orientation) {
+        (h, w)
+    } else {
+        (w, h)
+    };
     Source {
         width,
         height,
@@ -277,12 +280,15 @@ pub fn save(image: &DynamicImage, format: Format, quality: u8, path: &Path) -> a
     let result = match format {
         Format::Png => high_depth(image).write_to(&mut out, ImageFormat::Png),
         Format::Tiff => high_depth(image).write_to(&mut out, ImageFormat::Tiff),
-        Format::Bmp => DynamicImage::ImageRgba8(image.to_rgba8()).write_to(&mut out, ImageFormat::Bmp),
+        Format::Bmp => {
+            DynamicImage::ImageRgba8(image.to_rgba8()).write_to(&mut out, ImageFormat::Bmp)
+        }
         Format::Jpeg => {
             JpegEncoder::new_with_quality(&mut out, quality).encode_image(&on_white(image))
         }
-        Format::Gif => GifEncoder::new(&mut out)
-            .encode_frame(::image::Frame::new(image.to_rgba8())),
+        Format::Gif => {
+            GifEncoder::new(&mut out).encode_frame(::image::Frame::new(image.to_rgba8()))
+        }
         Format::Avif => {
             let encoder = AvifEncoder::new_with_speed_quality(&mut out, AVIF_SPEED, quality);
             if image.color().has_alpha() {
@@ -341,7 +347,12 @@ fn write_ico(image: &DynamicImage, out: &mut impl Write) -> Result<(), ImageErro
             } else {
                 image.resize(side, side, FilterType::Lanczos3).to_rgba8()
             };
-            IcoFrame::as_png(fitted.as_raw(), fitted.width(), fitted.height(), ExtendedColorType::Rgba8)
+            IcoFrame::as_png(
+                fitted.as_raw(),
+                fitted.width(),
+                fitted.height(),
+                ExtendedColorType::Rgba8,
+            )
         })
         .collect::<Result<Vec<_>, _>>()?;
     IcoEncoder::new(out).encode_images(&frames)
@@ -377,7 +388,8 @@ mod tests {
     use std::path::PathBuf;
 
     fn temp_dir(test: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("open-tools-image-{test}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("open-tools-image-{test}-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
