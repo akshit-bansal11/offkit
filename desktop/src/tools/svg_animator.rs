@@ -35,10 +35,91 @@ const SVG_EXTENSIONS: &[&str] = &["svg"];
 const FRAME_INTERVAL: Duration = Duration::from_millis(16);
 /// Space kept around the drawing at 100% zoom, in logical pixels.
 const PREVIEW_INSET: f32 = 24.0;
-/// Dropped with everything inside them: they run script or embed other documents.
-const UNSAFE_ELEMENTS: &[&str] = &["script", "foreignObject", "iframe", "embed", "object"];
-/// SMIL elements, which could animate an href into a `javascript:` link.
-const ANIMATIONS: &[&str] = &["animate", "set", "animateMotion", "animateTransform"];
+/// The only elements that survive, compared lower-cased: shapes, containers, gradients and
+/// text. Anything else (script, style, foreignObject, SMIL, unknown) goes with its subtree.
+const ALLOWED_ELEMENTS: &[&str] = &[
+    "svg",
+    "g",
+    "path",
+    "rect",
+    "circle",
+    "ellipse",
+    "line",
+    "polyline",
+    "polygon",
+    "defs",
+    "lineargradient",
+    "radialgradient",
+    "stop",
+    "clippath",
+    "mask",
+    "use",
+    "title",
+    "desc",
+    "a",
+    "text",
+    "tspan",
+    "symbol",
+];
+/// The only attributes that survive, compared lower-cased: geometry and presentation. No
+/// `style`, no `on*`, no `data-*`; `href` is checked for a `#` target on top of this.
+const ALLOWED_ATTRIBUTES: &[&str] = &[
+    "id",
+    "class",
+    "d",
+    "x",
+    "y",
+    "x1",
+    "x2",
+    "y1",
+    "y2",
+    "cx",
+    "cy",
+    "fx",
+    "fy",
+    "r",
+    "rx",
+    "ry",
+    "width",
+    "height",
+    "points",
+    "viewbox",
+    "preserveaspectratio",
+    "version",
+    "transform",
+    "fill",
+    "fill-opacity",
+    "fill-rule",
+    "stroke",
+    "stroke-width",
+    "stroke-dasharray",
+    "stroke-dashoffset",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "stroke-miterlimit",
+    "stroke-opacity",
+    "opacity",
+    "color",
+    "display",
+    "visibility",
+    "clip-path",
+    "clip-rule",
+    "mask",
+    "offset",
+    "stop-color",
+    "stop-opacity",
+    "gradientunits",
+    "gradienttransform",
+    "spreadmethod",
+    "clippathunits",
+    "maskunits",
+    "maskcontentunits",
+    "font-family",
+    "font-size",
+    "font-weight",
+    "text-anchor",
+    "href",
+];
 /// The stroke attributes each path gets, so its own are removed first.
 const STROKE_ATTRIBUTES: &[&str] = &[
     "stroke",
@@ -46,15 +127,6 @@ const STROKE_ATTRIBUTES: &[&str] = &[
     "stroke-dasharray",
     "stroke-dashoffset",
 ];
-/// The image types an `<image>` may embed in the exported file.
-const EMBEDDED_IMAGES: &[&str] = &[
-    "data:image/png",
-    "data:image/jpeg",
-    "data:image/jpg",
-    "data:image/gif",
-    "data:image/webp",
-];
-
 // ---- Timing -------------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -350,15 +422,8 @@ impl Writer {
             NodeType::Text => self
                 .text
                 .push_str(&escape_text(node.text().unwrap_or_default())),
-            NodeType::Comment => {
-                let _ = write!(self.text, "<!--{}-->", node.text().unwrap_or_default());
-            }
-            NodeType::PI => {
-                if let Some(pi) = node.pi() {
-                    let value = pi.value.map(|v| format!(" {v}")).unwrap_or_default();
-                    let _ = write!(self.text, "<?{}{value}?>", pi.target);
-                }
-            }
+            // Comments and processing instructions can carry `-->` or `<`: never written.
+            NodeType::Comment | NodeType::PI => {}
             NodeType::Root => {}
         }
     }
@@ -382,7 +447,7 @@ impl Writer {
         let _ = write!(self.text, "<{name}");
         let (default, xlink) = self.namespaces(node);
         for attribute in node.attributes() {
-            if !is_safe_attribute(node, &attribute) {
+            if !is_safe_attribute(&attribute) {
                 continue;
             }
             let plain = attribute.namespace().is_none();
@@ -462,34 +527,25 @@ impl Writer {
     }
 }
 
-/// Elements left out with everything inside them.
+/// Elements left out with everything inside them: anything not on the allowlist, or outside
+/// the SVG namespace.
 fn is_dropped(node: Node) -> bool {
-    let name = node.tag_name().name();
-    let from_us = node.attribute("data-svg-animator") == Some("true");
-    UNSAFE_ELEMENTS.contains(&name)
-        || (from_us && (name == "animate" || name == "style"))
-        || (ANIMATIONS.contains(&name)
-            && node
-                .attribute("attributeName")
-                .is_some_and(|a| a.to_ascii_lowercase().ends_with("href")))
+    let tag = node.tag_name();
+    let svg = tag.namespace().is_none_or(|ns| ns == SVG_NS);
+    !svg || !ALLOWED_ELEMENTS.contains(&tag.name().to_ascii_lowercase().as_str())
 }
 
-/// Event handlers never survive; a link survives only to the file's own elements, and an
-/// embedded image only as image data.
-fn is_safe_attribute(node: Node, attribute: &roxmltree::Attribute) -> bool {
-    let name = attribute.name();
-    if name.len() > 2 && name[..2].eq_ignore_ascii_case("on") {
-        return false;
-    }
-    if name != "href" {
-        return true;
-    }
-    let value = attribute.value().trim();
-    value.starts_with('#')
-        || (node.tag_name().name() == "image"
-            && EMBEDDED_IMAGES
-                .iter()
-                .any(|kind| value.len() >= kind.len() && value[..kind.len()].eq_ignore_ascii_case(kind)))
+/// Only allowlisted attributes, un-namespaced (or `xlink:href`); a link survives only to the
+/// file's own elements.
+fn is_safe_attribute(attribute: &roxmltree::Attribute) -> bool {
+    let name = attribute.name().to_ascii_lowercase();
+    let namespace_ok = match attribute.namespace() {
+        None => true,
+        Some(ns) => ns == XLINK_NS && name == "href",
+    };
+    namespace_ok
+        && ALLOWED_ATTRIBUTES.contains(&name.as_str())
+        && (name != "href" || attribute.value().trim().starts_with('#'))
 }
 
 fn element_name(node: Node) -> String {
@@ -1079,30 +1135,88 @@ mod tests {
         assert_eq!(second, first);
     }
 
-    #[test]
-    fn scripts_handlers_and_outside_links_are_stripped() {
-        let source = r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" onload="alert(1)"><script>alert(2)</script><a href="javascript:alert(3)"><path d="M0 0H1" onclick="x()"/></a><use xlink:href="#p"/><image href="https://example.com/t.png"/><set attributeName="href" to="javascript:alert(4)"/><foreignObject><div/></foreignObject></svg>"##;
-
-        let markup = Template::build(source)
-            .unwrap()
-            .write(&style(), Output::Frame(Timing::new(1.0, Mode::Sequential), 9.0));
-
-        assert_eq!(
-            markup,
-            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><a><path d="M0 0H1" stroke="#000000" stroke-width="1.5" stroke-dasharray="1" stroke-dashoffset="0"></path></a><use xlink:href="#p"/><image/></svg>"##
+    /// The markup for an `<svg>` holding a path and `inner`, after sanitising.
+    fn sanitised(inner: &str) -> String {
+        let source = format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svg="http://www.w3.org/2000/svg"><path d="M0 0H1"/>{inner}</svg>"##
         );
+        Template::build(&source).unwrap().write(
+            &style(),
+            Output::Frame(Timing::new(1.0, Mode::Sequential), 9.0),
+        )
+    }
+
+    fn assert_inert(markup: &str) {
+        let lower = markup.to_ascii_lowercase();
+        for bad in ["script", "alert", "javascript", "data:", "onload", "onclick", "evil"] {
+            assert!(!lower.contains(bad), "{bad} survived in {markup}");
+        }
+    }
+
+    #[test]
+    fn script_elements_are_dropped_in_any_case_or_prefix() {
+        for tag in ["script", "Script", "SCRIPT", "svg:script"] {
+            assert_inert(&sanitised(&format!("<{tag}>alert(1)</{tag}>")));
+        }
+    }
+
+    #[test]
+    fn event_handlers_are_dropped_in_any_case() {
+        let markup = sanitised(r#"<g onLoad="alert(1)" ONCLICK="alert(2)"><rect width="1"/></g>"#);
+
+        assert_inert(&markup);
+        assert!(markup.contains("<rect"));
+    }
+
+    #[test]
+    fn hostile_hrefs_are_dropped_in_any_case_or_namespace() {
+        for link in [
+            r#"HREF="javascript:alert(1)""#,
+            r#"xlink:href=" JaVaScRiPt:alert(1)""#,
+            r#"href="data:text/html,alert(1)""#,
+        ] {
+            assert_inert(&sanitised(&format!(r#"<a {link}><rect width="1"/></a>"#)));
+        }
+    }
+
+    #[test]
+    fn a_comment_cannot_close_itself_into_a_script() {
+        assert_inert(&sanitised("<!-- --><script>alert(1)</script> -->"));
+        assert!(!sanitised("<!-- x -->").contains("<!--"));
+    }
+
+    #[test]
+    fn processing_instructions_are_dropped() {
+        assert!(!sanitised("<?php alert(1) ?>").contains("<?"));
+    }
+
+    #[test]
+    fn foreign_object_style_and_outside_use_are_dropped() {
+        for inner in [
+            r#"<foreignObject><div onclick="alert(1)"/></foreignObject>"#,
+            "<style>*{background:url(javascript:alert(1))}</style>",
+            r#"<use href="http://evil/x.svg#a"/>"#,
+            r#"<set attributeName="href" to="javascript:alert(1)"/>"#,
+            r#"<g style="background:url(javascript:alert(1))"/>"#,
+        ] {
+            let markup = sanitised(inner);
+
+            assert_inert(&markup);
+            assert!(!markup.contains("style"), "{markup}");
+        }
+        assert!(sanitised(r##"<use xlink:href="#p"/>"##).contains(r##"xlink:href="#p""##));
     }
 
     #[test]
     fn text_and_attributes_are_re_escaped() {
-        let source = r#"<svg xmlns="http://www.w3.org/2000/svg"><title>a &amp; b &lt;c&gt;</title><path d="M0 0H1" data-x="&quot;q&quot;"/></svg>"#;
+        let source = r#"<svg xmlns="http://www.w3.org/2000/svg"><title>a &amp; b &lt;c&gt;</title><path d="M0 0H1" id="&quot;q&quot;"/></svg>"#;
 
         let markup = Template::build(source)
             .unwrap()
             .write(&style(), Output::Frame(Timing::new(1.0, Mode::Sequential), 9.0));
 
         assert!(markup.contains("<title>a &amp; b &lt;c&gt;</title>"));
-        assert!(markup.contains(r#"data-x="&quot;q&quot;""#));
+        assert!(markup.contains(r#"id="&quot;q&quot;""#));
     }
 
     #[test]
