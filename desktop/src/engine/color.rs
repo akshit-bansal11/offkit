@@ -65,10 +65,16 @@ pub fn parse(input: &str) -> Option<(Source, Rgba)> {
         return Some((Source::Rgb, c));
     }
     if let Some(([h, s, l], a)) = legacy_args(s, &["hsla", "hsl"]) {
-        return Some((Source::Hsl, hsl_to_rgb(hue(h)?, pct(s)?, pct(l)?, alpha(a)?)));
+        return Some((
+            Source::Hsl,
+            hsl_to_rgb(hue(h)?, pct(s)?, pct(l)?, alpha(a)?),
+        ));
     }
     if let Some(([h, s, v], a)) = legacy_args(s, &["hsva", "hsba", "hsv", "hsb"]) {
-        return Some((Source::Hsv, hsv_to_rgb(hue(h)?, pct(s)?, pct(v)?, alpha(a)?)));
+        return Some((
+            Source::Hsv,
+            hsv_to_rgb(hue(h)?, pct(s)?, pct(v)?, alpha(a)?),
+        ));
     }
     if let Some(([l, c, h], a)) = modern_args(s, "oklch") {
         let l = match l.strip_suffix('%') {
@@ -77,13 +83,19 @@ pub fn parse(input: &str) -> Option<(Source, Rgba)> {
         };
         let (c, h) = (parse_float(c)?.max(0.0), hue(h)?);
         let (a_axis, b_axis) = from_polar(c, h);
-        return Some((Source::Oklch, oklab_to_rgb(l.clamp(0.0, 1.0), a_axis, b_axis, alpha(a)?)));
+        return Some((
+            Source::Oklch,
+            oklab_to_rgb(l.clamp(0.0, 1.0), a_axis, b_axis, alpha(a)?),
+        ));
     }
     if let Some(c) = parse_name(s) {
         return Some((Source::Named, c));
     }
     if let Some(([h, w, b], a)) = modern_args(s, "hwb") {
-        return Some((Source::Hwb, hwb_to_rgb(hue(h)?, pct(w)?, pct(b)?, alpha(a)?)));
+        return Some((
+            Source::Hwb,
+            hwb_to_rgb(hue(h)?, pct(w)?, pct(b)?, alpha(a)?),
+        ));
     }
     if let Some(([l, a_axis, b_axis], a)) = modern_args(s, "lab") {
         let l = scaled(l, 1.0)?.clamp(0.0, 100.0);
@@ -364,7 +376,12 @@ pub fn rgb(c: Rgba) -> String {
 
 pub fn hsl(c: Rgba) -> String {
     let (h, s, l) = rgb_to_hsl(c);
-    let value = format!("{}, {}%, {}%", js_round(h), trim_number(s, 1), trim_number(l, 1));
+    let value = format!(
+        "{}, {}%, {}%",
+        js_round(h),
+        trim_number(s, 1),
+        trim_number(l, 1)
+    );
     if c.a >= 1.0 {
         format!("hsl({value})")
     } else {
@@ -374,7 +391,12 @@ pub fn hsl(c: Rgba) -> String {
 
 pub fn hsv(c: Rgba) -> String {
     let (h, s, v) = rgb_to_hsv(c);
-    let value = format!("{}, {}%, {}%", js_round(h), trim_number(s, 1), trim_number(v, 1));
+    let value = format!(
+        "{}, {}%, {}%",
+        js_round(h),
+        trim_number(s, 1),
+        trim_number(v, 1)
+    );
     if c.a >= 1.0 {
         format!("hsv({value})")
     } else {
@@ -394,13 +416,23 @@ fn modern(name: &str, value: String, a: f64) -> String {
 pub fn hwb(c: Rgba) -> String {
     let (h, s, v) = rgb_to_hsv(c);
     let (w, b) = ((100.0 - s) * v / 100.0, 100.0 - v);
-    let value = format!("{} {}% {}%", js_round(h), trim_number(w, 1), trim_number(b, 1));
+    let value = format!(
+        "{} {}% {}%",
+        js_round(h),
+        trim_number(w, 1),
+        trim_number(b, 1)
+    );
     modern("hwb", value, c.a)
 }
 
 pub fn lab(c: Rgba) -> String {
     let (l, a, b) = rgb_to_lab(c);
-    let value = format!("{}% {} {}", trim_number(l, 2), trim_number(a, 2), trim_number(b, 2));
+    let value = format!(
+        "{}% {} {}",
+        trim_number(l, 2),
+        trim_number(a, 2),
+        trim_number(b, 2)
+    );
     modern("lab", value, c.a)
 }
 
@@ -421,7 +453,12 @@ fn polar_value(l: String, chroma: f64, chroma_digits: usize, h: f64) -> String {
 
 pub fn oklab(c: Rgba) -> String {
     let (l, a, b) = rgb_to_oklab(c);
-    let value = format!("{}% {} {}", trim_number(l * 100.0, 2), trim_number(a, 4), trim_number(b, 4));
+    let value = format!(
+        "{}% {} {}",
+        trim_number(l * 100.0, 2),
+        trim_number(a, 4),
+        trim_number(b, 4)
+    );
     modern("oklab", value, c.a)
 }
 
@@ -528,7 +565,10 @@ fn hwb_to_rgb(h: f64, w: f64, b: f64, a: f64) -> Rgba {
 }
 
 fn to_polar(a: f64, b: f64) -> (f64, f64) {
-    ((a * a + b * b).sqrt(), normalize_hue(b.atan2(a) * 180.0 / PI))
+    (
+        (a * a + b * b).sqrt(),
+        normalize_hue(b.atan2(a) * 180.0 / PI),
+    )
 }
 
 fn from_polar(chroma: f64, h: f64) -> (f64, f64) {
@@ -607,18 +647,46 @@ const LINEAR_TO_XYZ_D65: [[f64; 3]; 3] = [
 ];
 const XYZ_D65_TO_LINEAR: [[f64; 3]; 3] = [
     [12831.0 / 3959.0, -329.0 / 214.0, -1974.0 / 3959.0],
-    [-851781.0 / 878810.0, 1648619.0 / 878810.0, 36519.0 / 878810.0],
+    [
+        -851781.0 / 878810.0,
+        1648619.0 / 878810.0,
+        36519.0 / 878810.0,
+    ],
     [705.0 / 12673.0, -2585.0 / 12673.0, 705.0 / 667.0],
 ];
 const D65_TO_D50: [[f64; 3]; 3] = [
-    [1.047_929_792_544_997, 0.022_946_870_601_609_652, -0.050_192_266_289_205_24],
-    [0.029_627_808_770_055_99, 0.990_434_426_753_879_9, -0.017_073_799_063_418_826],
-    [-0.009_243_040_646_204_504, 0.015_055_191_490_298_152, 0.751_874_281_428_137_1],
+    [
+        1.047_929_792_544_997,
+        0.022_946_870_601_609_652,
+        -0.050_192_266_289_205_24,
+    ],
+    [
+        0.029_627_808_770_055_99,
+        0.990_434_426_753_879_9,
+        -0.017_073_799_063_418_826,
+    ],
+    [
+        -0.009_243_040_646_204_504,
+        0.015_055_191_490_298_152,
+        0.751_874_281_428_137_1,
+    ],
 ];
 const D50_TO_D65: [[f64; 3]; 3] = [
-    [0.955_473_421_488_075, -0.023_098_454_948_764_71, 0.063_259_243_200_570_72],
-    [-0.028_369_709_333_863_7, 1.009_995_398_081_304_1, 0.021_041_441_191_917_323],
-    [0.012_314_014_864_481_998, -0.020_507_649_298_898_964, 1.330_365_926_242_124],
+    [
+        0.955_473_421_488_075,
+        -0.023_098_454_948_764_71,
+        0.063_259_243_200_570_72,
+    ],
+    [
+        -0.028_369_709_333_863_7,
+        1.009_995_398_081_304_1,
+        0.021_041_441_191_917_323,
+    ],
+    [
+        0.012_314_014_864_481_998,
+        -0.020_507_649_298_898_964,
+        1.330_365_926_242_124,
+    ],
 ];
 
 fn mul(m: &[[f64; 3]; 3], v: [f64; 3]) -> [f64; 3] {
@@ -737,11 +805,9 @@ impl Gradient {
         let first = segments[0].to_lowercase();
         let has_orientation = match kind {
             Kind::Linear => first.starts_with("to ") || is_angle(&first),
-            Kind::Radial => {
-                ["circle", "ellipse", "at ", "closest-", "farthest-"]
-                    .iter()
-                    .any(|w| first.contains(w))
-            }
+            Kind::Radial => ["circle", "ellipse", "at ", "closest-", "farthest-"]
+                .iter()
+                .any(|w| first.contains(w)),
             Kind::Conic => first.contains("from ") || first.contains("at "),
         };
         let (orientation, stops) = if has_orientation {
@@ -765,9 +831,9 @@ impl Gradient {
     /// the orientation carries over (a conic's start angle becomes a linear angle and back).
     pub fn convert(&self, to: Kind) -> String {
         let orientation = match (to, self.kind) {
-            (Kind::Linear, Kind::Linear) | (Kind::Radial, Kind::Radial) | (Kind::Conic, Kind::Conic) => {
-                self.orientation.clone()
-            }
+            (Kind::Linear, Kind::Linear)
+            | (Kind::Radial, Kind::Radial)
+            | (Kind::Conic, Kind::Conic) => self.orientation.clone(),
             (Kind::Linear, Kind::Conic) => conic_from(&self.orientation)
                 .unwrap_or(DEFAULT_LINEAR)
                 .to_string(),
@@ -789,7 +855,11 @@ fn default_orientation(kind: Kind) -> &'static str {
 }
 
 fn css_from_parts(kind: Kind, orientation: &str, stops: &[String]) -> String {
-    format!("{}-gradient({orientation}, {})", kind.name(), stops.join(", "))
+    format!(
+        "{}-gradient({orientation}, {})",
+        kind.name(),
+        stops.join(", ")
+    )
 }
 
 /// `background: <gradient>;`
@@ -800,7 +870,10 @@ pub fn background_property(css: &str) -> String {
 /// Tailwind's arbitrary value, `bg-[…]`, with every run of whitespace written as `_`.
 pub fn tailwind_arbitrary(css: &str) -> String {
     let css = strip_trailing_semicolon(css);
-    format!("bg-[{}]", css.split_whitespace().collect::<Vec<_>>().join("_"))
+    format!(
+        "bg-[{}]",
+        css.split_whitespace().collect::<Vec<_>>().join("_")
+    )
 }
 
 fn strip_trailing_semicolon(s: &str) -> &str {
@@ -959,13 +1032,22 @@ fn position(tokens: &[&str], w: f64, h: f64) -> Result<(f64, f64), String> {
     };
     match point {
         (Some(x), Some(y)) => Ok((x, y)),
-        _ => Err(format!("Couldn't read the position “{}”.", tokens.join(" "))),
+        _ => Err(format!(
+            "Couldn't read the position “{}”.",
+            tokens.join(" ")
+        )),
     }
 }
 
 /// How a pixel maps onto the gradient's line, from 0 (first stop) to 1 (last).
 enum Shape {
-    Linear { cx: f64, cy: f64, sin: f64, cos: f64, length: f64 },
+    Linear {
+        cx: f64,
+        cy: f64,
+        sin: f64,
+        cos: f64,
+        length: f64,
+    },
     /// An ellipse (or circle, rx = ry) of radii rx, ry around (cx, cy).
     Radial { cx: f64, cy: f64, rx: f64, ry: f64 },
     /// Clockwise from `from` degrees, starting at the top.
@@ -1019,9 +1101,13 @@ impl Shape {
 
     fn t(&self, x: f64, y: f64) -> f64 {
         match *self {
-            Shape::Linear { cx, cy, sin, cos, length } => {
-                ((x - cx) * sin - (y - cy) * cos) / length + 0.5
-            }
+            Shape::Linear {
+                cx,
+                cy,
+                sin,
+                cos,
+                length,
+            } => ((x - cx) * sin - (y - cy) * cos) / length + 0.5,
             Shape::Radial { cx, cy, rx, ry } => {
                 (((x - cx) / rx).powi(2) + ((y - cy) / ry).powi(2)).sqrt()
             }
@@ -1041,7 +1127,10 @@ fn linear_degrees(orientation: &str, w: f64, h: f64) -> Option<f64> {
     if let Some(deg) = angle_degrees(&lower) {
         return Some(deg);
     }
-    let mut words = lower.strip_prefix("to ")?.split_whitespace().collect::<Vec<_>>();
+    let mut words = lower
+        .strip_prefix("to ")?
+        .split_whitespace()
+        .collect::<Vec<_>>();
     words.sort_unstable();
     let corner = h.atan2(w) * 180.0 / PI;
     Some(match words.as_slice() {
@@ -1062,7 +1151,10 @@ fn linear_degrees(orientation: &str, w: f64, h: f64) -> Option<f64> {
 fn radial_shape(orientation: &str, w: f64, h: f64) -> Result<Shape, String> {
     let lower = orientation.to_ascii_lowercase();
     let tokens = split_tokens(&lower);
-    let split = tokens.iter().position(|t| *t == "at").unwrap_or(tokens.len());
+    let split = tokens
+        .iter()
+        .position(|t| *t == "at")
+        .unwrap_or(tokens.len());
     let (cx, cy) = match &tokens[split..] {
         [] => (w / 2.0, h / 2.0),
         [_, place @ ..] => position(place, w, h)?,
@@ -1075,7 +1167,9 @@ fn radial_shape(orientation: &str, w: f64, h: f64) -> Result<Shape, String> {
         match *token {
             "circle" => circle = Some(true),
             "ellipse" => circle = Some(false),
-            "closest-side" | "closest-corner" | "farthest-side" | "farthest-corner" => keyword = token,
+            "closest-side" | "closest-corner" | "farthest-side" | "farthest-corner" => {
+                keyword = token
+            }
             t => radii.push(Length::parse(t).ok_or_else(unreadable)?),
         }
     }
@@ -1911,7 +2005,10 @@ mod tests {
 
     #[test]
     fn gradient_parse_rejects_repeating_gradients() {
-        assert_eq!(Gradient::parse("repeating-linear-gradient(red, blue)"), None);
+        assert_eq!(
+            Gradient::parse("repeating-linear-gradient(red, blue)"),
+            None
+        );
     }
 
     #[test]
@@ -2001,8 +2098,12 @@ mod tests {
 
     #[test]
     fn render_corner_keyword_runs_the_midpoint_through_the_other_corners() {
-        let pixmap =
-            render(&gradient("linear-gradient(to top right, red, blue)"), 160, 90).unwrap();
+        let pixmap = render(
+            &gradient("linear-gradient(to top right, red, blue)"),
+            160,
+            90,
+        )
+        .unwrap();
 
         assert_eq!(pixel(&pixmap, 0, 0), [128, 0, 127, 255]);
     }
@@ -2116,7 +2217,9 @@ mod tests {
 
     #[test]
     fn stops_spread_unplaced_colours_evenly() {
-        let placed = stops(&gradient("linear-gradient(to right, #0f2027, #203a43, #2c5364)"));
+        let placed = stops(&gradient(
+            "linear-gradient(to right, #0f2027, #203a43, #2c5364)",
+        ));
 
         assert_eq!(
             placed.map(|s| s.iter().map(|(c, at)| (hex(*c), *at)).collect::<Vec<_>>()),
@@ -2133,7 +2236,10 @@ mod tests {
         let c = from_slint(slint::Color::from_argb_u8(128, 124, 58, 237));
 
         assert_eq!(hex(c), "#7C3AED80");
-        assert_eq!(slint_color(c), slint::Color::from_argb_u8(128, 124, 58, 237));
+        assert_eq!(
+            slint_color(c),
+            slint::Color::from_argb_u8(128, 124, 58, 237)
+        );
     }
 
     #[test]
@@ -2159,7 +2265,10 @@ mod tests {
 
         let saved = Pixmap::load_png(&path).unwrap();
         fs::remove_file(&path).unwrap();
-        assert_eq!(message, Ok("Saved open-tools-colors-radial-export.png".into()));
+        assert_eq!(
+            message,
+            Ok("Saved open-tools-colors-radial-export.png".into())
+        );
         assert_eq!((saved.width(), saved.height()), (1600, 900));
         assert_eq!(pixel(&saved, 0, 0), [255, 0, 0, 255]);
         assert_eq!(pixel(&saved, 1599, 899), [0, 0, 255, 255]);
