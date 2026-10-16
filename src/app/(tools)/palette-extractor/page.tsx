@@ -83,7 +83,7 @@ function PaletteExtractorTool() {
 
   return (
     <>
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="border-white/10 bg-card/70">
           <CardHeader className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -132,7 +132,7 @@ function PaletteExtractorTool() {
         </Card>
 
         <Card className="border-white/10 bg-card/70">
-          <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4 space-y-0">
             <div>
               <CardTitle>Extracted Palette</CardTitle>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -162,7 +162,7 @@ function PaletteExtractorTool() {
 
             {!isLoading && colors.length > 0 ? (
               <>
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {colors.map((color) => (
                     <Button
                       key={color}

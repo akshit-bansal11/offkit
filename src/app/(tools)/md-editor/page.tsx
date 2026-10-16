@@ -370,9 +370,9 @@ function MdEditorTool() {
       </Card>
 
       {/* Split pane */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Editor */}
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-col">
           <div className="mb-1.5 flex items-center gap-2 px-1">
             <FileCode2 className="size-3.5 text-muted-foreground" />
             <p className="text-xs font-medium text-muted-foreground">Editor</p>
@@ -390,13 +390,13 @@ function MdEditorTool() {
             onKeyDown={handleKeyDown}
             spellCheck={false}
             aria-label="Markdown source"
-            className="min-h-[600px] flex-1 resize-none rounded-2xl border border-white/10 bg-black/30 p-4 font-mono text-sm leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-white/20 focus:bg-black/40"
+            className="min-h-[600px] w-full min-w-0 flex-1 resize-none rounded-2xl border border-white/10 bg-black/30 p-4 font-mono text-sm leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-white/20 focus:bg-black/40"
             placeholder="# Start writing..."
           />
         </div>
 
         {/* Preview */}
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-col">
           <div className="mb-1.5 flex items-center gap-2 px-1">
             <FileCode2 className="size-3.5 text-muted-foreground" />
             <p className="text-xs font-medium text-muted-foreground">Preview</p>

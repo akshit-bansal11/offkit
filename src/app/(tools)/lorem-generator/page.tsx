@@ -344,8 +344,8 @@ function LoremGeneratorTool() {
             Generator Configuration
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
             {/* Unit Toggle */}
             <div className="space-y-3">
               <Label className="block text-muted-foreground">Length Unit</Label>
@@ -449,11 +449,11 @@ function LoremGeneratorTool() {
 
       {/* Output Panel */}
       <Card className="border-white/10 bg-card/70 overflow-hidden shadow-xl">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 py-3 px-4 bg-background/20 backdrop-blur-md">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 border-b border-white/5 py-3 px-4 bg-background/20 backdrop-blur-md">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Generated Output ({count} {unit})
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
