@@ -597,7 +597,9 @@ fn encoded_header_streams(source: &mut (impl Read + Seek)) -> Result<Option<Vec<
         return Ok(None);
     }
     let field = |from: usize| -> Option<u64> {
-        Some(u64::from_le_bytes(start.get(from..from + 8)?.try_into().ok()?))
+        Some(u64::from_le_bytes(
+            start.get(from..from + 8)?.try_into().ok()?,
+        ))
     };
     let (offset, size) = field(12).zip(field(20)).ok_or_else(damaged)?;
     let at = SIGNATURE_HEADER.checked_add(offset).ok_or_else(damaged)?;
