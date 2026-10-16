@@ -1323,7 +1323,7 @@ pub fn render(g: &Gradient, width: u32, height: u32) -> Result<Pixmap, String> {
         Pixmap::new(width, height).ok_or_else(|| "The image size is out of range.".to_string())?;
     let row = width as usize * 4;
     for (y, line) in pixmap.data_mut().chunks_exact_mut(row).enumerate() {
-        for (x, px) in line.chunks_exact_mut(4).enumerate() {
+        for (x, px) in line.as_chunks_mut::<4>().0.iter_mut().enumerate() {
             let color = sample(&stops, shape.t(x as f64 + 0.5, y as f64 + 0.5));
             for (out, c) in px.iter_mut().zip(color) {
                 *out = (c * 255.0 + 0.5) as u8;
