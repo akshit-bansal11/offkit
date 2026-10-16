@@ -1,8 +1,674 @@
-// Audio Editor: a placeholder until the audio family builds it. Its state will live in the
-// `AudioEditor` global, driven by src/tools/audio_editor.rs.
+// Audio Editor view: a waveform with trim handles, then speed, pitch and EQ, with format,
+// preview and export in the inspector. All state lives in the `AudioEditor` global, which Rust
+// drives (src/tools/audio_editor.rs); this file lays it out and keeps the trim in bounds.
+// `Waveform` is exported for the Audio Joiner's rows.
 
-import { PlaceholderView } from "placeholder.slint";
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, FocusRing, IconButton, ProgressBar, Select, Slider } from "../components/controls.slint";
+import { SegmentedControl } from "../components/fields.slint";
+import { DropZone } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { EmptyState } from "../components/empty-state.slint";
+import { Notice, NoticeTone } from "../components/editor.slint";
 
-export global AudioEditor { }
+export enum AudioEditorStage { empty, reading, ready }
 
-export component AudioEditorView inherits PlaceholderView { }
+export global AudioEditor {
+    in property <bool> ffmpeg-found: true;
+    in property <bool> drop-hover;
+    in property <AudioEditorStage> stage;
+    in property <string> file-name;
+    in property <string> file-detail; // "3.2 MB · 0:14 · MP3"
+    // Why the last file couldn't be opened; shown under the drop zone.
+    in property <string> error;
+    in property <[float]> peaks; // 0..1, one per bar; empty while drawing
+    in property <bool> waveform-failed;
+
+    // Seconds. Rust sets them when a file opens and reads them on export.
+    in property <float> duration;
+    in-out property <float> start;
+    in-out property <float> end;
+    // Whole slider steps: percent (100 = 1×), half semitones, half decibels.
+    in-out property <float> speed: 100;
+    in-out property <float> pitch;
+    in-out property <float> bass;
+    in-out property <float> mid;
+    in-out property <float> treble;
+
+    in property <[string]> formats;
+    in-out property <int> format-index;
+    in property <bool> exporting;
+    in property <float> export-progress;
+    in property <bool> previewing;
+    // "Saved as take_edited.mp3 · 1.2 MB", or what went wrong (`export-failed`).
+    in property <string> export-message;
+    in property <bool> export-failed;
+    in property <bool> can-reveal;
+
+    callback choose-file();
+    callback close-file();
+    callback export();
+    callback cancel-export();
+    callback preview();
+    callback reveal();
+    callback get-ffmpeg();
+    pure callback format-time(float) -> string; // "01:15.3"
+    pure callback format-speed(float) -> string; // percent to "1.25×"
+}
+
+// Bars scaled to the element's width, one per peak; bars between `start` and `end` (fractions
+// of the whole) take the accent, the rest stay grey.
+export component Waveform {
+    in property <[float]> peaks;
+    in property <float> start: 0;
+    in property <float> end: 1;
+
+    accessible-role: none;
+
+    for peak[i] in root.peaks: Rectangle {
+        property <float> at: (i + 0.5) / root.peaks.length;
+        property <length> slot: root.width / root.peaks.length;
+        x: i * self.slot + self.slot / 8;
+        width: self.slot * 3 / 4;
+        // The website's scale: a peak of 0.55 fills the height.
+        height: max(Theme.audio-bar-min-height, root.height * min(1, peak * 1.8));
+        y: (root.height - self.height) / 2;
+        border-radius: self.width / 2;
+        background: self.at >= root.start && self.at <= root.end ? Theme.audio-wave : Theme.audio-wave-outside;
+    }
+}
+
+// A trim edge: a full-height line with a knob, dragged by pointer, or focused and moved with
+// the arrow keys (0.1 s; Shift for 1 s), like the website's nudge buttons.
+component TrimHandle {
+    in property <string> label;
+    in property <string> value-text;
+    callback moved-by(length);
+    callback step(float);
+
+    width: Theme.audio-handle-hit;
+    forward-focus: fs;
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: root.value-text;
+    accessible-action-increment => { root.step(0.1); }
+    accessible-action-decrement => { root.step(-0.1); }
+
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        width: 2px;
+        background: Theme.accent;
+    }
+
+    knob := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: Theme.audio-handle-width;
+        height: Theme.audio-handle-height;
+        border-radius: Theme.radius-nested;
+        background: ta.pressed ? Theme.accent-pressed : ta.has-hover ? Theme.accent-hover : Theme.accent;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+
+        // Grip lines.
+        Rectangle {
+            width: 2px;
+            height: parent.height / 3;
+            x: parent.width / 2 - 3px;
+            background: Theme.on-accent;
+        }
+        Rectangle {
+            width: 2px;
+            height: parent.height / 3;
+            x: parent.width / 2 + 1px;
+            background: Theme.on-accent;
+        }
+
+        FocusRing { has-focus: fs.has-focus; radius: Theme.radius-nested; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: ew-resize;
+        moved => {
+            if (self.pressed) {
+                root.moved-by(self.mouse-x - self.pressed-x);
+            }
+        }
+    }
+
+    fs := FocusScope {
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == Key.LeftArrow || event.text == Key.DownArrow) {
+                root.step(event.modifiers.shift ? -1 : -0.1);
+                return accept;
+            }
+            if (event.text == Key.RightArrow || event.text == Key.UpArrow) {
+                root.step(event.modifiers.shift ? 1 : 0.1);
+                return accept;
+            }
+            reject
+        }
+    }
+}
+
+// "Start  [−] 00:01.0 [+]": the website's ±0.1 s nudge buttons around a time.
+component TimeNudge inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> time;
+    callback step(float);
+
+    spacing: Theme.space-1;
+
+    Text {
+        text: root.label;
+        color: Theme.text-secondary;
+        font-size: Theme.size-callout;
+        vertical-alignment: center;
+    }
+    IconButton {
+        icon: AppIcons.minus;
+        label: "Move " + root.label.to-lowercase() + " back 0.1 seconds";
+        clicked => { root.step(-0.1); }
+    }
+    Text {
+        text: root.time;
+        color: Theme.text-primary;
+        font-size: Theme.size-body;
+        font-family: Theme.font-family-mono;
+        vertical-alignment: center;
+    }
+    IconButton {
+        icon: AppIcons.plus;
+        label: "Move " + root.label.to-lowercase() + " forward 0.1 seconds";
+        clicked => { root.step(0.1); }
+    }
+}
+
+// A titled card of rows, like InspectorSection, with an optional Reset in its header.
+component EffectSection {
+    in property <string> title;
+    in property <string> footnote;
+    in property <string> reset-text;
+    in property <bool> can-reset;
+    callback reset();
+
+    VerticalLayout {
+        spacing: Theme.space-2;
+
+        HorizontalLayout {
+            padding-left: Theme.space-3;
+            min-height: Theme.control-height;
+
+            Text {
+                text: root.title;
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                font-weight: Theme.weight-semibold;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+                accessible-role: none;
+            }
+            if root.reset-text != "": Button {
+                text: root.reset-text;
+                kind: ButtonKind.plain;
+                enabled: root.can-reset;
+                clicked => { root.reset(); }
+            }
+        }
+
+        Rectangle {
+            border-radius: Theme.radius-group;
+            background: Theme.bg-surface-raised;
+            border-width: 1px;
+            border-color: Theme.separator;
+
+            VerticalLayout {
+                @children
+            }
+        }
+
+        if root.footnote != "": HorizontalLayout {
+            padding-left: Theme.space-3;
+            padding-right: Theme.space-3;
+
+            Text {
+                text: root.footnote;
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                wrap: word-wrap;
+            }
+        }
+    }
+}
+
+// One row of an EffectSection: a label, the control (the child), and its value.
+component EffectRow {
+    in property <string> label;
+    in property <string> readout;
+    in property <bool> first;
+
+    min-height: Theme.audio-row-height;
+
+    if !root.first: Rectangle {
+        x: Theme.space-3;
+        y: 0;
+        width: parent.width - Theme.space-3;
+        height: 1px;
+        background: Theme.separator;
+    }
+
+    HorizontalLayout {
+        padding-left: Theme.space-3;
+        padding-right: Theme.space-3;
+        spacing: Theme.space-3;
+
+        Text {
+            text: root.label;
+            width: Theme.audio-label-width;
+            color: Theme.text-primary;
+            font-size: Theme.size-body;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+
+            @children
+        }
+        if root.readout != "": Text {
+            text: root.readout;
+            width: Theme.audio-readout-width;
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            font-family: Theme.font-family-mono;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component Settings inherits Inspector {
+    action-text: "Export…";
+    stop-text: "Cancel Export";
+    can-run: AudioEditor.stage == AudioEditorStage.ready;
+    running: AudioEditor.exporting;
+    run => { AudioEditor.export(); }
+    stop => { AudioEditor.cancel-export(); }
+
+    InspectorSection {
+        title: "Format";
+        footnote: "Export… suggests a name in this format; typing another extension (.wav, .flac, …) picks that format instead.";
+
+        InspectorRow {
+            label: "Save as";
+            first: true;
+
+            Select {
+                label: "Output format";
+                options: AudioEditor.formats;
+                current-index <=> AudioEditor.format-index;
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Preview";
+        footnote: "Plays the edited selection in your default audio player.";
+
+        InspectorRow {
+            label: AudioEditor.previewing ? "Preparing…" : "Edited selection";
+            first: true;
+
+            Button {
+                text: "Play";
+                icon: AppIcons.play;
+                kind: ButtonKind.plain;
+                enabled: AudioEditor.stage == AudioEditorStage.ready && !AudioEditor.previewing;
+                clicked => { AudioEditor.preview(); }
+            }
+        }
+    }
+
+    if AudioEditor.exporting: InspectorSection {
+        title: "Exporting";
+
+        VerticalLayout {
+            padding: Theme.space-3;
+            spacing: Theme.space-2;
+
+            Text {
+                text: "Exporting · " + round(AudioEditor.export-progress * 100) + "%";
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+            }
+            ProgressBar { progress: AudioEditor.export-progress; }
+        }
+    }
+
+    if !AudioEditor.exporting && AudioEditor.export-message != "": InspectorSection {
+        title: "Export";
+
+        HorizontalLayout {
+            padding-left: Theme.space-3;
+            padding-right: Theme.space-2;
+            padding-top: Theme.space-2;
+            padding-bottom: Theme.space-2;
+            spacing: Theme.space-2;
+
+            Notice {
+                text: AudioEditor.export-message;
+                tone: AudioEditor.export-failed ? NoticeTone.error : NoticeTone.info;
+            }
+            if AudioEditor.can-reveal: IconButton {
+                icon: AppIcons.folder;
+                label: "Show in folder";
+                clicked => { AudioEditor.reveal(); }
+            }
+        }
+    }
+}
+
+export component AudioEditorView inherits VerticalLayout {
+    // The website's smallest selection.
+    private property <float> min-clip: 0.1;
+
+    function set-start(t: float) {
+        AudioEditor.start = clamp(round(t * 100) / 100, 0, AudioEditor.end - root.min-clip);
+    }
+    function set-end(t: float) {
+        AudioEditor.end = clamp(round(t * 100) / 100, AudioEditor.start + root.min-clip, AudioEditor.duration);
+    }
+
+    if !AudioEditor.ffmpeg-found: EmptyState {
+        icon: AppIcons.alert;
+        title: "FFmpeg wasn't found";
+        message: "Audio Editor runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Open Tools, then restart the app.";
+        action-text: "Get FFmpeg";
+        action => { AudioEditor.get-ffmpeg(); }
+    }
+
+    if AudioEditor.ffmpeg-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-4;
+
+                if AudioEditor.stage == AudioEditorStage.empty: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: AudioEditor.drop-hover;
+                    icon: AppIcons.audio-lines;
+                    title: "Drop an audio file here";
+                    hint: "MP3, WAV, FLAC, M4A, OGG, Opus and most other formats";
+                    button-text: "Choose File…";
+                    choose => { AudioEditor.choose-file(); }
+                }
+                if AudioEditor.stage == AudioEditorStage.empty && AudioEditor.error != "": Notice {
+                    text: AudioEditor.error;
+                    tone: NoticeTone.error;
+                }
+
+                // The open file, with Open… and Close.
+                if AudioEditor.stage != AudioEditorStage.empty: HorizontalLayout {
+                    spacing: Theme.space-3;
+
+                    Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: Theme.radius-control + 2px;
+                        background: Theme.bg-hover;
+
+                        Image {
+                            source: AppIcons.audio-lines;
+                            colorize: Theme.text-secondary;
+                            width: Theme.icon-size;
+                            height: Theme.icon-size;
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 2px;
+                        horizontal-stretch: 1;
+
+                        Text {
+                            text: AudioEditor.file-name;
+                            color: Theme.text-primary;
+                            font-size: Theme.size-body;
+                            font-weight: Theme.weight-medium;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: AudioEditor.stage == AudioEditorStage.reading ? "Reading…" : AudioEditor.file-detail;
+                            color: Theme.text-secondary;
+                            font-size: Theme.size-footnote;
+                            overflow: elide;
+                        }
+                    }
+                    Button {
+                        text: "Open Another…";
+                        kind: ButtonKind.plain;
+                        clicked => { AudioEditor.choose-file(); }
+                    }
+                    IconButton {
+                        y: (parent.height - self.height) / 2;
+                        icon: AppIcons.close;
+                        label: "Close file";
+                        clicked => { AudioEditor.close-file(); }
+                    }
+                }
+
+                // The waveform, with the kept stretch between the two handles.
+                if AudioEditor.stage != AudioEditorStage.empty: card := Rectangle {
+                    height: Theme.audio-waveform-height;
+                    border-radius: Theme.radius-group;
+                    background: Theme.bg-surface-raised;
+                    border-width: 1px;
+                    border-color: AudioEditor.drop-hover ? Theme.accent-text : Theme.separator;
+
+                    private property <bool> drawn: AudioEditor.peaks.length > 0;
+                    // Keeps the handles inside the card at either end.
+                    private property <length> inset: Theme.audio-handle-hit / 2;
+                    private property <float> span: max(AudioEditor.duration, 0.001);
+
+                    wave := Waveform {
+                        x: card.inset;
+                        y: Theme.space-3;
+                        width: card.width - 2 * card.inset;
+                        height: card.height - 2 * Theme.space-3;
+                        peaks: AudioEditor.peaks;
+                        start: AudioEditor.start / card.span;
+                        end: AudioEditor.end / card.span;
+                    }
+
+                    if !card.drawn: Text {
+                        text: AudioEditor.stage == AudioEditorStage.reading ? "Reading…"
+                            : AudioEditor.waveform-failed ? "The waveform couldn't be drawn. The file can still be edited."
+                            : "Drawing the waveform…";
+                        color: Theme.text-secondary;
+                        font-size: Theme.size-callout;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    if AudioEditor.stage == AudioEditorStage.ready: TrimHandle {
+                        x: wave.x + wave.width * AudioEditor.start / card.span - self.width / 2;
+                        height: card.height;
+                        label: "Trim start";
+                        value-text: AudioEditor.format-time(AudioEditor.start);
+                        moved-by(dx) => { root.set-start(AudioEditor.start + dx / wave.width * card.span); }
+                        step(d) => { root.set-start(AudioEditor.start + d); }
+                    }
+                    if AudioEditor.stage == AudioEditorStage.ready: TrimHandle {
+                        x: wave.x + wave.width * AudioEditor.end / card.span - self.width / 2;
+                        height: card.height;
+                        label: "Trim end";
+                        value-text: AudioEditor.format-time(AudioEditor.end);
+                        moved-by(dx) => { root.set-end(AudioEditor.end + dx / wave.width * card.span); }
+                        step(d) => { root.set-end(AudioEditor.end + d); }
+                    }
+                }
+
+                if AudioEditor.stage == AudioEditorStage.ready: HorizontalLayout {
+                    spacing: Theme.space-5;
+
+                    TimeNudge {
+                        label: "Start";
+                        time: AudioEditor.format-time(AudioEditor.start);
+                        step(d) => { root.set-start(AudioEditor.start + d); }
+                    }
+                    TimeNudge {
+                        label: "End";
+                        time: AudioEditor.format-time(AudioEditor.end);
+                        step(d) => { root.set-end(AudioEditor.end + d); }
+                    }
+                    Text {
+                        text: "Clip " + AudioEditor.format-time(AudioEditor.end - AudioEditor.start) + " of " + AudioEditor.format-time(AudioEditor.duration);
+                        color: Theme.text-secondary;
+                        font-size: Theme.size-callout;
+                        vertical-alignment: center;
+                        horizontal-alignment: right;
+                        horizontal-stretch: 1;
+                    }
+                    Button {
+                        text: "Reset Trim";
+                        kind: ButtonKind.plain;
+                        enabled: AudioEditor.start > 0 || AudioEditor.end < AudioEditor.duration;
+                        clicked => {
+                            AudioEditor.start = 0;
+                            AudioEditor.end = AudioEditor.duration;
+                        }
+                    }
+                }
+
+                if AudioEditor.stage == AudioEditorStage.ready: ScrollView {
+                    vertical-stretch: 1;
+
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: Theme.space-5;
+                        padding-bottom: Theme.space-2;
+
+                        EffectSection {
+                            title: "Speed";
+
+                            EffectRow {
+                                label: "Speed";
+                                readout: AudioEditor.format-speed(AudioEditor.speed);
+                                first: true;
+
+                                Slider {
+                                    label: "Speed";
+                                    minimum: 25;
+                                    maximum: 400;
+                                    step: 5;
+                                    value <=> AudioEditor.speed;
+                                }
+                            }
+                            EffectRow {
+                                label: "Presets";
+
+                                SegmentedControl {
+                                    label: "Speed presets";
+                                    options: ["0.5×", "0.75×", "1×", "1.25×", "1.5×", "2×"];
+                                    current-index: AudioEditor.speed == 50 ? 0 : AudioEditor.speed == 75 ? 1 : AudioEditor.speed == 100 ? 2
+                                        : AudioEditor.speed == 125 ? 3 : AudioEditor.speed == 150 ? 4 : AudioEditor.speed == 200 ? 5 : -1;
+                                    selected(i) => { AudioEditor.speed = [50, 75, 100, 125, 150, 200][i]; }
+                                }
+                            }
+                        }
+
+                        EffectSection {
+                            title: "Pitch";
+                            footnote: "Shifts the pitch without changing the speed.";
+
+                            EffectRow {
+                                label: "Pitch";
+                                readout: (AudioEditor.pitch > 0 ? "+" : "") + AudioEditor.pitch / 2 + " st";
+                                first: true;
+
+                                Slider {
+                                    label: "Pitch in half semitones";
+                                    minimum: -24;
+                                    maximum: 24;
+                                    step: 1;
+                                    value <=> AudioEditor.pitch;
+                                }
+                            }
+                            EffectRow {
+                                label: "Presets";
+
+                                SegmentedControl {
+                                    label: "Pitch presets";
+                                    options: ["−12", "−7", "−5", "0", "+5", "+7", "+12"];
+                                    current-index: AudioEditor.pitch == -24 ? 0 : AudioEditor.pitch == -14 ? 1 : AudioEditor.pitch == -10 ? 2 : AudioEditor.pitch == 0 ? 3
+                                        : AudioEditor.pitch == 10 ? 4 : AudioEditor.pitch == 14 ? 5 : AudioEditor.pitch == 24 ? 6 : -1;
+                                    selected(i) => { AudioEditor.pitch = [-24, -14, -10, 0, 10, 14, 24][i]; }
+                                }
+                            }
+                        }
+
+                        EffectSection {
+                            title: "Equalizer";
+                            footnote: "Bass at 100 Hz, mid at 1 kHz, treble at 8 kHz.";
+                            reset-text: "Reset EQ";
+                            can-reset: AudioEditor.bass != 0 || AudioEditor.mid != 0 || AudioEditor.treble != 0;
+                            reset => {
+                                AudioEditor.bass = 0;
+                                AudioEditor.mid = 0;
+                                AudioEditor.treble = 0;
+                            }
+
+                            EffectRow {
+                                label: "Bass";
+                                readout: (AudioEditor.bass > 0 ? "+" : "") + AudioEditor.bass / 2 + " dB";
+                                first: true;
+
+                                Slider {
+                                    label: "Bass in half decibels";
+                                    minimum: -24;
+                                    maximum: 24;
+                                    step: 1;
+                                    value <=> AudioEditor.bass;
+                                }
+                            }
+                            EffectRow {
+                                label: "Mid";
+                                readout: (AudioEditor.mid > 0 ? "+" : "") + AudioEditor.mid / 2 + " dB";
+
+                                Slider {
+                                    label: "Mid in half decibels";
+                                    minimum: -24;
+                                    maximum: 24;
+                                    step: 1;
+                                    value <=> AudioEditor.mid;
+                                }
+                            }
+                            EffectRow {
+                                label: "Treble";
+                                readout: (AudioEditor.treble > 0 ? "+" : "") + AudioEditor.treble / 2 + " dB";
+
+                                Slider {
+                                    label: "Treble in half decibels";
+                                    minimum: -24;
+                                    maximum: 24;
+                                    step: 1;
+                                    value <=> AudioEditor.treble;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

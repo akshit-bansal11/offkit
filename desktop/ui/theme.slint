@@ -178,6 +178,23 @@ export global Theme {
     // they lack write `dark ? #… : #…` with its measured contrast beside it (as bg-sidebar).
 
     // --- audio ---
+    // Waveform bars inside the kept stretch: the accent as a foreground (contrast at accent-text).
+    out property <color> audio-wave: accent-text;
+    // Bars outside it, still readable as a shape: the control boundary's 3.44 (L) / 3.35 (D).
+    out property <color> audio-wave-outside: border-control;
+    out property <length> audio-waveform-height: 148px;
+    out property <length> audio-bar-min-height: 2px;
+    // A trim handle's knob, and the pointer target around it (the website's 16px slop).
+    out property <length> audio-handle-width: 14px;
+    out property <length> audio-handle-height: 36px;
+    out property <length> audio-handle-hit: 30px;
+    // Effect rows: the label column, the value column, and the row itself.
+    out property <length> audio-label-width: 72px;
+    out property <length> audio-readout-width: 64px;
+    out property <length> audio-row-height: 44px;
+    // Audio Joiner: a track's mini waveform.
+    out property <length> audio-mini-wave-width: 112px;
+    out property <length> audio-mini-wave-height: 28px;
     // --- end audio ---
 
     // --- video ---
