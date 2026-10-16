@@ -290,9 +290,9 @@ mod tests {
                 "Cool & Serene",
                 "Light & Airy",
                 "Warm & Cozy",
-                "Metallic & Luxe",
                 "Vibrant & Energetic",
-                "Pastel & Dreamy"
+                "Pastel & Dreamy",
+                "Metallic & Luxe"
             ]
         );
     }
