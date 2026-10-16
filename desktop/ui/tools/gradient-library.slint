@@ -13,7 +13,7 @@ export struct GradientCard {
     index: int,
     name: string,
     feel: string,
-    fill: brush,
+    art: image,
 }
 
 export global GradientLibrary {
@@ -40,14 +40,14 @@ component GradientCardView inherits Rectangle {
     background: Theme.bg-surface-raised;
     border-width: 1px;
     border-color: Theme.separator;
+    clip: true;
 
     VerticalLayout {
         // The gradient itself: decorative, the name below says which it is.
-        Rectangle {
+        Image {
             height: Theme.colors-card-art;
-            border-top-left-radius: Theme.radius-group;
-            border-top-right-radius: Theme.radius-group;
-            background: root.card.fill;
+            source: root.card.art;
+            image-fit: fill;
         }
         VerticalLayout {
             padding-left: Theme.space-3;

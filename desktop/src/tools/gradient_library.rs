@@ -2,14 +2,14 @@
 //! feel as it did. Each copies as CSS or Tailwind, exports a 1600 × 900 PNG (rendered on a
 //! worker), or opens in Gradient Maker for editing, which the website couldn't do.
 //!
-//! Every preset is `linear-gradient(to right, …)` (a test holds that), so the cards draw with
-//! Slint's own linear gradient at 90°, which matches CSS exactly for a horizontal line.
+//! Slint can't build a gradient brush from Rust, so each card's art is drawn by the same
+//! renderer as the PNG export, at a small size.
 
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::thread::JoinHandle;
 
-use slint::{Brush, ComponentHandle, GradientStop, LinearGradientBrush, ModelRc, VecModel};
+use slint::{ComponentHandle, Image, ModelRc, VecModel};
 
 use crate::engine::color::{self, Gradient};
 use crate::registry::Registry;
@@ -18,6 +18,9 @@ use crate::{AppWindow, GradientCard, GradientLibrary, files, jobs};
 
 pub const SLUG: &str = "gradient-library";
 const ALL: &str = "All";
+/// Card art is drawn at twice the card's 112 px height for sharp edges on a scaled display.
+const ART_WIDTH: u32 = 448;
+const ART_HEIGHT: u32 = 224;
 
 // ---- Logic --------------------------------------------------------------------------------
 
@@ -51,18 +54,19 @@ fn preset(i: i32) -> Option<(&'static str, Gradient)> {
     Some((name, Gradient::parse(css)?))
 }
 
-/// The card's art: the preset as a Slint brush, left to right like the CSS.
-fn brush(css: &str) -> Brush {
-    let stops = Gradient::parse(css)
-        .and_then(|g| color::stops(&g).ok())
-        .unwrap_or_default();
-    Brush::LinearGradient(LinearGradientBrush::new(
-        90.0,
-        stops.into_iter().map(|(c, at)| GradientStop {
-            color: color::slint_color(c),
-            position: at as f32,
-        }),
-    ))
+/// The card's art: the preset drawn at card size. A preset that can't be drawn leaves the
+/// card blank and says why on stderr; a test holds that none of the 46 does.
+fn art(css: &str) -> Image {
+    let drawn = Gradient::parse(css)
+        .ok_or_else(|| "it isn't a gradient".to_string())
+        .and_then(|g| color::render(&g, ART_WIDTH, ART_HEIGHT));
+    match drawn {
+        Ok(pixmap) => Image::from_rgba8_premultiplied(color::pixels(&pixmap)),
+        Err(e) => {
+            eprintln!("couldn't draw the preset {css}: {e}");
+            Image::default()
+        }
+    }
 }
 
 // ---- State and wiring ---------------------------------------------------------------------
@@ -200,7 +204,7 @@ fn show(app: &AppWindow) {
                 index: i as i32,
                 name: name.into(),
                 feel: feel.into(),
-                fill: brush(css),
+                art: art(css),
             }
         })
         .collect();
@@ -323,11 +327,16 @@ mod tests {
     }
 
     #[test]
-    fn brush_has_a_stop_per_colour() {
-        let Brush::LinearGradient(gradient) = brush(PRESETS[3].2) else {
-            panic!("not a linear gradient");
-        };
+    fn every_preset_can_be_drawn() {
+        let undrawable: Vec<&str> = PRESETS
+            .iter()
+            .filter(|(_, _, css)| {
+                Gradient::parse(css)
+                    .is_none_or(|g| color::render(&g, ART_WIDTH, ART_HEIGHT).is_err())
+            })
+            .map(|(name, _, _)| *name)
+            .collect();
 
-        assert_eq!(gradient.stops().count(), 3);
+        assert_eq!(undrawable, Vec::<&str>::new());
     }
 }
