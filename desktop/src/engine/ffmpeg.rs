@@ -355,7 +355,7 @@ fn run_ffprobe(mut cmd: Command, cancel: Option<&CancelToken>) -> anyhow::Result
     Ok(ProbeOutput {
         status,
         stdout,
-        stderr: String::from_utf8_lossy(&stderr).into_owned(),
+        stderr,
     })
 }
 
