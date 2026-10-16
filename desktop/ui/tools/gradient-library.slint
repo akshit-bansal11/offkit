@@ -1,8 +1,168 @@
-// Gradient Library: a placeholder until the colors family builds it. Its state will live in the
-// `GradientLibrary` global, driven by src/tools/gradient_library.rs.
+// Gradient Library: the website's 46 named gradients in a grid that reflows with the window,
+// searchable by name and filtered by feel. Each copies as CSS or Tailwind, exports a PNG, or
+// opens in Gradient Maker. State lives in the `GradientLibrary` global, driven by
+// src/tools/gradient_library.rs.
 
-import { PlaceholderView } from "placeholder.slint";
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { IconButton, SearchField, Select } from "../components/controls.slint";
+import { CopyButton, Notice, NoticeTone } from "../components/editor.slint";
 
-export global GradientLibrary { }
+export struct GradientCard {
+    index: int,
+    name: string,
+    feel: string,
+    fill: brush,
+}
 
-export component GradientLibraryView inherits PlaceholderView { }
+export global GradientLibrary {
+    in property <[GradientCard]> cards;
+    // "All", then each feel in the order the presets first use it.
+    in property <[string]> feels;
+    in-out property <int> feel;
+    in property <string> empty-text;
+    in property <string> error;
+    in property <string> note;
+
+    callback search(string);
+    callback feel-changed(int);
+    callback copy-css(int) -> bool;
+    callback copy-tailwind(int) -> bool;
+    callback export(int);
+    callback edit(int);
+}
+
+component GradientCardView inherits Rectangle {
+    in property <GradientCard> card;
+
+    border-radius: Theme.radius-group;
+    background: Theme.bg-surface-raised;
+    border-width: 1px;
+    border-color: Theme.separator;
+
+    VerticalLayout {
+        // The gradient itself: decorative, the name below says which it is.
+        Rectangle {
+            height: Theme.colors-card-art;
+            border-top-left-radius: Theme.radius-group;
+            border-top-right-radius: Theme.radius-group;
+            background: root.card.fill;
+        }
+        VerticalLayout {
+            padding-left: Theme.space-3;
+            padding-right: Theme.space-2;
+            padding-top: Theme.space-2;
+            padding-bottom: Theme.space-2;
+            spacing: Theme.space-1;
+
+            HorizontalLayout {
+                spacing: Theme.space-2;
+
+                Text {
+                    text: root.card.name;
+                    color: Theme.text-primary;
+                    font-size: Theme.size-body;
+                    font-weight: Theme.weight-medium;
+                    vertical-alignment: center;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: root.card.feel;
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    vertical-alignment: center;
+                }
+            }
+            HorizontalLayout {
+                spacing: Theme.space-1;
+
+                CopyButton {
+                    text: "CSS";
+                    copy => { return GradientLibrary.copy-css(root.card.index); }
+                }
+                CopyButton {
+                    text: "Tailwind";
+                    copy => { return GradientLibrary.copy-tailwind(root.card.index); }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                IconButton {
+                    icon: AppIcons.download;
+                    label: "Export " + root.card.name + " as PNG…";
+                    clicked => { GradientLibrary.export(root.card.index); }
+                }
+                IconButton {
+                    icon: AppIcons.tool("blend");
+                    label: "Edit " + root.card.name + " in Gradient Maker";
+                    clicked => { GradientLibrary.edit(root.card.index); }
+                }
+            }
+        }
+    }
+}
+
+export component GradientLibraryView inherits VerticalLayout {
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    HorizontalLayout {
+        spacing: Theme.space-3;
+
+        SearchField {
+            placeholder: "Search gradients";
+            edited(text) => { GradientLibrary.search(text); }
+        }
+        Text {
+            text: "Feel";
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            vertical-alignment: center;
+            accessible-role: none;
+        }
+        Select {
+            label: "Feel";
+            options: GradientLibrary.feels;
+            current-index <=> GradientLibrary.feel;
+            selected(i) => { GradientLibrary.feel-changed(i); }
+        }
+    }
+
+    if GradientLibrary.error != "": Notice {
+        text: GradientLibrary.error;
+        tone: NoticeTone.error;
+    }
+    if GradientLibrary.error == "" && GradientLibrary.note != "": Notice {
+        text: GradientLibrary.note;
+    }
+    if GradientLibrary.empty-text != "": Text {
+        text: GradientLibrary.empty-text;
+        color: Theme.text-secondary;
+        font-size: Theme.size-body;
+    }
+
+    ScrollView {
+        vertical-stretch: 1;
+
+        VerticalLayout {
+            alignment: start;
+            padding-right: Theme.space-3;
+
+            grid := Rectangle {
+                property <int> columns: max(1, floor((self.width + Theme.space-4) / (Theme.colors-card-min-width + Theme.space-4)));
+                property <length> card-width: (self.width - (self.columns - 1) * Theme.space-4) / self.columns;
+
+                height: ceil(GradientLibrary.cards.length / self.columns) * (Theme.gradient-card-height + Theme.space-4) - Theme.space-4;
+
+                for card[i] in GradientLibrary.cards: GradientCardView {
+                    x: mod(i, grid.columns) * (grid.card-width + Theme.space-4);
+                    y: floor(i / grid.columns) * (Theme.gradient-card-height + Theme.space-4);
+                    width: grid.card-width;
+                    height: Theme.gradient-card-height;
+                    card: card;
+                }
+            }
+        }
+    }
+}

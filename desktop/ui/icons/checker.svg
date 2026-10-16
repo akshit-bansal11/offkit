@@ -1,0 +1,6 @@
+<!-- The colors family's checkerboard tile, shown behind translucent colours. Two of four
+     squares are drawn; the tile is colorized and repeated over a base colour. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <rect width="8" height="8" />
+  <rect x="8" y="8" width="8" height="8" />
+</svg>

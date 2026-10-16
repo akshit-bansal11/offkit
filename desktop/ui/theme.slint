@@ -193,6 +193,32 @@ export global Theme {
     // --- end svg ---
 
     // --- colors ---
+    // The checkerboard behind translucent colours: two greys, decorative (no contrast target).
+    out property <color> checker-base: dark ? DarkSteps.gray-750 : LightSteps.gray-0;
+    out property <color> checker-tile: dark ? DarkSteps.gray-850 : LightSteps.gray-200;
+    // Labels drawn on a user's colour, the same in both schemes: Rust picks whichever has the
+    // higher WCAG ratio against that colour. Pure black on purpose (DES-18 rationale): with white
+    // it keeps the worst case, a swatch of luminance 0.179, at 4.58:1; gray-900 would drop it to
+    // 4.10:1, under the 4.5:1 text bar.
+    out property <color> swatch-ink-light: LightSteps.gray-0;
+    out property <color> swatch-ink-dark: #000000;
+    // HSV picker popover: the square, the hue strip and their handles.
+    out property <length> picker-width: 232px;
+    out property <length> picker-square: 148px;
+    out property <length> picker-strip: 12px;
+    out property <length> picker-knob: 14px;
+    // The large swatch or gradient preview beside a tool's controls.
+    out property <length> colors-preview-width: 280px;
+    // Library cards (palettes, gradients): a fixed size so the grid reflows without measuring.
+    out property <length> colors-card-min-width: 300px;
+    out property <length> colors-card-art: 112px;
+    out property <length> colors-card-height: 160px;
+    out property <length> gradient-card-height: 184px; // a second row for its actions
+    // Gradient Maker and Converter: the preview and output column, a stop's colour field, and
+    // the "50%" / "135°" readouts beside sliders.
+    out property <length> maker-side-width: 400px;
+    out property <length> maker-color-width: 168px;
+    out property <length> maker-value-width: 40px;
     // --- end colors ---
 
     // --- css ---
