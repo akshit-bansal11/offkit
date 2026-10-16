@@ -189,7 +189,10 @@ fn parse_part(part: &str, page_count: u32) -> Result<RangeInclusive<u32>, String
 
 /// The pages of `ranges` as 0-based indices, in order, repeats kept.
 pub fn flatten(ranges: &[RangeInclusive<u32>]) -> Vec<u32> {
-    ranges.iter().flat_map(|r| r.clone().map(|p| p - 1)).collect()
+    ranges
+        .iter()
+        .flat_map(|r| r.clone().map(|p| p - 1))
+        .collect()
 }
 
 /// `pages` (0-based) as the shortest range text, sorted: [0, 1, 2, 4] is "1-3, 5".
@@ -535,10 +538,14 @@ pub fn images_to_pdf(
             ),
             None => {
                 let image = decode_image(path).map_err(JobError::Failed)?;
-                let object = match fs::read(path).ok().and_then(|b| ::image::guess_format(&b).ok()) {
+                let object = match fs::read(path)
+                    .ok()
+                    .and_then(|b| ::image::guess_format(&b).ok())
+                {
                     // A JPEG that had to be turned upright: still a photo, so still a JPEG.
                     Some(ImageFormat::Jpeg) => {
-                        let jpeg = encode_jpeg(&image, REENCODE_QUALITY).map_err(JobError::Failed)?;
+                        let jpeg =
+                            encode_jpeg(&image, REENCODE_QUALITY).map_err(JobError::Failed)?;
                         PdfPageImageObject::new_from_jpeg_reader(&doc, Cursor::new(jpeg))
                     }
                     // Screenshots, drawings, transparency: stored losslessly.
@@ -613,11 +620,14 @@ fn render(page: &PdfPage, dpi: f32) -> Result<RgbImage, String> {
 }
 
 fn write_raster(image: &RgbImage, format: Raster, path: &Path) -> Result<(), String> {
-    let file = File::create_new(path).map_err(|e| format!("Couldn't create {}: {e}", file_name(path)))?;
+    let file =
+        File::create_new(path).map_err(|e| format!("Couldn't create {}: {e}", file_name(path)))?;
     let mut w = BufWriter::new(file);
     match format {
         Raster::Png => image.write_with_encoder(PngEncoder::new(&mut w)),
-        Raster::Jpeg(q) => image.write_with_encoder(JpegEncoder::new_with_quality(&mut w, q.clamp(1, 100))),
+        Raster::Jpeg(q) => {
+            image.write_with_encoder(JpegEncoder::new_with_quality(&mut w, q.clamp(1, 100)))
+        }
         Raster::Webp => image.write_with_encoder(WebPEncoder::new_lossless(&mut w)),
     }
     .map_err(|e| format!("Couldn't write {}: {e}", file_name(path)))?;
@@ -711,7 +721,10 @@ pub struct CompressSettings {
 
 #[derive(Debug, PartialEq)]
 pub enum Compressed {
-    Smaller { before: u64, after: u64 },
+    Smaller {
+        before: u64,
+        after: u64,
+    },
     /// The output wasn't smaller than the input; the caller keeps nothing.
     NoGain,
 }
@@ -797,8 +810,9 @@ fn recompress_images(
         .objects
         .iter()
         .filter(|(_, o)| {
-            o.as_stream()
-                .is_ok_and(|s| s.dict.get(b"Subtype").and_then(Object::as_name).ok() == Some(b"Image"))
+            o.as_stream().is_ok_and(|s| {
+                s.dict.get(b"Subtype").and_then(Object::as_name).ok() == Some(b"Image")
+            })
         })
         .map(|(id, _)| *id)
         .collect();
@@ -809,7 +823,9 @@ fn recompress_images(
         if let Some((jpeg, w, h)) = smaller_jpeg(&doc, *id, cap, settings.quality)
             && let Ok(stream) = doc.get_object_mut(*id).and_then(Object::as_stream_mut)
         {
-            stream.dict.set("Filter", Object::Name(b"DCTDecode".to_vec()));
+            stream
+                .dict
+                .set("Filter", Object::Name(b"DCTDecode".to_vec()));
             stream.dict.remove(b"DecodeParms");
             stream.dict.set("Width", i64::from(w));
             stream.dict.set("Height", i64::from(h));
@@ -820,7 +836,8 @@ fn recompress_images(
     }
     doc.prune_objects();
     doc.compress();
-    let file = File::create(out).map_err(|e| JobError::Failed(format!("Couldn't save the PDF: {e}")))?;
+    let file =
+        File::create(out).map_err(|e| JobError::Failed(format!("Couldn't save the PDF: {e}")))?;
     let mut w = BufWriter::new(file);
     let options = SaveOptions::builder()
         .use_object_streams(true)
@@ -834,7 +851,12 @@ fn recompress_images(
 
 /// The image `id` re-encoded as a JPEG with its new size, if it's a kind this can re-encode and
 /// the result is smaller than what's stored now.
-fn smaller_jpeg(doc: &lopdf::Document, id: ObjectId, cap: u32, quality: u8) -> Option<(Vec<u8>, u32, u32)> {
+fn smaller_jpeg(
+    doc: &lopdf::Document,
+    id: ObjectId,
+    cap: u32,
+    quality: u8,
+) -> Option<(Vec<u8>, u32, u32)> {
     let stream = doc.get_object(id).ok()?.as_stream().ok()?;
     let dict = &stream.dict;
     let flag = |key: &[u8]| dict.get(key).and_then(Object::as_bool).unwrap_or(false);
@@ -842,7 +864,11 @@ fn smaller_jpeg(doc: &lopdf::Document, id: ObjectId, cap: u32, quality: u8) -> O
         || dict.has(b"Mask")
         || dict.has(b"Decode")
         || dict.has(b"SMaskInData")
-        || dict.get(b"BitsPerComponent").and_then(Object::as_i64).ok()? != 8
+        || dict
+            .get(b"BitsPerComponent")
+            .and_then(Object::as_i64)
+            .ok()?
+            != 8
     {
         return None;
     }
@@ -855,7 +881,8 @@ fn smaller_jpeg(doc: &lopdf::Document, id: ObjectId, cap: u32, quality: u8) -> O
     let filters = stream.filters().unwrap_or_default();
     let image = match filters.as_slice() {
         [b"DCTDecode"] => {
-            let mut reader = ImageReader::with_format(Cursor::new(&stream.content), ImageFormat::Jpeg);
+            let mut reader =
+                ImageReader::with_format(Cursor::new(&stream.content), ImageFormat::Jpeg);
             reader.limits(limits());
             let decoded = reader.decode().ok()?;
             if (decoded.width(), decoded.height()) != (width, height) {
@@ -867,7 +894,9 @@ fn smaller_jpeg(doc: &lopdf::Document, id: ObjectId, cap: u32, quality: u8) -> O
             }
         }
         [] | [b"FlateDecode"] => {
-            let raw = stream.decompressed_content_with_limit(MAX_STREAM_BYTES).ok()?;
+            let raw = stream
+                .decompressed_content_with_limit(MAX_STREAM_BYTES)
+                .ok()?;
             match channels {
                 1 => DynamicImage::ImageLuma8(GrayImage::from_raw(width, height, raw)?),
                 _ => DynamicImage::ImageRgb8(RgbImage::from_raw(width, height, raw)?),
@@ -898,7 +927,14 @@ fn channels(doc: &lopdf::Document, space: &Object) -> Option<u8> {
         Object::Name(n) if n == b"DeviceGray" => Some(1),
         Object::Array(a) if a.first().and_then(|f| f.as_name().ok()) == Some(b"ICCBased") => {
             let (_, profile) = doc.dereference(a.get(1)?).ok()?;
-            match profile.as_stream().ok()?.dict.get(b"N").and_then(Object::as_i64).ok()? {
+            match profile
+                .as_stream()
+                .ok()?
+                .dict
+                .get(b"N")
+                .and_then(Object::as_i64)
+                .ok()?
+            {
                 3 => Some(3),
                 1 => Some(1),
                 _ => None,
@@ -926,7 +962,8 @@ fn rasterise(
         if cancel.is_cancelled() {
             return Err(JobError::Cancelled);
         }
-        let failed = |e: PdfiumError| JobError::Failed(format!("Couldn't rebuild page {}: {e}", i + 1));
+        let failed =
+            |e: PdfiumError| JobError::Failed(format!("Couldn't rebuild page {}: {e}", i + 1));
         let (w, h) = (page.width(), page.height());
         let image = DynamicImage::ImageRgb8(render(&page, settings.dpi).map_err(JobError::Failed)?);
         let jpeg = encode_jpeg(&image, settings.quality).map_err(JobError::Failed)?;
@@ -937,7 +974,10 @@ fn rasterise(
             .pages_mut()
             .create_page_at_end(PdfPagePaperSize::Custom(w, h))
             .map_err(failed)?;
-        target.objects_mut().add_image_object(object).map_err(failed)?;
+        target
+            .objects_mut()
+            .add_image_object(object)
+            .map_err(failed)?;
         progress((i + 1) as f32 / count as f32);
     }
     save(&dest, out)
@@ -954,7 +994,8 @@ mod tests {
     }
 
     fn temp_dir(test: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("open-tools-pdf-{test}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("open-tools-pdf-{test}-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -964,7 +1005,10 @@ mod tests {
         let mut doc = lib().create_new_pdf().unwrap();
         for &(w, h) in sizes {
             doc.pages_mut()
-                .create_page_at_end(PdfPagePaperSize::Custom(PdfPoints::new(w), PdfPoints::new(h)))
+                .create_page_at_end(PdfPagePaperSize::Custom(
+                    PdfPoints::new(w),
+                    PdfPoints::new(h),
+                ))
                 .unwrap();
         }
         doc.save_to_file(path).unwrap();
@@ -974,19 +1018,29 @@ mod tests {
     /// Page widths of a PDF, in points, rounded.
     fn widths(path: &Path) -> Vec<u32> {
         let doc = open(lib(), path).unwrap();
-        doc.pages().iter().map(|p| p.width().value.round() as u32).collect()
+        doc.pages()
+            .iter()
+            .map(|p| p.width().value.round() as u32)
+            .collect()
     }
 
     fn rotations(path: &Path) -> Vec<u8> {
         let doc = open(lib(), path).unwrap();
-        doc.pages().iter().map(|p| quarter_turns(p.rotation().unwrap())).collect()
+        doc.pages()
+            .iter()
+            .map(|p| quarter_turns(p.rotation().unwrap()))
+            .collect()
     }
 
     fn noisy_image(w: u32, h: u32) -> RgbImage {
         // A smooth gradient with deterministic grain: photo-like, so JPEG wins over Flate.
         RgbImage::from_fn(w, h, |x, y| {
             let grain = ((x * 7919 + y * 104_729) % 23) as u8;
-            ::image::Rgb([(x % 256) as u8 ^ grain, (y % 256) as u8, ((x + y) % 256) as u8])
+            ::image::Rgb([
+                (x % 256) as u8 ^ grain,
+                (y % 256) as u8,
+                ((x + y) % 256) as u8,
+            ])
         })
     }
 
@@ -998,7 +1052,10 @@ mod tests {
         object.scale(LETTER.0, LETTER.1).unwrap();
         let mut page = doc
             .pages_mut()
-            .create_page_at_end(PdfPagePaperSize::Custom(PdfPoints::new(LETTER.0), PdfPoints::new(LETTER.1)))
+            .create_page_at_end(PdfPagePaperSize::Custom(
+                PdfPoints::new(LETTER.0),
+                PdfPoints::new(LETTER.1),
+            ))
             .unwrap();
         page.objects_mut().add_image_object(object).unwrap();
         drop(page);
@@ -1025,19 +1082,26 @@ mod tests {
         });
         doc.objects.insert(
             pages_id,
-            Object::Dictionary(dictionary! { "Type" => "Pages", "Kids" => vec![page.into()], "Count" => 1 }),
+            Object::Dictionary(
+                dictionary! { "Type" => "Pages", "Kids" => vec![page.into()], "Count" => 1 },
+            ),
         );
         let catalog = doc.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
         doc.trailer.set("Root", catalog);
         doc.compress();
         let mut file = File::create(path).unwrap();
-        let options = SaveOptions::builder().use_object_streams(true).use_xref_streams(true).build();
+        let options = SaveOptions::builder()
+            .use_object_streams(true)
+            .use_xref_streams(true)
+            .build();
         doc.save_with_options(&mut file, options).unwrap();
         path.to_path_buf()
     }
 
     fn jpeg_file(path: &Path, w: u32, h: u32) -> PathBuf {
-        DynamicImage::ImageRgb8(noisy_image(w, h)).save_with_format(path, ImageFormat::Jpeg).unwrap();
+        DynamicImage::ImageRgb8(noisy_image(w, h))
+            .save_with_format(path, ImageFormat::Jpeg)
+            .unwrap();
         path.to_path_buf()
     }
 
@@ -1174,10 +1238,16 @@ mod tests {
     #[test]
     fn extracting_keeps_the_typed_order_and_repeats() {
         let dir = temp_dir("extract");
-        let src = sized_pdf(&dir.join("src.pdf"), &[(100.0, 500.0), (200.0, 500.0), (300.0, 500.0)]);
+        let src = sized_pdf(
+            &dir.join("src.pdf"),
+            &[(100.0, 500.0), (200.0, 500.0), (300.0, 500.0)],
+        );
         let out = dir.join("out.pdf");
         let ranges = parse_ranges("3, 1, 3", 3).unwrap();
-        let pages: Vec<PageRef> = flatten(&ranges).into_iter().map(|i| PageRef::new(0, i)).collect();
+        let pages: Vec<PageRef> = flatten(&ranges)
+            .into_iter()
+            .map(|i| PageRef::new(0, i))
+            .collect();
         let (cancel, progress) = quiet();
 
         assemble(lib(), &[src], &pages, &out, &cancel, &progress).unwrap();
@@ -1189,7 +1259,15 @@ mod tests {
     #[test]
     fn splitting_writes_each_range_to_its_own_file() {
         let dir = temp_dir("split");
-        let src = sized_pdf(&dir.join("src.pdf"), &[(100.0, 500.0), (200.0, 500.0), (300.0, 500.0), (400.0, 500.0)]);
+        let src = sized_pdf(
+            &dir.join("src.pdf"),
+            &[
+                (100.0, 500.0),
+                (200.0, 500.0),
+                (300.0, 500.0),
+                (400.0, 500.0),
+            ],
+        );
         let (first, second) = (dir.join("Pages 2-3.pdf"), dir.join("Page 4.pdf"));
         let outputs = [
             (first.clone(), vec![PageRef::new(0, 1), PageRef::new(0, 2)]),
@@ -1199,14 +1277,20 @@ mod tests {
 
         assemble_each(lib(), &[src], &outputs, &cancel, &progress).unwrap();
 
-        assert_eq!([widths(&first), widths(&second)], [vec![200, 300], vec![400]]);
+        assert_eq!(
+            [widths(&first), widths(&second)],
+            [vec![200, 300], vec![400]]
+        );
         fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
     fn reordering_copies_pages_in_the_new_order() {
         let dir = temp_dir("reorder");
-        let src = sized_pdf(&dir.join("src.pdf"), &[(100.0, 500.0), (200.0, 500.0), (300.0, 500.0)]);
+        let src = sized_pdf(
+            &dir.join("src.pdf"),
+            &[(100.0, 500.0), (200.0, 500.0), (300.0, 500.0)],
+        );
         let out = dir.join("out.pdf");
         let pages = [PageRef::new(0, 2), PageRef::new(0, 0), PageRef::new(0, 1)];
         let (cancel, progress) = quiet();
@@ -1223,8 +1307,16 @@ mod tests {
         let src = sized_pdf(&dir.join("src.pdf"), &[(100.0, 500.0), (200.0, 500.0)]);
         let out = dir.join("out.pdf");
         let pages = [
-            PageRef { source: 0, index: 0, turns: 1 },
-            PageRef { source: 0, index: 1, turns: 7 },
+            PageRef {
+                source: 0,
+                index: 0,
+                turns: 1,
+            },
+            PageRef {
+                source: 0,
+                index: 1,
+                turns: 7,
+            },
         ];
         let (cancel, progress) = quiet();
 
@@ -1256,7 +1348,11 @@ mod tests {
         let dir = temp_dir("jpeg");
         let photo = jpeg_file(&dir.join("photo.jpg"), 400, 300);
         let out = dir.join("out.pdf");
-        let layout = Layout { size: PageSize::Fit, orientation: Orientation::Auto, margin: 0.0 };
+        let layout = Layout {
+            size: PageSize::Fit,
+            orientation: Orientation::Auto,
+            margin: 0.0,
+        };
         let (cancel, progress) = quiet();
 
         images_to_pdf(lib(), &[photo], layout, &out, &cancel, &progress).unwrap();
@@ -1269,17 +1365,28 @@ mod tests {
 
     #[test]
     fn a_landscape_image_on_a4_gets_a_landscape_page_inside_the_margins() {
-        let layout = Layout { size: PageSize::A4, orientation: Orientation::Auto, margin: 36.0 };
+        let layout = Layout {
+            size: PageSize::A4,
+            orientation: Orientation::Auto,
+            margin: 36.0,
+        };
 
         let (page, (x, y, w, h)) = place(layout, 2000, 1000);
 
         assert_eq!(page, (841.89, 595.28));
-        assert_eq!((x.round(), y.round(), w.round(), h.round()), (36.0, 105.0, 770.0, 385.0));
+        assert_eq!(
+            (x.round(), y.round(), w.round(), h.round()),
+            (36.0, 105.0, 770.0, 385.0)
+        );
     }
 
     #[test]
     fn fit_pages_are_the_image_size_plus_margins() {
-        let layout = Layout { size: PageSize::Fit, orientation: Orientation::Portrait, margin: 10.0 };
+        let layout = Layout {
+            size: PageSize::Fit,
+            orientation: Orientation::Portrait,
+            margin: 10.0,
+        };
 
         let placed = place(layout, 300, 200);
 
@@ -1296,7 +1403,17 @@ mod tests {
         fs::create_dir(&out).unwrap();
         let (cancel, progress) = quiet();
 
-        render_to_folder(lib(), &src, &[0], 150.0, Raster::Png, &out, &cancel, &progress).unwrap();
+        render_to_folder(
+            lib(),
+            &src,
+            &[0],
+            150.0,
+            Raster::Png,
+            &out,
+            &cancel,
+            &progress,
+        )
+        .unwrap();
 
         let image = ::image::open(out.join("Page 1.png")).unwrap();
         assert_eq!((image.width(), image.height()), (1275, 1650));
@@ -1334,7 +1451,11 @@ mod tests {
         let dir = temp_dir("compress");
         let src = image_heavy_pdf(&dir.join("scan.pdf"));
         let out = dir.join("out.pdf");
-        let settings = CompressSettings { mode: CompressMode::Images, dpi: 100.0, quality: 60 };
+        let settings = CompressSettings {
+            mode: CompressMode::Images,
+            dpi: 100.0,
+            quality: 60,
+        };
         let (cancel, progress) = quiet();
 
         let result = compress(lib(), &src, &out, settings, &cancel, &progress).unwrap();
@@ -1351,7 +1472,11 @@ mod tests {
         let dir = temp_dir("compress-text");
         let src = text_only_pdf(&dir.join("letter.pdf"));
         let out = dir.join("out.pdf");
-        let settings = CompressSettings { mode: CompressMode::Images, dpi: 150.0, quality: 70 };
+        let settings = CompressSettings {
+            mode: CompressMode::Images,
+            dpi: 150.0,
+            quality: 70,
+        };
         let (cancel, progress) = quiet();
 
         let result = compress(lib(), &src, &out, settings, &cancel, &progress).unwrap();
@@ -1365,7 +1490,11 @@ mod tests {
         let dir = temp_dir("rasterise");
         let src = image_heavy_pdf(&dir.join("scan.pdf"));
         let out = dir.join("out.pdf");
-        let settings = CompressSettings { mode: CompressMode::Rasterise, dpi: 72.0, quality: 50 };
+        let settings = CompressSettings {
+            mode: CompressMode::Rasterise,
+            dpi: 72.0,
+            quality: 50,
+        };
         let (cancel, progress) = quiet();
 
         compress(lib(), &src, &out, settings, &cancel, &progress).unwrap();
