@@ -1579,9 +1579,8 @@ Error opening output file o4.mkv.";
     #[test]
     fn declared_duration_must_be_finite_positive_and_at_most_48_hours() {
         let duration = |d: &str| {
-            let json = format!(
-                r#"{{"streams":[],"format":{{"duration":"{d}","format_name":"mp3"}}}}"#
-            );
+            let json =
+                format!(r#"{{"streams":[],"format":{{"duration":"{d}","format_name":"mp3"}}}}"#);
             MediaInfo::from_ffprobe_json(json.as_bytes())
                 .unwrap()
                 .duration

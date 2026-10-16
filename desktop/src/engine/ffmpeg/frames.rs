@@ -12,7 +12,9 @@ use std::path::Path;
 use anyhow::{Context, bail};
 use serde::Deserialize;
 
-use super::{Ffmpeg, MediaInfo, args, command, global_args, input_args, probe_failure, run_ffprobe};
+use super::{
+    Ffmpeg, MediaInfo, args, command, global_args, input_args, probe_failure, run_ffprobe,
+};
 use crate::files::ReservedDir;
 use crate::jobs::{CancelToken, JobError};
 
