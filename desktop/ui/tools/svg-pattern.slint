@@ -8,7 +8,7 @@ import { FocusRing } from "../components/controls.slint";
 import { ColorWell } from "../components/fields.slint";
 import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
 import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
-import { PreviewCanvas, SliderRow } from "svg-parts.slint";
+import { SvgPreviewCanvas, SvgSliderRow } from "svg-parts.slint";
 
 export struct SvgPatternOption {
     label: string,
@@ -183,7 +183,7 @@ component Settings inherits Inspector {
     InspectorSection {
         title: "Tile";
 
-        SliderRow {
+        SvgSliderRow {
             label: "Scale";
             value-text: SvgPattern.size + " px";
             first: true;
@@ -193,7 +193,7 @@ component Settings inherits Inspector {
             step: 2;
             changed => { SvgPattern.changed(); }
         }
-        if SvgPattern.uses-width: SliderRow {
+        if SvgPattern.uses-width: SvgSliderRow {
             label: "Width";
             value-text: (SvgPattern.width-tenths / 10) + "×";
             value <=> SvgPattern.width-tenths;
@@ -201,7 +201,7 @@ component Settings inherits Inspector {
             maximum: 30;
             changed => { SvgPattern.changed(); }
         }
-        SliderRow {
+        SvgSliderRow {
             label: "Opacity";
             value-text: SvgPattern.opacity + "%";
             value <=> SvgPattern.opacity;
@@ -256,7 +256,7 @@ export component SvgPatternView inherits VerticalLayout {
                 vertical-stretch: 3;
                 spacing: Theme.space-2;
 
-                PreviewCanvas {
+                SvgPreviewCanvas {
                     vertical-stretch: 1;
                     label: "Pattern preview: " + SvgPattern.caption;
                     resized(width, height) => { SvgPattern.preview-resized(width, height); }

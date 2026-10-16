@@ -7,7 +7,7 @@ import { Slider } from "../components/controls.slint";
 // A slider row inside an InspectorSection: its label and current value above the track. Later
 // rows draw the inset separator above themselves, as InspectorRow does; mark the first with
 // `first: true`.
-export component SliderRow {
+export component SvgSliderRow {
     in property <string> label;
     in property <string> value-text;
     in-out property <float> value;
@@ -63,7 +63,7 @@ export component SliderRow {
 // The frame a rendered preview sits in; the tool puts its Image inside. It reports its size in
 // logical pixels whenever that changes, so Rust renders the image at the display's real
 // resolution instead of letting it be scaled up blurry.
-export component PreviewCanvas inherits Rectangle {
+export component SvgPreviewCanvas inherits Rectangle {
     // The accessible description of what the preview shows.
     in property <string> label;
     callback resized(length, length);

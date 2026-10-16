@@ -10,7 +10,7 @@ import { SegmentedControl } from "../components/fields.slint";
 import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
 import { DropZone, FileItem, FileList } from "../components/file-list.slint";
 import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
-import { PreviewCanvas, SliderRow } from "svg-parts.slint";
+import { SvgPreviewCanvas, SvgSliderRow } from "svg-parts.slint";
 
 export enum SvgOptimizerMode { paste, files }
 export enum SvgOptimizerFormat { svg, jsx }
@@ -106,7 +106,7 @@ component Settings inherits Inspector {
         title: "Precision";
         footnote: "Fewer decimal places shrink paths more but can distort curves. 2 or 3 suits most files.";
 
-        SliderRow {
+        SvgSliderRow {
             label: "Decimal places";
             value-text: SvgOptimizer.precision;
             first: true;
@@ -186,7 +186,7 @@ component PreviewPane inherits Pane {
             vertical-alignment: center;
         }
     }
-    PreviewCanvas {
+    SvgPreviewCanvas {
         vertical-stretch: 1;
         label: root.title + " preview";
         resized(width, height) => { root.resized(width, height); }

@@ -11,7 +11,7 @@ import { ColorWell, SegmentedControl } from "../components/fields.slint";
 import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
 import { DropZone } from "../components/file-list.slint";
 import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
-import { PreviewCanvas, SliderRow } from "svg-parts.slint";
+import { SvgPreviewCanvas, SvgSliderRow } from "svg-parts.slint";
 
 export enum SvgAnimatorMode { sequential, simultaneous }
 
@@ -75,7 +75,7 @@ component Settings inherits Inspector {
                 }
             }
         }
-        SliderRow {
+        SvgSliderRow {
             label: "Speed";
             value-text: (SvgAnimator.speed / 100).to-fixed(2) + "×";
             value <=> SvgAnimator.speed;
@@ -102,7 +102,7 @@ component Settings inherits Inspector {
                 accepted(text) => { SvgAnimator.stroke-edited(text); }
             }
         }
-        SliderRow {
+        SvgSliderRow {
             label: "Width";
             value-text: (SvgAnimator.stroke-width / 10).to-fixed(1);
             value <=> SvgAnimator.stroke-width;
@@ -130,7 +130,7 @@ component Settings inherits Inspector {
         title: "Preview";
         footnote: "Zoom changes the preview only, not the saved file.";
 
-        SliderRow {
+        SvgSliderRow {
             label: "Zoom";
             value-text: SvgAnimator.zoom + "%";
             first: true;
@@ -202,7 +202,7 @@ export component SvgAnimatorView inherits VerticalLayout {
                         clicked => { SvgAnimator.remove-file(); }
                     }
                 }
-                PreviewCanvas {
+                SvgPreviewCanvas {
                     vertical-stretch: 1;
                     label: "Animation preview";
                     resized(width, height) => { SvgAnimator.preview-resized(width, height); }
