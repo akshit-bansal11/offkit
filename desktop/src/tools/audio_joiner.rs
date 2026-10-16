@@ -419,7 +419,7 @@ fn join(app: &AppWindow) {
                     g.set_result(message.into());
                 }
             }
-            sync(&app);
+            sync(app);
         });
     });
 }

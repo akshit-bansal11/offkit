@@ -265,8 +265,10 @@ pub fn peaks(
         let mut data = Vec::new();
         file.take(header.data_len).read_to_end(&mut data)?;
         let samples = data
-            .chunks_exact(2)
-            .map(|b| i16::from_le_bytes([b[0], b[1]]));
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| i16::from_le_bytes(*b));
         Ok(bucket_peaks(samples, data.len() / 2, bars))
     };
     read().map_err(|e| JobError::Failed(format!("Couldn't read the waveform: {e}")))
