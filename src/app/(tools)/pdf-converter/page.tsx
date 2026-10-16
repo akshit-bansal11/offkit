@@ -374,7 +374,7 @@ function PdfConverterTool() {
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as TabType)}
           className="max-w-full rounded-full border bg-card/60 p-1.5 shadow-sm backdrop-blur-md"
-          optionClassName="rounded-full whitespace-nowrap px-5 py-2.5 text-sm"
+          optionClassName="rounded-full whitespace-nowrap px-3 py-2.5 text-sm sm:px-5"
           options={[
             {
               label: (
@@ -407,7 +407,7 @@ function PdfConverterTool() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_360px]">
         {/* Main Interface Area */}
         <div className="space-y-6">
           <FileDropZoneCard
@@ -431,7 +431,7 @@ function PdfConverterTool() {
           {/* Render Img -> PDF Uploaded Files */}
           {activeTab === "img-to-pdf" && imgFiles.length > 0 && (
             <div className="space-y-4 rounded-3xl border bg-card/40 p-6">
-              <div className="flex items-center justify-between border-b pb-4 border-white/5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-4 border-white/5">
                 <h3 className="text-lg font-semibold tracking-tight text-foreground">
                   Queued Images{" "}
                   <span className="text-muted-foreground font-normal ml-2">
@@ -449,7 +449,7 @@ function PdfConverterTool() {
                 </Button>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 pt-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 pt-2">
                 {imgFiles.map((item) => (
                   <div
                     key={item.id}
@@ -534,7 +534,7 @@ function PdfConverterTool() {
 
               {pdfPages.length > 0 && (
                 <div className="pt-4">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                     <h3 className="font-medium">
                       Extracted Pages ({pdfPages.length})
                     </h3>
@@ -547,7 +547,7 @@ function PdfConverterTool() {
                       Download ZIP
                     </Button>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {pdfPages.map((page) => (
                       <div
                         key={page.id}

@@ -3,9 +3,7 @@ import { expect, test } from "@playwright/test";
 import { siteConfig } from "../src/config/site";
 import { tools } from "../src/config/tools";
 
-// Tool pages join this list once the seven that scroll sideways at 320px are fixed: glassmorphism,
-// box-shadow, pdf-toolkit, lorem-generator, pdf-converter, pdf-compressor and md-editor.
-const routes = ["/", "/docs"];
+const routes = ["/", "/docs", ...tools.map((tool) => tool.href)];
 
 test("landing page offers the download and leads to the docs", async ({
   page,

@@ -118,11 +118,11 @@ function GlassmorphismTool() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto xl:max-w-7xl">
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
         {/* PREVIEW DOMAIN */}
         <div className="space-y-6 flex flex-col">
           <Card className="border-white/10 bg-card/70 overflow-hidden flex-1 shadow-sm flex flex-col rounded-3xl">
-            <CardHeader className="bg-background/20 border-b border-white/5 py-3 px-4 flex flex-row items-center justify-between">
+            <CardHeader className="bg-background/20 border-b border-white/5 py-3 px-4 flex flex-row flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <ImageIcon className="size-4" /> Live Environment
               </CardTitle>
@@ -182,9 +182,9 @@ function GlassmorphismTool() {
           </Card>
 
           {/* EXPORT CARD */}
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Card className="border-white/10 bg-card/70 shadow-sm">
-              <CardHeader className="bg-background/20 border-b border-white/5 py-3 px-4 flex flex-row items-center justify-between">
+              <CardHeader className="bg-background/20 border-b border-white/5 py-3 px-4 flex flex-row flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   Native CSS
                 </CardTitle>
@@ -215,7 +215,7 @@ function GlassmorphismTool() {
             </Card>
 
             <Card className="border-white/10 bg-card/70 shadow-sm">
-              <CardHeader className="bg-background/20 border-b border-white/5 py-3 px-4 flex flex-row items-center justify-between">
+              <CardHeader className="bg-background/20 border-b border-white/5 py-3 px-4 flex flex-row flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   Tailwind Classes
                 </CardTitle>

@@ -211,7 +211,7 @@ function PdfCompressorTool() {
 
             {outputUrl && outputSize !== null && !isProcessing && (
               <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   <span>Original: {formatFileSize(file.size)}</span>
                   <span>→</span>
                   <span className="text-emerald-400 font-medium">
@@ -233,7 +233,7 @@ function PdfCompressorTool() {
               <NotSmallerNotice className="flex-1" />
             )}
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex flex-wrap items-center gap-2">
               {outputUrl && (
                 <Button
                   variant="outline"

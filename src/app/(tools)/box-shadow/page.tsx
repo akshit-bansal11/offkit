@@ -145,12 +145,12 @@ function BoxShadowTool() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto xl:max-w-7xl">
-      <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
         {/* Preview Area (Left Side) */}
         <div className="space-y-6 flex flex-col">
           <Card className="border-white/10 bg-card/70 overflow-hidden flex-1 shadow-sm flex flex-col">
             <CardHeader className="bg-background/20 border-b border-white/5 py-3 px-4">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex flex-wrap items-center justify-between gap-2">
                 Live Preview
                 <div className="flex gap-2 items-center">
                   <div className="h-4 w-px bg-white/10 mx-2" />
@@ -174,7 +174,7 @@ function BoxShadowTool() {
               </CardTitle>
             </CardHeader>
             <CardContent
-              className="flex-1 flex items-center justify-center p-12 min-h-[400px] transition-colors relative dotted-bg"
+              className="flex-1 flex items-center justify-center p-6 sm:p-12 min-h-[400px] transition-colors relative dotted-bg"
               style={{ backgroundColor: bgColor }}
             >
               {/* Optional dot overlay for depth estimation */}
@@ -204,7 +204,7 @@ function BoxShadowTool() {
 
           {/* CSS Output Panel */}
           <Card className="border-white/10 bg-card/70 shadow-sm shrink-0">
-            <CardHeader className="bg-background/20 border-b border-white/5 py-3 px-4 flex flex-row items-center justify-between">
+            <CardHeader className="bg-background/20 border-b border-white/5 py-3 px-4 flex flex-row flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 CSS Output
               </CardTitle>
@@ -238,7 +238,7 @@ function BoxShadowTool() {
         {/* Controls Area (Right Side) */}
         <div className="space-y-6">
           <Card className="border-white/10 bg-card/70 shadow-sm relative overflow-hidden">
-            <CardHeader className="bg-background/20 border-b border-white/5 py-4 flex flex-row items-center justify-between sticky top-0 z-10 backdrop-blur">
+            <CardHeader className="bg-background/20 border-b border-white/5 py-4 flex flex-row flex-wrap items-center justify-between gap-2 sticky top-0 z-10 backdrop-blur">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Layers className="size-4 text-primary" />
                 Shadow Layers
@@ -406,7 +406,7 @@ function BoxShadowTool() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between gap-4 pt-4 border-t border-white/5">
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-white/5">
                     <div className="space-y-1">
                       <Label className="block text-foreground">
                         Shadow Color

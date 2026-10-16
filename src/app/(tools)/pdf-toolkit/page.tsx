@@ -323,7 +323,7 @@ function PdfToolkitTool() {
             setErrorMessage(null);
           }}
           className="max-w-full rounded-full border bg-card/60 p-1.5 shadow-sm backdrop-blur-md"
-          optionClassName="rounded-full whitespace-nowrap px-5 py-2.5 text-sm"
+          optionClassName="rounded-full whitespace-nowrap px-3 py-2.5 text-sm sm:px-5"
           options={[
             {
               label: (
@@ -370,7 +370,7 @@ function PdfToolkitTool() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_360px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_360px]">
         {/* Main Interface Area */}
         <div className="space-y-6">
           <FileDropZoneCard
@@ -386,7 +386,7 @@ function PdfToolkitTool() {
           {/* MERGE VIEW: List of PDFs */}
           {activeTab === "merge" && mergeFiles.length > 0 && (
             <div className="space-y-4 rounded-3xl border bg-card/40 p-6">
-              <div className="flex items-center justify-between border-b pb-4 border-white/5">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-4 border-white/5">
                 <h3 className="text-lg font-semibold tracking-tight text-foreground">
                   Files to Merge{" "}
                   <span className="text-muted-foreground font-normal ml-2">
@@ -523,7 +523,7 @@ function PdfToolkitTool() {
               <h3 className="text-lg font-semibold tracking-tight border-b pb-4 border-white/5">
                 Drag to Reorder Pages
               </h3>
-              <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-4 pt-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-4 pt-2">
                 {reorderPages.map((page) => (
                   <div
                     key={page.id}
