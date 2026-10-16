@@ -26,7 +26,7 @@ use crate::engine::ffmpeg_video::{
 use crate::files::{self, reserve_replacing};
 use crate::jobs::{self, CancelToken, JobError};
 use crate::select::{self, index};
-use crate::{AppWindow, VideoEditor, VideoRotation};
+use crate::{AppWindow, VideoEditor, VideoEditorRotation};
 
 pub const SLUG: &str = "video-editor";
 /// The preview frame's longer side, in pixels.
@@ -341,7 +341,7 @@ fn show(app: &AppWindow, generation: u64, source: Source) {
     g.set_crop_y(0.0);
     g.set_crop_w(w);
     g.set_crop_h(h);
-    g.set_rotation(VideoRotation::None);
+    g.set_rotation(VideoEditorRotation::None);
     g.set_flip_h(false);
     g.set_flip_v(false);
     g.set_size_index(0);
@@ -439,10 +439,10 @@ fn read_edit(g: &VideoEditor, caps: Option<&Capabilities>) -> Edit {
         duration: f64::from(g.get_duration()),
         crop,
         turn: match g.get_rotation() {
-            VideoRotation::None => Turn::None,
-            VideoRotation::Quarter => Turn::Quarter,
-            VideoRotation::Half => Turn::Half,
-            VideoRotation::ThreeQuarters => Turn::ThreeQuarters,
+            VideoEditorRotation::None => Turn::None,
+            VideoEditorRotation::Quarter => Turn::Quarter,
+            VideoEditorRotation::Half => Turn::Half,
+            VideoEditorRotation::ThreeQuarters => Turn::ThreeQuarters,
         },
         flip_h: g.get_flip_h(),
         flip_v: g.get_flip_v(),

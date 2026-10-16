@@ -1,7 +1,7 @@
 // Video Editor view: a frame of the video with the crop drawn over it, a trim timeline under it,
 // and the edit's settings in the inspector. All state lives in the `VideoEditor` global, which
 // Rust drives (src/tools/video_editor.rs); this file only lays it out and handles dragging.
-// `ExportStatus` is shared with the Video Merger.
+// `VideoEditorExportStatus` is shared with the Video Merger.
 
 import { Theme } from "../theme.slint";
 import { AppIcons } from "../icons/icons.slint";
@@ -12,7 +12,7 @@ import { Inspector, InspectorRow, InspectorSection } from "../components/inspect
 import { EmptyState } from "../components/empty-state.slint";
 import { Notice, NoticeTone } from "../components/editor.slint";
 
-export enum VideoRotation { none, quarter, half, three-quarters }
+export enum VideoEditorRotation { none, quarter, half, three-quarters }
 
 export global VideoEditor {
     in property <bool> ffmpeg-found: true;
@@ -44,7 +44,7 @@ export global VideoEditor {
     in-out property <float> crop-w;
     in-out property <float> crop-h;
 
-    in-out property <VideoRotation> rotation;
+    in-out property <VideoEditorRotation> rotation;
     in-out property <bool> flip-h;
     in-out property <bool> flip-v;
     in property <[string]> sizes;
@@ -88,7 +88,7 @@ export global VideoEditor {
 
 // Under the editor or the merger's list: progress while exporting, then where the file went,
 // or why it failed.
-export component ExportStatus inherits HorizontalLayout {
+export component VideoEditorExportStatus inherits HorizontalLayout {
     in property <bool> running;
     in property <float> progress;
     in property <string> activity; // "Exporting"
@@ -704,15 +704,15 @@ component Settings inherits Inspector {
             SegmentedControl {
                 label: "Rotate clockwise";
                 options: ["0°", "90°", "180°", "270°"];
-                current-index: VideoEditor.rotation == VideoRotation.quarter ? 1
-                    : VideoEditor.rotation == VideoRotation.half ? 2
-                    : VideoEditor.rotation == VideoRotation.three-quarters ? 3
+                current-index: VideoEditor.rotation == VideoEditorRotation.quarter ? 1
+                    : VideoEditor.rotation == VideoEditorRotation.half ? 2
+                    : VideoEditor.rotation == VideoEditorRotation.three-quarters ? 3
                     : 0;
                 selected(i) => {
-                    VideoEditor.rotation = i == 1 ? VideoRotation.quarter
-                        : i == 2 ? VideoRotation.half
-                        : i == 3 ? VideoRotation.three-quarters
-                        : VideoRotation.none;
+                    VideoEditor.rotation = i == 1 ? VideoEditorRotation.quarter
+                        : i == 2 ? VideoEditorRotation.half
+                        : i == 3 ? VideoEditorRotation.three-quarters
+                        : VideoEditorRotation.none;
                     VideoEditor.settings-changed();
                 }
             }
@@ -982,7 +982,7 @@ export component VideoEditorView inherits VerticalLayout {
                 }
             }
 
-            ExportStatus {
+            VideoEditorExportStatus {
                 running: VideoEditor.exporting;
                 progress: VideoEditor.export-progress;
                 activity: "Exporting";

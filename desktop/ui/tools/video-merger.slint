@@ -9,9 +9,9 @@ import { Button, ButtonKind, DropOutline, FocusRing, IconButton, Select, Switch 
 import { DropZone } from "../components/file-list.slint";
 import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
 import { EmptyState } from "../components/empty-state.slint";
-import { ExportStatus } from "video-editor.slint";
+import { VideoEditorExportStatus } from "video-editor.slint";
 
-export struct MergeClip {
+export struct VideoMergerClip {
     name: string,
     // The size, length and codecs, or why the file can't be merged.
     detail: string,
@@ -23,7 +23,7 @@ export struct MergeClip {
 export global VideoMerger {
     in property <bool> ffmpeg-found: true;
     in property <bool> drop-hover;
-    in property <[MergeClip]> clips;
+    in property <[VideoMergerClip]> clips;
     in property <string> list-summary;
     // The row that takes keyboard focus next, set after a clip moves so focus follows it.
     in property <int> focus-clip: -1;
@@ -58,7 +58,7 @@ export global VideoMerger {
 // One clip: its first frame, name and details, and the buttons that reorder or remove it.
 // Alt+Up and Alt+Down move the focused row; Delete removes it.
 component ClipRow {
-    in property <MergeClip> item;
+    in property <VideoMergerClip> item;
     in property <int> index;
     in property <bool> first;
     in property <bool> last;
@@ -328,7 +328,7 @@ export component VideoMergerView inherits VerticalLayout {
                     vertical-stretch: 1;
                     add => { VideoMerger.choose-files(); }
                 }
-                if VideoMerger.merging || VideoMerger.merge-message != "": ExportStatus {
+                if VideoMerger.merging || VideoMerger.merge-message != "": VideoEditorExportStatus {
                     running: VideoMerger.merging;
                     progress: VideoMerger.merge-progress;
                     activity: "Merging";

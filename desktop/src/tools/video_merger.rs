@@ -27,7 +27,7 @@ use crate::engine::ffmpeg_video::{
 use crate::files::{self, reserve_replacing};
 use crate::jobs::{self, CancelToken, JobError};
 use crate::select::{self, index};
-use crate::{AppWindow, MergeClip, VideoMerger};
+use crate::{AppWindow, VideoMerger, VideoMergerClip};
 
 pub const SLUG: &str = "video-merger";
 const CONCURRENT_PROBES: usize = 4;
@@ -57,7 +57,7 @@ struct State {
     caps: Option<&'static Capabilities>,
     entries: Vec<Entry>,
     next_id: u64,
-    rows: Rc<VecModel<MergeClip>>,
+    rows: Rc<VecModel<VideoMergerClip>>,
     /// Cancels probes and thumbnails at shutdown.
     cancel: Arc<CancelToken>,
     merge: Option<Arc<CancelToken>>,
@@ -331,13 +331,13 @@ fn move_clip(app: &AppWindow, i: usize, step: isize) {
 }
 
 /// The row a clip shows as.
-fn row(entry: &Entry) -> MergeClip {
+fn row(entry: &Entry) -> VideoMergerClip {
     let (detail, failed) = match &entry.probe {
         Probe::Reading => ("Reading…".to_string(), false),
         Probe::Ready { info, .. } => (info.summary(), false),
         Probe::Failed(message) => (message.clone(), true),
     };
-    MergeClip {
+    VideoMergerClip {
         name: files::file_name(&entry.path).into(),
         detail: detail.into(),
         thumbnail: entry.thumbnail.clone().unwrap_or_default(),
@@ -347,7 +347,7 @@ fn row(entry: &Entry) -> MergeClip {
 }
 
 /// Writes `rows` into the model in place, so the rows already on screen keep their focus.
-fn show_rows(model: &VecModel<MergeClip>, rows: Vec<MergeClip>) {
+fn show_rows(model: &VecModel<VideoMergerClip>, rows: Vec<VideoMergerClip>) {
     let kept = model.row_count().min(rows.len());
     while model.row_count() > rows.len() {
         model.remove(model.row_count() - 1);

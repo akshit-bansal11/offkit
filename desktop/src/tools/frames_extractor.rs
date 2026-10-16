@@ -26,7 +26,7 @@ use crate::file_queue::{FileQueue, Job, Summary, Update};
 use crate::files::{self, ReservedDir, reserve_dir, reserve_output};
 use crate::jobs::{self, CancelToken, JobError};
 use crate::select::{self, index};
-use crate::{AppWindow, FileStatus, FrameImage, FramePick, FramesExtractor};
+use crate::{AppWindow, FileStatus, FramesExtractor, FramesExtractorImage, FramesExtractorPick};
 
 pub const SLUG: &str = "frames-extractor";
 const CONCURRENT_EXTRACTIONS: usize = 2;
@@ -262,18 +262,18 @@ pub fn shutdown() -> Vec<JoinHandle<()>> {
 /// Reads the settings into an `Extraction`, or says what to fix.
 fn read_settings(g: &FramesExtractor, webp: Option<bool>) -> Result<Extraction, String> {
     let image = match g.get_image() {
-        FrameImage::Png => ImageKind::Png,
-        FrameImage::Jpeg => ImageKind::Jpeg,
-        FrameImage::Webp => ImageKind::Webp,
+        FramesExtractorImage::Png => ImageKind::Png,
+        FramesExtractorImage::Jpeg => ImageKind::Jpeg,
+        FramesExtractorImage::Webp => ImageKind::Webp,
     };
     if image == ImageKind::Webp && webp == Some(false) {
         return Err("This FFmpeg build has no WebP encoder. Choose PNG or JPEG.".into());
     }
     let pick = match g.get_pick() {
-        FramePick::Every => Pick::Every,
-        FramePick::Rate => Pick::Rate(RATES[index(g.get_rate_index(), RATES.len())].1),
-        FramePick::Nth => Pick::Nth(g.get_nth().round().clamp(2.0, 10_000.0) as u32),
-        FramePick::Times => Pick::Times(parse_times(&g.get_times())?),
+        FramesExtractorPick::Every => Pick::Every,
+        FramesExtractorPick::Rate => Pick::Rate(RATES[index(g.get_rate_index(), RATES.len())].1),
+        FramesExtractorPick::Nth => Pick::Nth(g.get_nth().round().clamp(2.0, 10_000.0) as u32),
+        FramesExtractorPick::Times => Pick::Times(parse_times(&g.get_times())?),
     };
     let time = |text: &str, which: &str| match text.trim() {
         "" => Ok(None),

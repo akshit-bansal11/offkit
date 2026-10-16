@@ -10,8 +10,8 @@ import { DropZone, FileItem, FileList } from "../components/file-list.slint";
 import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
 import { EmptyState } from "../components/empty-state.slint";
 
-export enum FramePick { every, rate, nth, times }
-export enum FrameImage { png, jpeg, webp }
+export enum FramesExtractorPick { every, rate, nth, times }
+export enum FramesExtractorImage { png, jpeg, webp }
 
 export global FramesExtractor {
     in property <bool> ffmpeg-found: true;
@@ -27,10 +27,10 @@ export global FramesExtractor {
 
     // The Extract menu's choice, in the order of its options below.
     in-out property <int> pick-index;
-    out property <FramePick> pick: pick-index == 1 ? FramePick.rate
-        : pick-index == 2 ? FramePick.nth
-        : pick-index == 3 ? FramePick.times
-        : FramePick.every;
+    out property <FramesExtractorPick> pick: pick-index == 1 ? FramesExtractorPick.rate
+        : pick-index == 2 ? FramesExtractorPick.nth
+        : pick-index == 3 ? FramesExtractorPick.times
+        : FramesExtractorPick.every;
     in property <[string]> rates;
     in-out property <int> rate-index: 3;
     in-out property <float> nth: 10;
@@ -41,7 +41,7 @@ export global FramesExtractor {
     in property <bool> start-invalid;
     in-out property <string> end;
     in property <bool> end-invalid;
-    in-out property <FrameImage> image;
+    in-out property <FramesExtractorImage> image;
     in-out property <bool> zip;
     in property <string> output-folder;
     in property <bool> custom-output;
@@ -68,7 +68,7 @@ component Settings inherits Inspector {
 
     InspectorSection {
         title: "Frames";
-        footnote: FramesExtractor.pick == FramePick.times
+        footnote: FramesExtractor.pick == FramesExtractorPick.times
             ? "Seconds or m:ss, separated by commas. Each takes the first frame at or after it."
             : FramesExtractor.estimate;
 
@@ -83,7 +83,7 @@ component Settings inherits Inspector {
                 selected => { FramesExtractor.settings-changed(); }
             }
         }
-        if FramesExtractor.pick == FramePick.rate: InspectorRow {
+        if FramesExtractor.pick == FramesExtractorPick.rate: InspectorRow {
             label: "Rate";
 
             Select {
@@ -93,7 +93,7 @@ component Settings inherits Inspector {
                 selected => { FramesExtractor.settings-changed(); }
             }
         }
-        if FramesExtractor.pick == FramePick.nth: InspectorRow {
+        if FramesExtractor.pick == FramesExtractorPick.nth: InspectorRow {
             label: "Every";
 
             NumberField {
@@ -105,7 +105,7 @@ component Settings inherits Inspector {
                 changed => { FramesExtractor.settings-changed(); }
             }
         }
-        if FramesExtractor.pick == FramePick.times: InspectorRow {
+        if FramesExtractor.pick == FramesExtractorPick.times: InspectorRow {
             label: "Times";
 
             TextField {
@@ -118,7 +118,7 @@ component Settings inherits Inspector {
         }
     }
 
-    if FramesExtractor.pick != FramePick.times: InspectorSection {
+    if FramesExtractor.pick != FramesExtractorPick.times: InspectorSection {
         title: "Range";
         footnote: "Seconds or m:ss. Leave empty for the whole video.";
 
@@ -159,9 +159,9 @@ component Settings inherits Inspector {
             SegmentedControl {
                 label: "Image format";
                 options: ["PNG", "JPEG", "WebP"];
-                current-index: FramesExtractor.image == FrameImage.jpeg ? 1 : FramesExtractor.image == FrameImage.webp ? 2 : 0;
+                current-index: FramesExtractor.image == FramesExtractorImage.jpeg ? 1 : FramesExtractor.image == FramesExtractorImage.webp ? 2 : 0;
                 selected(i) => {
-                    FramesExtractor.image = i == 1 ? FrameImage.jpeg : i == 2 ? FrameImage.webp : FrameImage.png;
+                    FramesExtractor.image = i == 1 ? FramesExtractorImage.jpeg : i == 2 ? FramesExtractorImage.webp : FramesExtractorImage.png;
                     FramesExtractor.settings-changed();
                 }
             }
