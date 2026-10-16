@@ -322,7 +322,7 @@ fn extract_all(app: &AppWindow) {
                 info.duration,
                 args,
                 &job.cancel,
-                |p| progress(p),
+                progress,
             )?;
             Ok(output)
         },
