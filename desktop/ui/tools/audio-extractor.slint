@@ -1,8 +1,128 @@
-// Audio Extractor: a placeholder until the audio family builds it. Its state will live in the
-// `AudioExtractor` global, driven by src/tools/audio_extractor.rs.
+// Audio Extractor view. All state lives in the `AudioExtractor` global, which Rust drives
+// (src/tools/audio_extractor.rs); this file only lays it out.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Select } from "../components/controls.slint";
+import { DropZone, FileItem, FileList } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
+import { EmptyState } from "../components/empty-state.slint";
 
-export global AudioExtractor { }
+export global AudioExtractor {
+    in property <bool> ffmpeg-found: true;
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    in property <bool> running;
+    in property <bool> can-extract;
+    in property <string> list-summary;
 
-export component AudioExtractorView inherits PlaceholderView { }
+    in property <[string]> targets;
+    in-out property <int> target-index;
+    in property <[string]> bitrates;
+    in-out property <int> bitrate-index;
+    in property <bool> bitrate-applies: true;
+    // "Original (no re-encode)" is chosen.
+    in property <bool> copying;
+    in property <string> output-folder;
+    in property <bool> custom-output;
+
+    callback choose-files();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback settings-changed();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback extract-all();
+    callback cancel-all();
+    callback get-ffmpeg();
+}
+
+component Settings inherits Inspector {
+    action-text: "Extract All";
+    can-run: AudioExtractor.can-extract;
+    running: AudioExtractor.running;
+    run => { AudioExtractor.extract-all(); }
+    stop => { AudioExtractor.cancel-all(); }
+
+    InspectorSection {
+        title: "Format";
+        footnote: AudioExtractor.copying ? "Saves the audio track exactly as it is in the video: fastest, with no quality loss. The file type follows its codec (AAC as M4A, Opus as Opus, …)." : "";
+
+        InspectorRow {
+            label: "Save as";
+            first: true;
+
+            Select {
+                label: "Output format";
+                options: AudioExtractor.targets;
+                current-index <=> AudioExtractor.target-index;
+                selected => { AudioExtractor.settings-changed(); }
+            }
+        }
+        if AudioExtractor.bitrate-applies: InspectorRow {
+            label: "Bitrate";
+
+            Select {
+                label: "Bitrate";
+                options: AudioExtractor.bitrates;
+                current-index <=> AudioExtractor.bitrate-index;
+                selected => { AudioExtractor.settings-changed(); }
+            }
+        }
+    }
+
+    OutputFolderSection {
+        folder: AudioExtractor.output-folder;
+        custom: AudioExtractor.custom-output;
+        choose => { AudioExtractor.choose-output-folder(); }
+        reset => { AudioExtractor.reset-output-folder(); }
+    }
+}
+
+export component AudioExtractorView inherits VerticalLayout {
+    if !AudioExtractor.ffmpeg-found: EmptyState {
+        icon: AppIcons.alert;
+        title: "FFmpeg wasn't found";
+        message: "Audio Extractor runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Open Tools, then restart the app.";
+        action-text: "Get FFmpeg";
+        action => { AudioExtractor.get-ffmpeg(); }
+    }
+
+    if AudioExtractor.ffmpeg-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+
+                if AudioExtractor.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: AudioExtractor.drop-hover;
+                    icon: AppIcons.film;
+                    title: "Drop videos here";
+                    hint: "MP4, MKV, MOV, AVI, WebM, FLV and other videos with sound";
+                    choose => { AudioExtractor.choose-files(); }
+                }
+                if AudioExtractor.files.length > 0: FileList {
+                    vertical-stretch: 1;
+                    files: AudioExtractor.files;
+                    summary: AudioExtractor.list-summary;
+                    drop-hover: AudioExtractor.drop-hover;
+                    icon: AppIcons.film;
+                    activity: "Extracting";
+                    cancel-label: "Cancel extraction";
+                    add => { AudioExtractor.choose-files(); }
+                    remove(i) => { AudioExtractor.remove(i); }
+                    cancel(i) => { AudioExtractor.cancel(i); }
+                    reveal(i) => { AudioExtractor.reveal(i); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

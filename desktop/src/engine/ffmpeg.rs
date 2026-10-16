@@ -372,6 +372,14 @@ fn require_video(info: &MediaInfo) -> anyhow::Result<()> {
 }
 
 // --- require_audio: pasted verbatim by families that need it ---
+/// For tools that need sound (Audio Extractor, the audio tools' run-time re-probe): the file
+/// must hold an audio stream.
+pub fn require_audio(info: &MediaInfo) -> anyhow::Result<()> {
+    if info.audio_codec.is_none() {
+        bail!("No audio track found");
+    }
+    Ok(())
+}
 
 /// The demuxer to pin for a probed file, or why the file is refused.
 fn allowed_demuxer(format_name: &str) -> anyhow::Result<&str> {
@@ -1472,6 +1480,17 @@ Error opening output file o4.mkv.";
     }
 
     // --- require_audio tests: pasted verbatim by families that need it ---
+    #[test]
+    fn a_video_without_sound_has_no_audio_track() {
+        let json = br#"{"streams":[{"codec_type":"video","codec_name":"h264"}],"format":{"format_name":"mov"}}"#;
+
+        let info = MediaInfo::from_ffprobe_json(json).unwrap();
+
+        assert_eq!(
+            require_audio(&info).unwrap_err().to_string(),
+            "No audio track found"
+        );
+    }
 
     // ---- Runs the real FFmpeg; skipped (with a note) when it isn't installed. ----
 
