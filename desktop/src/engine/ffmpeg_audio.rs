@@ -302,12 +302,14 @@ pub fn read_wav_header(r: &mut impl Read) -> anyhow::Result<WavHeader> {
     let mut format = None;
     loop {
         let mut chunk = [0u8; 8];
-        r.read_exact(&mut chunk).context("the WAV file has no sample data")?;
+        r.read_exact(&mut chunk)
+            .context("the WAV file has no sample data")?;
         let len = u32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]);
         match &chunk[0..4] {
             b"fmt " => {
                 let mut fmt = vec![0u8; len as usize];
-                r.read_exact(&mut fmt).context("the WAV format is cut short")?;
+                r.read_exact(&mut fmt)
+                    .context("the WAV format is cut short")?;
                 if fmt.len() < 16 || u16::from_le_bytes([fmt[14], fmt[15]]) != 16 {
                     bail!("the WAV file isn't 16-bit");
                 }
@@ -538,7 +540,15 @@ pub(crate) mod tests {
     fn convert(ff: &Ffmpeg, input: &Path, format: Format, bitrate: Option<u32>) -> String {
         let output = reserve_output(input, None, format.extension()).unwrap();
         let args = encode_args(format, bitrate, ff.encoders()).unwrap();
-        let result = transcode(ff, input, &output, Some(1.0), args, &CancelToken::default(), |_| {});
+        let result = transcode(
+            ff,
+            input,
+            &output,
+            Some(1.0),
+            args,
+            &CancelToken::default(),
+            |_| {},
+        );
         match result {
             Ok(()) => {
                 let path = output.keep().unwrap();
