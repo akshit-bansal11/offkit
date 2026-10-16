@@ -210,12 +210,12 @@ export component SvgAnimatorView inherits VerticalLayout {
                     scroll := ScrollView {
                         width: 100%;
                         height: 100%;
-                        viewport-width: max(self.visible-width, SvgAnimator.frame-width);
-                        viewport-height: max(self.visible-height, SvgAnimator.frame-height);
+                        content-width: max(self.visible-width, SvgAnimator.frame-width);
+                        content-height: max(self.visible-height, SvgAnimator.frame-height);
 
                         Image {
-                            x: (scroll.viewport-width - self.width) / 2;
-                            y: (scroll.viewport-height - self.height) / 2;
+                            x: (scroll.content-width - self.width) / 2;
+                            y: (scroll.content-height - self.height) / 2;
                             width: SvgAnimator.frame-width;
                             height: SvgAnimator.frame-height;
                             source: SvgAnimator.frame;

@@ -1305,8 +1305,10 @@ mod tests {
 
     #[test]
     fn the_clock_holds_still_while_paused() {
-        let mut clock = Clock::default();
-        clock.paused = Some(1.25);
+        let mut clock = Clock {
+            paused: Some(1.25),
+            ..Clock::default()
+        };
 
         clock.resume();
         clock.pause();
