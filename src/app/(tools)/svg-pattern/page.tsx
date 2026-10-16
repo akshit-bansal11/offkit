@@ -163,9 +163,9 @@ function SvgPatternTool() {
   return (
     <div className="w-full space-y-8 px-2 py-8 md:px-0">
       <div className="mb-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-white/90 md:text-3xl">
+        <h2 className="text-2xl font-bold tracking-tight text-white/90 md:text-3xl">
           SVG Pattern Generator
-        </h1>
+        </h2>
         <span className="text-xs text-white/40">
           Seamless SVG backgrounds for your UI
         </span>

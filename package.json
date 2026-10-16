@@ -6,9 +6,9 @@
   "author": "Akshit Bansal",
   "main": "electron/main.mjs",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/copy-vendor.mjs && next dev",
     "dev:desktop": "node scripts/copy-vendor.mjs && node scripts/next-desktop.mjs dev",
-    "build": "next build",
+    "build": "node scripts/copy-vendor.mjs && next build",
     "build:desktop": "node scripts/copy-vendor.mjs && node scripts/next-desktop.mjs build",
     "start": "next start",
     "app": "electron .",

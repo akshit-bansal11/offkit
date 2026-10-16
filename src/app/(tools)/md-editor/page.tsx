@@ -20,7 +20,7 @@ import {
   RotateCcw,
   Table,
 } from "lucide-react";
-import { marked } from "marked";
+import { Marked } from "marked";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
@@ -53,7 +53,6 @@ console.log(greet("World"));
 |---------|--------|
 | Live preview | ✅ |
 | PDF export | ✅ |
-| Sync scroll | ✅ |
 
 > "The best tools are those that get out of your way." — Anonymous
 
@@ -240,6 +239,17 @@ function TOOLBAR_BUTTONS(): ToolbarButton[] {
   ];
 }
 
+// The page already has its h1, the tool name, so a document's headings sit one
+// level below it. data-md-depth keeps each heading styled as written.
+const markdownRenderer = new Marked({
+  renderer: {
+    heading({ tokens, depth }) {
+      const level = Math.min(depth + 1, 6);
+      return `<h${level} data-md-depth="${depth}">${this.parser.parseInline(tokens)}</h${level}>\n`;
+    },
+  },
+});
+
 function MdEditorTool() {
   const [markdown, setMarkdown] = useState(DEFAULT_MARKDOWN);
   const [renderedHtml, setRenderedHtml] = useState("");
@@ -248,7 +258,7 @@ function MdEditorTool() {
 
   useEffect(() => {
     (async () => {
-      const raw = await marked.parse(markdown);
+      const raw = await markdownRenderer.parse(markdown);
       if (typeof window !== "undefined") {
         setRenderedHtml(DOMPurify.sanitize(raw));
       } else {
@@ -304,9 +314,9 @@ function MdEditorTool() {
           .md-print-target { display: block !important; }
         }
         .md-print-target { display: none; }
-        .prose h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem; }
-        .prose h2 { font-size: 1.5rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-        .prose h3 { font-size: 1.25rem; font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.25rem; }
+        .prose [data-md-depth="1"] { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.5rem; }
+        .prose [data-md-depth="2"] { font-size: 1.5rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .prose [data-md-depth="3"] { font-size: 1.25rem; font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.25rem; }
         .prose p { margin-bottom: 0.75rem; line-height: 1.7; }
         .prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
         .prose li { margin-bottom: 0.25rem; }
@@ -379,6 +389,7 @@ function MdEditorTool() {
             onChange={(e) => setMarkdown(e.target.value)}
             onKeyDown={handleKeyDown}
             spellCheck={false}
+            aria-label="Markdown source"
             className="min-h-[600px] flex-1 resize-none rounded-2xl border border-white/10 bg-black/30 p-4 font-mono text-sm leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-white/20 focus:bg-black/40"
             placeholder="# Start writing..."
           />

@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("color-converter");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "Color Converter",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("color-converter");
 
 export default function Layout({
   children,

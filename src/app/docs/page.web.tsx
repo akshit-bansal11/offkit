@@ -1,16 +1,26 @@
 // page.web.tsx
-// Documentation page: install steps, privacy, per-tool reference and known limits.
+// Documentation page: install steps, privacy, per-tool reference with a link to each tool, and known limits.
 
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SiteShell } from "@/components/site/SiteShell";
 import { siteConfig } from "@/config/site";
 import { toolsByCategory } from "@/config/tools";
 
+const TITLE = "Documentation";
+const DESCRIPTION =
+  "How to use Open Tools in your browser or install it on Windows, what each tool does, and its known limits.";
+
 export const metadata: Metadata = {
-  title: "Documentation",
-  description:
-    "How to install Open Tools on Windows, what each tool does, and what the app can and cannot do offline.",
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: "/docs" },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: "/docs",
+    images: [siteConfig.socialImage],
+  },
 };
 
 const link = "underline underline-offset-4";
@@ -88,15 +98,22 @@ export default function DocsPage() {
             Privacy
           </h2>
           <p className={body}>
-            Every tool works on files on your own machine. Nothing is uploaded,
-            there is no account, and the app sends no analytics or error
-            reports.
+            Every tool works on files on your own device, in the browser and in
+            the Windows app alike. Nothing is uploaded and there is no account.
           </p>
           <p className={body}>
-            The app blocks outbound network requests. Git Scaffold is the one
-            exception: it asks api.github.com for a repository&apos;s file list,
-            and only when you run it. If you give it a GitHub token, the token
-            is stored on your PC and sent only to GitHub.
+            Git Scaffold is the one tool that goes online: it asks
+            api.github.com for a repository&apos;s file list, and only when you
+            run it. A GitHub token you give it for a private repository is kept
+            in memory on that page only. It is never saved, and it is sent only
+            to api.github.com.
+          </p>
+          <p className={body}>
+            This website counts page views with Vercel Web Analytics and reports
+            script errors to Better Stack. Neither receives your files, and
+            Better Stack&apos;s script does not load on the Git Scaffold page.
+            The Windows app blocks every other outbound request and sends no
+            analytics or error reports.
           </p>
         </section>
 
@@ -120,6 +137,11 @@ export default function DocsPage() {
                       <li key={highlight}>{highlight}</li>
                     ))}
                   </ul>
+                  <p className="mt-4">
+                    <Link className={link} href={tool.href}>
+                      Open {tool.name}
+                    </Link>
+                  </p>
                 </article>
               ))}
             </div>
@@ -140,7 +162,10 @@ export default function DocsPage() {
               Media tools hold the whole file in memory, so very large videos
               can fail. Try a shorter clip or a smaller file.
             </li>
-            <li>Windows only. There is no macOS or Linux build.</li>
+            <li>
+              The desktop app is Windows only for now. On macOS and Linux, use
+              the tools in your browser.
+            </li>
           </ul>
         </section>
       </div>

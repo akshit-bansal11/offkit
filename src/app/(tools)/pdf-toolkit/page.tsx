@@ -18,6 +18,7 @@ import {
 import { PDFDocument } from "pdf-lib";
 import React, { useCallback, useEffect, useState } from "react";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
+import { NotSmallerNotice } from "@/components/tools/pdf/NotSmallerNotice";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Progress } from "@/components/ui/feedback/Progress";
@@ -33,6 +34,7 @@ import {
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Slider } from "@/components/ui/Slider";
 import { getToolBySlug } from "@/config/tools";
+import { compressPdf } from "@/lib/pdf/compress";
 import { pdfjsLib } from "@/lib/pdf/pdfjs";
 import type {
   PdfFileItem,
@@ -40,9 +42,10 @@ import type {
   TabType,
 } from "@/lib/tools/pdf-toolkit/types";
 import {
+  describePageRangeProblem,
   formatFileSize,
   generateId,
-  parseRanges,
+  parsePageRanges,
 } from "@/lib/tools/pdf-toolkit/utils";
 
 const tool = getToolBySlug("pdf-toolkit");
@@ -80,6 +83,7 @@ function PdfToolkitTool() {
   const [compressFile, setCompressFile] = useState<File | null>(null);
   const [compressQuality, setCompressQuality] = useState<number>(60);
   const [compressResolution, setCompressResolution] = useState<number>(1.5); // 1.0 to 2.0 scaled
+  const [compressNotSmaller, setCompressNotSmaller] = useState(false);
 
   // --- REORDER STATE ---
   const [reorderFile, setReorderFile] = useState<File | null>(null);
@@ -126,6 +130,7 @@ function PdfToolkitTool() {
         if (pdf) setSplitTotalPages(pdf.numPages);
       } else if (activeTab === "compress") {
         setCompressFile(validPdfs[0]);
+        setCompressNotSmaller(false);
       } else if (activeTab === "reorder") {
         const file = validPdfs[0];
         setReorderFile(file);
@@ -145,8 +150,8 @@ function PdfToolkitTool() {
             canvas.width = viewport.width;
             canvas.height = viewport.height;
             if (ctx) {
-              // @ts-expect-error - The pdfjs-dist TS typings strictly require canvas sometimes improperly despite canvasContext being the actual parameter
-              await page.render({ canvasContext: ctx, viewport }).promise;
+              await page.render({ canvas, canvasContext: ctx, viewport })
+                .promise;
               const blob = await new Promise<Blob | null>((res) =>
                 canvas.toBlob(res, "image/jpeg", 0.7),
               );
@@ -231,14 +236,15 @@ function PdfToolkitTool() {
         const blob = await zip.generateAsync({ type: "blob" });
         downloadBlob(blob, `${splitFile.name.replace(".pdf", "")}_split.zip`);
       } else {
-        const indices = parseRanges(splitRange, total);
-        if (indices.length === 0) {
-          setErrorMessage("Invalid or empty range.");
+        const selection = parsePageRanges(splitRange, total);
+        const problem = describePageRangeProblem(selection, total);
+        if (problem) {
+          setErrorMessage(problem);
           setIsProcessing(false);
           return;
         }
         const newPdf = await PDFDocument.create();
-        const pages = await newPdf.copyPages(pdf, indices);
+        const pages = await newPdf.copyPages(pdf, selection.pages);
         pages.forEach((p) => newPdf.addPage(p));
         const bytes = await newPdf.save();
         const buffer = Uint8Array.from(bytes).buffer;
@@ -260,45 +266,15 @@ function PdfToolkitTool() {
     setIsProcessing(true);
     setProgress(0);
     setErrorMessage(null);
+    setCompressNotSmaller(false);
     try {
-      // Rasterization approach (Flattens PDF but significantly drops sizes of image-heavy docs safely)
-      const fileBuffer = await compressFile.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: fileBuffer }).promise;
-      const total = pdf.numPages;
-
-      const newPdf = await PDFDocument.create();
-      for (let i = 1; i <= total; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: compressResolution });
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        if (ctx) {
-          await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-          const blob = await new Promise<Blob | null>((res) =>
-            canvas.toBlob(res, "image/jpeg", compressQuality / 100),
-          );
-          if (blob) {
-            const imgBytes = await blob.arrayBuffer();
-            const jpegImg = await newPdf.embedJpg(imgBytes);
-            const newPage = newPdf.addPage([jpegImg.width, jpegImg.height]);
-            newPage.drawImage(jpegImg, {
-              x: 0,
-              y: 0,
-              width: jpegImg.width,
-              height: jpegImg.height,
-            });
-          }
-        }
-        setProgress(Math.round((i / total) * 100));
-      }
-      const bytes = await newPdf.save();
-      const buffer = Uint8Array.from(bytes).buffer;
-      downloadBlob(
-        new Blob([buffer], { type: "application/pdf" }),
-        "Compressed_Document.pdf",
-      );
+      const blob = await compressPdf(compressFile, {
+        scale: compressResolution,
+        quality: compressQuality,
+        onProgress: (fraction) => setProgress(Math.round(fraction * 100)),
+      });
+      if (blob) downloadBlob(blob, "Compressed_Document.pdf");
+      else setCompressNotSmaller(true);
     } catch (e) {
       console.error(e);
       setErrorMessage("Failed to compress document.");
@@ -525,7 +501,10 @@ function PdfToolkitTool() {
                   size="icon"
                   onClick={() => {
                     if (activeTab === "split") setSplitFile(null);
-                    if (activeTab === "compress") setCompressFile(null);
+                    if (activeTab === "compress") {
+                      setCompressFile(null);
+                      setCompressNotSmaller(false);
+                    }
                     if (activeTab === "reorder") {
                       setReorderFile(null);
                       setReorderPages([]);
@@ -749,6 +728,7 @@ function PdfToolkitTool() {
                     )}
                     {isProcessing ? "Compressing..." : "Compress PDF"}
                   </Button>
+                  {compressNotSmaller && !isProcessing && <NotSmallerNotice />}
                 </>
               )}
 

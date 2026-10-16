@@ -1,20 +1,25 @@
 import type { GitTreeEntry, NodeType, RepoIdentity, TreeNode } from "./types";
 
+// GitHub's own character rules. Holding names to them keeps "?", "#", "%" and ".."
+// out of the API path the names are placed in.
+const OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const REPO_PATTERN = /^[A-Za-z0-9._-]{1,100}$/;
+
 export function parseRepoIdentity(input: string): RepoIdentity | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  const urlMatch = trimmed.match(
-    /^https?:\/\/github\.com\/([^/]+)\/([^/#?]+)(?:[/?#].*)?$/i,
-  );
-  if (urlMatch) {
-    return { owner: urlMatch[1], repo: urlMatch[2].replace(/\.git$/i, "") };
-  }
+  const match =
+    trimmed.match(
+      /^https?:\/\/(?:www\.)?github\.com\/([^/]+)\/([^/#?]+)(?:[/?#].*)?$/i,
+    ) ?? trimmed.match(/^([^/\s]+)\/([^/\s]+)$/);
+  if (!match) return null;
 
-  const shortMatch = trimmed.match(/^([^/\s]+)\/([^/\s]+)$/);
-  return shortMatch
-    ? { owner: shortMatch[1], repo: shortMatch[2].replace(/\.git$/i, "") }
-    : null;
+  const owner = match[1];
+  const repo = match[2].replace(/\.git$/i, "");
+  if (!OWNER_PATTERN.test(owner) || !REPO_PATTERN.test(repo)) return null;
+  if (repo === "." || repo === "..") return null;
+  return { owner, repo };
 }
 
 export function buildTree(entries: GitTreeEntry[]): TreeNode {
@@ -81,12 +86,12 @@ export function treeToAscii(root: TreeNode): string {
   const walk = (nodes: TreeNode[], prefix: string) => {
     nodes.forEach((node, index) => {
       const isLast = index === nodes.length - 1;
-      const connector = isLast ? "â””â”€â”€" : "â”œâ”€â”€";
+      const connector = isLast ? "└──" : "├──";
       lines.push(
         `${prefix}${connector} ${node.name}${node.type === "folder" ? "/" : ""}`,
       );
       if (node.type === "folder" && node.children.length > 0) {
-        walk(node.children, `${prefix}${isLast ? "    " : "â”‚   "}`);
+        walk(node.children, `${prefix}${isLast ? "    " : "│   "}`);
       }
     });
   };

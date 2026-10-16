@@ -17,6 +17,7 @@ import {
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Slider } from "@/components/ui/Slider";
 import { getToolBySlug } from "@/config/tools";
+import { blobBackground, blobCss, blobTailwind } from "@/lib/design-tools/blob";
 
 const tool = getToolBySlug("blob-generator");
 
@@ -252,25 +253,11 @@ function BlobGeneratorTool() {
 
   const borderRadiusValue = useMemo(() => cornersToRadius(corners), [corners]);
 
-  const cssValue = useMemo(
-    () =>
-      [
-        `border-radius: ${borderRadiusValue};`,
-        blobGradient
-          ? `background: linear-gradient(135deg, ${blobColor}, ${blobColor}80);`
-          : `background: ${blobColor};`,
-      ].join("\n"),
-    [borderRadiusValue, blobColor, blobGradient],
-  );
-
-  const tailwindValue = useMemo(
-    () =>
-      `rounded-[${borderRadiusValue.replace(/ /g, "_")}] ${
-        blobGradient
-          ? "bg-gradient-to-br from-violet-500 to-violet-500/50"
-          : "bg-violet-500"
-      }`,
-    [borderRadiusValue, blobGradient],
+  const cssValue = blobCss(borderRadiusValue, blobColor, blobGradient);
+  const tailwindValue = blobTailwind(
+    borderRadiusValue,
+    blobColor,
+    blobGradient,
   );
 
   function updateCorner(corner: CornerKey, axis: Axis, rawValue: number) {
@@ -450,9 +437,7 @@ function BlobGeneratorTool() {
                 className="relative z-10 aspect-square w-full max-w-[280px] shadow-2xl transition-all duration-[320ms] ease-out"
                 style={{
                   borderRadius: borderRadiusValue,
-                  background: blobGradient
-                    ? `linear-gradient(135deg, ${blobColor}, ${blobColor}40)`
-                    : blobColor,
+                  background: blobBackground(blobColor, blobGradient),
                 }}
               />
             </CardContent>

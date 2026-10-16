@@ -28,6 +28,7 @@ export const metadata: Metadata = {
   },
   keywords: [
     "open tools",
+    "online file tools",
     "desktop file tools",
     "image converter",
     "video converter",

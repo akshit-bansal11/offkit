@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("image-cropper");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "Image Cropper",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("image-cropper");
 
 export default function Layout({
   children,

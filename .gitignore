@@ -54,3 +54,6 @@ next-env.d.ts
 # native app (desktop/) build output and locally vendored ffmpeg binaries
 /desktop/target/
 /desktop/vendor/
+
+# Claude Code agent worktrees (temporary, each a full checkout)
+/.claude/worktrees/

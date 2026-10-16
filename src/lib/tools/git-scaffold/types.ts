@@ -4,10 +4,6 @@ export interface GitTreeEntry {
   sha: string;
 }
 
-export interface GitTreeResponse {
-  tree: GitTreeEntry[];
-}
-
 export type NodeType = "file" | "folder";
 
 export interface TreeNode {

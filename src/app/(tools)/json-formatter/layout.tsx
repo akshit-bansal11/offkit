@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("json-formatter");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "JSON Formatter",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("json-formatter");
 
 export default function Layout({
   children,
