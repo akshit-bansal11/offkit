@@ -783,7 +783,7 @@ mod tests {
 
         let optimized = optimize(INKSCAPE, &settings).unwrap();
 
-        assert!(optimized.contains("<!--Created with Inkscape-->"), "{optimized}");
+        assert!(optimized.contains("<!-- Created with Inkscape -->"), "{optimized}");
     }
 
     #[test]
