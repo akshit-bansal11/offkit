@@ -339,13 +339,11 @@ fn check_filter_options(filter: &str, options: &str) -> anyhow::Result<()> {
     let mut rest = options;
     loop {
         let item = rest.trim_start_matches(WHITESPACE);
-        let key_len = item
-            .find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '/' | '.')))
-            .unwrap_or(item.len());
-        let after_key = item[key_len..].trim_start_matches(WHITESPACE);
+        // The key is unescaped as FFmpeg does before it is looked up, so `\/volume=x` and
+        // `'/volume'=x` are checked as `/volume`.
+        let (key, after_key) = get_token(item, "=:");
         let value = match after_key.strip_prefix('=') {
-            Some(value) if key_len > 0 => {
-                let key = &item[..key_len];
+            Some(value) if !key.is_empty() => {
                 if key.contains('/') || key.to_ascii_lowercase().contains("file") {
                     bail!("FFmpeg filter option “{filter}={key}” isn't allowed");
                 }
@@ -725,6 +723,18 @@ mod tests {
     fn get_token_matches_ffmpeg_quoting_and_escapes() {
         assert_eq!(get_token("  a\\,b 'c,d' ,e", ","), ("a,b c,d".into(), ",e"));
         assert_eq!(get_token("x\\ ", ","), ("x ".into(), ""));
+    }
+
+    #[test]
+    fn filter_option_keys_are_checked_after_unescaping() {
+        for options in ["\\/volume=x", "'/volume'=x", "fil\\e=x", "a=1:\\/b=2"] {
+            assert!(
+                check_filter_options("amovie", options).is_err(),
+                "{options} should be refused"
+            );
+        }
+        assert!(check_filter_options("scale", "1280:-2").is_ok());
+        assert!(check_filter_options("scale", "w=1280:flags=lanczos").is_ok());
     }
 
     #[test]

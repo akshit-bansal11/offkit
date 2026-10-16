@@ -12,7 +12,9 @@ use std::path::Path;
 use anyhow::{Context, bail};
 use serde::Deserialize;
 
-use super::{Ffmpeg, MediaInfo, args, command, global_args, input_args};
+use super::{
+    Ffmpeg, MediaInfo, args, command, global_args, input_args, probe_failure, run_ffprobe,
+};
 use crate::files::ReservedDir;
 use crate::jobs::{CancelToken, JobError};
 
@@ -46,7 +48,9 @@ impl Ffmpeg {
         if cancel.is_cancelled() {
             return Err(JobError::Cancelled);
         }
-        let info = self.probe(run.input, run.media).map_err(JobError::failed)?;
+        let info = self
+            .probe_cancellable(run.input, run.media, Some(cancel))
+            .map_err(|e| probe_failure(e, cancel))?;
         let output_args = prepare(&info).map_err(JobError::failed)?;
         let args = frames_command_line(run, &info.format, output_args).map_err(JobError::failed)?;
         self.execute(args, run.duration, "", cancel, on_progress)
@@ -55,20 +59,19 @@ impl Ffmpeg {
     /// The first video stream's size as displayed and its frame rate. `info` is the file's
     /// `probe`, whose demuxer this pins, as `run` does.
     pub fn probe_video_stream(&self, path: &Path, info: &MediaInfo) -> anyhow::Result<VideoStream> {
-        let out = command(&self.ffprobe)
-            .args([
-                "-v",
-                "error",
-                "-print_format",
-                "json",
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "stream=width,height,avg_frame_rate:stream_side_data=rotation",
-            ])
-            .args(input_args(path, Some(&info.format))?)
-            .output()
-            .context("couldn't run ffprobe")?;
+        let mut cmd = command(&self.ffprobe);
+        cmd.args([
+            "-v",
+            "error",
+            "-print_format",
+            "json",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height,avg_frame_rate:stream_side_data=rotation",
+        ])
+        .args(input_args(path, Some(&info.format))?);
+        let out = run_ffprobe(cmd, None)?;
         if !out.status.success() {
             bail!("Couldn't read the video stream");
         }
