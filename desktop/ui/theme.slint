@@ -196,6 +196,17 @@ export global Theme {
     // --- end colors ---
 
     // --- css ---
+    // The generated-code pane under each CSS tool's preview: a few lines; longer output scrolls.
+    out property <length> css-code-height: 132px;
+    // Glassmorphism's card, as the website draws it: a 1rem radius (the one its CSS output
+    // names) and white ink. The ink is the same in both schemes because it sits on the
+    // preview's scene (the user's design), never on an app surface, so it has no app contrast pair.
+    out property <length> css-glass-radius: 16px;
+    out property <color> css-glass-ink: #ffffff;
+    out property <color> css-glass-ink-secondary: #ffffffcc; // text-white/80
+    out property <color> css-glass-tile: #ffffff33; // bg-white/20 and border-white/20
+    out property <length> css-glass-tile-size: 64px;
+    out property <length> css-glass-icon-size: 32px;
     // --- end css ---
 
     // --- text ---
