@@ -51,6 +51,6 @@ next-env.d.ts
 # electron-builder output
 /release/
 
-# native app (app/) build output and locally vendored ffmpeg binaries
-/app/target/
-/app/vendor/
+# native app (desktop/) build output and locally vendored ffmpeg binaries
+/desktop/target/
+/desktop/vendor/
