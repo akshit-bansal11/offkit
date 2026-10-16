@@ -50,9 +50,9 @@ jobs:
           name: rustfmt-patch
           path: desktop/rustfmt.patch
           if-no-files-found: ignore
-      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo clippy --locked --all-targets -- -D warnings
         working-directory: desktop
-      - run: cargo test
+      - run: cargo test --locked
         working-directory: desktop
       # Nobody can run cargo locally, so CI is where Cargo.lock gets regenerated.
       - uses: actions/upload-artifact@v4
