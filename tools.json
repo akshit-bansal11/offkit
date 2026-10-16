@@ -1,0 +1,338 @@
+{
+  "categories": [
+    {
+      "name": "Audio",
+      "accent": "#60a5fa"
+    },
+    {
+      "name": "Video",
+      "accent": "#facc15"
+    },
+    {
+      "name": "Dev",
+      "accent": "#4ade80"
+    },
+    {
+      "name": "Images",
+      "accent": "#f87171"
+    },
+    {
+      "name": "SVG",
+      "accent": "#f472b6"
+    },
+    {
+      "name": "Colors",
+      "accent": "#a78bfa"
+    },
+    {
+      "name": "CSS",
+      "accent": "#fb923c"
+    },
+    {
+      "name": "PDF",
+      "accent": "#34d399"
+    },
+    {
+      "name": "Text",
+      "accent": "#38bdf8"
+    }
+  ],
+  "tools": [
+    {
+      "slug": "audio-converter",
+      "name": "Audio Converter",
+      "shortName": "Convert",
+      "description": "Convert audio files between formats and codecs entirely on your device using FFmpeg.",
+      "category": "Audio",
+      "icon": "arrow-left-right"
+    },
+    {
+      "slug": "audio-extractor",
+      "name": "Audio Extractor",
+      "shortName": "Extract",
+      "description": "Extract the audio track from any video file and download it in your chosen format and codec.",
+      "category": "Audio",
+      "icon": "scissors"
+    },
+    {
+      "slug": "audio-editor",
+      "name": "Audio Editor",
+      "shortName": "Edit",
+      "description": "Trim, adjust speed, shift pitch, and apply EQ to any audio file, all on your device.",
+      "category": "Audio",
+      "icon": "sliders-horizontal"
+    },
+    {
+      "slug": "audio-joiner",
+      "name": "Audio Joiner",
+      "shortName": "Join",
+      "description": "Drag-and-drop multiple audio files and join them into a single file in your chosen format.",
+      "category": "Audio",
+      "icon": "list-music"
+    },
+    {
+      "slug": "video-converter",
+      "name": "Video Converter",
+      "shortName": "Convert",
+      "description": "Convert videos between formats and codecs directly on your device using FFmpeg.",
+      "category": "Video",
+      "icon": "arrow-left-right"
+    },
+    {
+      "slug": "frames-extractor",
+      "name": "Frames Extractor",
+      "shortName": "Frames",
+      "description": "Upload a GIF or video and extract every frame as individual PNG images, then download them as a ZIP.",
+      "category": "Video",
+      "icon": "layers"
+    },
+    {
+      "slug": "git-scaffold",
+      "name": "Git Scaffold",
+      "shortName": "Scaffold",
+      "description": "Paste a public GitHub repository URL and instantly visualize its full directory structure including all filenames.",
+      "category": "Dev",
+      "icon": "folder-tree"
+    },
+    {
+      "slug": "image-cropper",
+      "name": "Image Cropper",
+      "shortName": "Crop",
+      "description": "Crop one or many images on your device - apply individual crops per image or a single crop to all at once.",
+      "category": "Images",
+      "icon": "crop"
+    },
+    {
+      "slug": "svg-animator",
+      "name": "SVG Border Animator",
+      "shortName": "Animate",
+      "description": "Upload any SVG and animate each path border locally with stroke-dashoffset controls and export-ready output.",
+      "category": "SVG",
+      "icon": "wand-sparkles"
+    },
+    {
+      "slug": "svg-pattern",
+      "name": "SVG Pattern Generator",
+      "shortName": "Pattern",
+      "description": "Create beautiful, scalable vector patterns directly on your device. Export native CSS backgrounds or raw SVG data URIs instantly.",
+      "category": "SVG",
+      "icon": "grid-3x3"
+    },
+    {
+      "slug": "blob-generator",
+      "name": "CSS Blob Generator",
+      "shortName": "Blob",
+      "description": "Create intricate, organic shapes natively by independently customizing the 8 anchor points of the border-radius property.",
+      "category": "CSS",
+      "icon": "shapes"
+    },
+    {
+      "slug": "glassmorphism",
+      "name": "Glassmorphism Generator",
+      "shortName": "Glass",
+      "description": "Design stunning frosted-glass UI elements with real-time backdrop filtering and export the CSS directly.",
+      "category": "CSS",
+      "icon": "droplet"
+    },
+    {
+      "slug": "box-shadow",
+      "name": "Box Shadow Generator",
+      "shortName": "Shadow",
+      "description": "Create layered CSS shadows natively through visual controls and export the exact styling string for your projects.",
+      "category": "CSS",
+      "icon": "box"
+    },
+    {
+      "slug": "pdf-toolkit",
+      "name": "PDF Toolkit",
+      "shortName": "Toolkit",
+      "description": "Merge multiple files, break PDFs apart by page, reorder structure, or compress files directly on your device.",
+      "category": "PDF",
+      "icon": "file-text"
+    },
+    {
+      "slug": "lorem-generator",
+      "name": "Lorem Generator",
+      "shortName": "Lorem",
+      "description": "Generate customized placeholder text instantly for your mockups, using either classic Latin or random English prose.",
+      "category": "Text",
+      "icon": "type"
+    },
+    {
+      "slug": "diff-checker",
+      "name": "Diff Checker",
+      "shortName": "Diff",
+      "description": "Find inline character-level or line-level text differences with robust ignoring whitespace and case sensitivity.",
+      "category": "Text",
+      "icon": "file-diff"
+    },
+    {
+      "slug": "svg-optimizer",
+      "name": "SVG Optimizer",
+      "shortName": "Optimize",
+      "description": "Clean up messy SVGs, strip metadata, dial in decimal precision, and convert to JSX directly on your device.",
+      "category": "SVG",
+      "icon": "sparkles"
+    },
+    {
+      "slug": "pdf-converter",
+      "name": "PDF ↔ Image Converter",
+      "shortName": "Convert",
+      "description": "Merge images into a single PDF, batch convert them, or extract pages from existing PDFs as images.",
+      "category": "PDF",
+      "icon": "arrow-left-right"
+    },
+    {
+      "slug": "image-converter",
+      "name": "Image Converter",
+      "shortName": "Convert",
+      "description": "Convert popular image formats locally with batch downloads, quality controls, and upload guardrails.",
+      "category": "Images",
+      "icon": "arrow-left-right"
+    },
+    {
+      "slug": "json-formatter",
+      "name": "JSON Formatter",
+      "shortName": "Format",
+      "description": "Pretty-print, minify, validate, and copy JSON on your device.",
+      "category": "Text",
+      "icon": "file-braces"
+    },
+    {
+      "slug": "gradient-maker",
+      "name": "Gradient Maker",
+      "shortName": "Gradients",
+      "description": "Build multi-stop gradients with live previews, PNG exports, CSS output, and Tailwind arbitrary values.",
+      "category": "Colors",
+      "icon": "blend"
+    },
+    {
+      "slug": "gradient-library",
+      "name": "Gradient Library",
+      "shortName": "Library",
+      "description": "Browse curated named gradients and copy them as CSS or Tailwind-ready arbitrary values.",
+      "category": "Colors",
+      "icon": "library-big"
+    },
+    {
+      "slug": "palette-library",
+      "name": "Palette Library",
+      "shortName": "Library",
+      "description": "Explore curated color palettes, copy individual swatches, or export full palettes as JSON.",
+      "category": "Colors",
+      "icon": "palette"
+    },
+    {
+      "slug": "palette-extractor",
+      "name": "Palette Extractor",
+      "shortName": "Extract",
+      "description": "Upload an image and extract its dominant colors into a copyable palette, computed locally on your device.",
+      "category": "Colors",
+      "icon": "image-up"
+    },
+    {
+      "slug": "gradient-converter",
+      "name": "Gradient Converter",
+      "shortName": "Convert",
+      "description": "Convert CSS gradients into Tailwind arbitrary values or switch between linear, radial, and conic syntax.",
+      "category": "Colors",
+      "icon": "arrow-left-right"
+    },
+    {
+      "slug": "color-converter",
+      "name": "Color Converter",
+      "shortName": "Convert",
+      "description": "Convert HEX, RGB, HSL, HSV, OKLCH, and named colors into every other format at once.",
+      "category": "Colors",
+      "icon": "pipette"
+    },
+    {
+      "slug": "base64",
+      "name": "Base64",
+      "shortName": "Base64",
+      "description": "Encode and decode text with a clean local workflow that stays entirely on your device.",
+      "category": "Text",
+      "icon": "binary"
+    },
+    {
+      "slug": "video-editor",
+      "name": "Video Editor",
+      "shortName": "Edit",
+      "description": "Trim, crop, rotate, resize, flip, adjust speed and volume for any video, entirely on your device.",
+      "category": "Video",
+      "icon": "film"
+    },
+    {
+      "slug": "video-merger",
+      "name": "Video Merger",
+      "shortName": "Merge",
+      "description": "Drag-and-drop multiple video files, reorder them, and merge into a single video.",
+      "category": "Video",
+      "icon": "list-video"
+    },
+    {
+      "slug": "pdf-merger",
+      "name": "PDF Merger",
+      "shortName": "Merge",
+      "description": "Combine multiple PDF documents into one file with drag-to-reorder.",
+      "category": "PDF",
+      "icon": "merge"
+    },
+    {
+      "slug": "pdf-splitter",
+      "name": "PDF Splitter",
+      "shortName": "Split",
+      "description": "Break a PDF into individual pages or extract specific page ranges.",
+      "category": "PDF",
+      "icon": "square-split-horizontal"
+    },
+    {
+      "slug": "pdf-compressor",
+      "name": "PDF Compressor",
+      "shortName": "Compress",
+      "description": "Reduce PDF file size by rasterizing pages at adjustable quality and resolution.",
+      "category": "PDF",
+      "icon": "minimize-2"
+    },
+    {
+      "slug": "convert-to-pdf",
+      "name": "Convert to PDF",
+      "shortName": "To PDF",
+      "description": "Convert images to PDF. Drop multiple images and combine them into a single document.",
+      "category": "PDF",
+      "icon": "file-output"
+    },
+    {
+      "slug": "convert-from-pdf",
+      "name": "Convert from PDF",
+      "shortName": "From PDF",
+      "description": "Extract PDF pages as PNG or JPEG images and download them as a ZIP.",
+      "category": "PDF",
+      "icon": "file-input"
+    },
+    {
+      "slug": "md-editor",
+      "name": "Markdown Editor",
+      "shortName": "Markdown",
+      "description": "Write Markdown with a live split-pane preview, toolbar shortcuts, and export to .md or PDF.",
+      "category": "Text",
+      "icon": "file-pen"
+    },
+    {
+      "slug": "archive-extractor",
+      "name": "Archive Extractor",
+      "shortName": "Extract",
+      "description": "Upload a ZIP archive, preview its file tree, and extract individual files or download everything.",
+      "category": "Dev",
+      "icon": "folder-open"
+    },
+    {
+      "slug": "archiver",
+      "name": "Archiver",
+      "shortName": "Archive",
+      "description": "Drop files to create a ZIP archive instantly on your device.",
+      "category": "Dev",
+      "icon": "folder-archive"
+    }
+  ]
+}

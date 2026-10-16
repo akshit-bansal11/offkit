@@ -1,0 +1,568 @@
+// Core controls, styled from Theme tokens only. Custom rather than cupertino widgets because the
+// cupertino style tints its controls with the OS accent colour, which breaks the one-accent rule.
+// Every focusable control draws FocusRing; buttons don't take focus on click, so the ring shows
+// for keyboard use only.
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+
+export component FocusRing {
+    in property <bool> has-focus;
+    in property <length> radius: Theme.radius-control;
+
+    // Fills its parent; the ring sits 3px outside it.
+    Rectangle {
+        x: -3px;
+        y: -3px;
+        width: root.width + 6px;
+        height: root.height + 6px;
+        border-radius: root.radius + 3px;
+        border-width: 2px;
+        border-color: Theme.focus-ring;
+        opacity: root.has-focus ? 1 : 0;
+        animate opacity { duration: Theme.dur-fast; easing: Theme.ease; }
+    }
+}
+
+export enum ButtonKind { primary, secondary, plain }
+
+export component Button {
+    in property <string> text;
+    in property <image> icon;
+    in property <ButtonKind> kind: ButtonKind.secondary;
+    in property <bool> enabled: true;
+    callback clicked;
+
+    private property <bool> has-icon: self.icon.width > 0;
+    private property <color> fill: kind == ButtonKind.primary ? (ta.pressed ? Theme.accent-pressed : ta.has-hover ? Theme.accent-hover : Theme.accent)
+        : kind == ButtonKind.secondary ? Theme.bg-control
+        : (ta.pressed ? Theme.bg-pressed : ta.has-hover ? Theme.bg-hover : transparent);
+    private property <color> ink: kind == ButtonKind.primary ? Theme.on-accent : kind == ButtonKind.plain ? Theme.accent-text : Theme.text-primary;
+
+    min-height: Theme.control-height;
+    min-width: layout.min-width;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    forward-focus: fs;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { if (root.enabled) { root.clicked(); } }
+
+    bg := Rectangle {
+        border-radius: Theme.radius-control;
+        background: root.fill;
+        border-width: kind == ButtonKind.secondary ? 1px : 0;
+        border-color: Theme.border-control;
+        drop-shadow-blur: Theme.shadow-1-blur;
+        drop-shadow-offset-y: Theme.shadow-1-y;
+        drop-shadow-color: kind == ButtonKind.plain ? transparent : Theme.shadow-1-color;
+        opacity: root.enabled ? 1 : Theme.opacity-disabled;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+
+        // Secondary buttons get a hover wash on top of their solid fill.
+        if kind == ButtonKind.secondary: Rectangle {
+            border-radius: parent.border-radius;
+            background: ta.pressed ? Theme.bg-pressed : ta.has-hover ? Theme.bg-hover : transparent;
+        }
+    }
+
+    layout := HorizontalLayout {
+        padding-left: Theme.space-3;
+        padding-right: Theme.space-3;
+        spacing: Theme.space-1;
+        alignment: center;
+
+        if root.has-icon: Image {
+            source: root.icon;
+            colorize: root.ink;
+            width: Theme.icon-size-small;
+            height: Theme.icon-size-small;
+            y: (parent.height - self.height) / 2;
+            opacity: root.enabled ? 1 : Theme.opacity-disabled;
+        }
+        Text {
+            text: root.text;
+            color: root.ink;
+            font-size: Theme.size-body;
+            font-weight: kind == ButtonKind.primary ? Theme.weight-semibold : Theme.weight-medium;
+            vertical-alignment: center;
+            opacity: root.enabled ? 1 : Theme.opacity-disabled;
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    FocusRing { has-focus: fs.has-focus; }
+}
+
+// Square, icon-only button. `label` is required: it is the accessible name.
+export component IconButton {
+    in property <image> icon;
+    in property <string> label;
+    in property <bool> enabled: true;
+    in property <color> tint: Theme.text-secondary;
+    callback clicked;
+
+    width: Theme.control-height;
+    height: Theme.control-height;
+    forward-focus: fs;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { if (root.enabled) { root.clicked(); } }
+
+    Rectangle {
+        border-radius: Theme.radius-control;
+        background: ta.pressed ? Theme.bg-pressed : ta.has-hover ? Theme.bg-hover : transparent;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+    }
+
+    Image {
+        source: root.icon;
+        colorize: ta.has-hover && root.enabled ? Theme.text-primary : root.tint;
+        width: Theme.icon-size;
+        height: Theme.icon-size;
+        opacity: root.enabled ? 1 : Theme.opacity-disabled;
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    FocusRing { has-focus: fs.has-focus; }
+}
+
+export component Switch {
+    in-out property <bool> checked;
+    in property <bool> enabled: true;
+    in property <string> label;
+    callback toggled(bool);
+
+    width: 36px;
+    height: 20px;
+    forward-focus: fs;
+    accessible-role: switch;
+    accessible-label: root.label;
+    accessible-checkable: true;
+    accessible-checked: root.checked;
+    accessible-enabled: root.enabled;
+    accessible-action-default => { root.flip(); }
+
+    function flip() {
+        if (root.enabled) {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+
+    track := Rectangle {
+        border-radius: self.height / 2;
+        background: root.checked ? Theme.accent : Theme.bg-control-track;
+        border-width: root.checked ? 0 : 1px;
+        border-color: Theme.border-control;
+        opacity: root.enabled ? 1 : Theme.opacity-disabled;
+        animate background { duration: Theme.dur-base; easing: Theme.ease; }
+    }
+
+    Rectangle {
+        width: 16px;
+        height: 16px;
+        y: 2px;
+        x: root.checked ? root.width - self.width - 2px : 2px;
+        border-radius: self.height / 2;
+        background: Theme.bg-knob;
+        drop-shadow-blur: Theme.shadow-1-blur;
+        drop-shadow-offset-y: Theme.shadow-1-y;
+        drop-shadow-color: Theme.shadow-1-color;
+        animate x { duration: Theme.dur-base; easing: Theme.ease; }
+    }
+
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.flip(); }
+    }
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.flip();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    FocusRing { has-focus: fs.has-focus; radius: root.height / 2; }
+}
+
+export component Slider {
+    in-out property <float> value;
+    in property <float> minimum: 0;
+    in property <float> maximum: 100;
+    in property <float> step: 5;
+    in property <bool> enabled: true;
+    in property <string> label;
+    callback changed(float);
+
+    private property <float> fraction: (root.value - root.minimum) / (root.maximum - root.minimum);
+    private property <length> knob-size: 18px;
+
+    height: 22px;
+    min-width: 120px;
+    horizontal-stretch: 1;
+    forward-focus: fs;
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: round(root.value);
+    accessible-value-minimum: root.minimum;
+    accessible-value-maximum: root.maximum;
+    accessible-value-step: root.step;
+    accessible-action-increment => { root.set(root.value + root.step); }
+    accessible-action-decrement => { root.set(root.value - root.step); }
+
+    function set(v: float) {
+        let next = round(clamp(v, root.minimum, root.maximum));
+        if (next != root.value) {
+            root.value = next;
+            root.changed(next);
+        }
+    }
+
+    Rectangle {
+        y: (parent.height - self.height) / 2;
+        height: 4px;
+        border-radius: 2px;
+        background: Theme.bg-control-track;
+
+        Rectangle {
+            x: 0;
+            width: root.knob-size / 2 + (parent.width - root.knob-size) * root.fraction;
+            border-radius: parent.border-radius;
+            background: root.enabled ? Theme.progress-fill : Theme.text-tertiary;
+        }
+    }
+
+    knob := Rectangle {
+        width: root.knob-size;
+        height: root.knob-size;
+        x: (root.width - self.width) * root.fraction;
+        y: (root.height - self.height) / 2;
+        border-radius: self.height / 2;
+        background: Theme.bg-knob;
+        border-width: 1px;
+        border-color: Theme.border-control;
+        drop-shadow-blur: Theme.shadow-1-blur;
+        drop-shadow-offset-y: Theme.shadow-1-y;
+        drop-shadow-color: Theme.shadow-1-color;
+
+        FocusRing { has-focus: fs.has-focus; radius: parent.height / 2; }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                root.set(root.minimum + clamp((self.mouse-x - root.knob-size / 2) / (root.width - root.knob-size), 0, 1) * (root.maximum - root.minimum));
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                root.set(root.minimum + clamp((self.mouse-x - root.knob-size / 2) / (root.width - root.knob-size), 0, 1) * (root.maximum - root.minimum));
+            }
+        }
+    }
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == Key.LeftArrow || event.text == Key.DownArrow) {
+                root.set(root.value - root.step);
+                return accept;
+            }
+            if (event.text == Key.RightArrow || event.text == Key.UpArrow) {
+                root.set(root.value + root.step);
+                return accept;
+            }
+            reject
+        }
+    }
+}
+
+// Pop-up menu in the iOS Settings idiom: the current value sits right-aligned in its row with
+// an up/down chevron, and a menu opens over it. Up/Down change the value without opening.
+export component Select {
+    in property <[string]> options;
+    in-out property <int> current-index;
+    in property <bool> enabled: true;
+    in property <string> label;
+    callback selected(int);
+
+    height: Theme.control-height;
+    min-width: layout.min-width;
+    horizontal-stretch: 0;
+    forward-focus: fs;
+    accessible-role: combobox;
+    accessible-label: root.label;
+    accessible-value: root.options[root.current-index];
+    accessible-enabled: root.enabled;
+    accessible-action-default => { popup.show(); }
+
+    function pick(i: int) {
+        if (root.enabled && i >= 0 && i < root.options.length && i != root.current-index) {
+            root.current-index = i;
+            root.selected(i);
+        }
+    }
+
+    Rectangle {
+        border-radius: Theme.radius-control;
+        background: ta.pressed ? Theme.bg-pressed : ta.has-hover ? Theme.bg-hover : transparent;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+    }
+
+    layout := HorizontalLayout {
+        padding-left: Theme.space-2;
+        padding-right: Theme.space-2;
+        spacing: Theme.space-1;
+
+        Text {
+            text: root.options[root.current-index];
+            color: root.enabled ? Theme.text-secondary : Theme.text-tertiary;
+            font-size: Theme.size-body;
+            vertical-alignment: center;
+            horizontal-alignment: right;
+        }
+        Image {
+            source: AppIcons.chevrons-up-down;
+            colorize: root.enabled ? Theme.text-secondary : Theme.text-tertiary;
+            width: Theme.icon-size-small;
+            height: Theme.icon-size-small;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { popup.show(); }
+    }
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                popup.show();
+                return accept;
+            }
+            if (event.text == Key.UpArrow) {
+                root.pick(root.current-index - 1);
+                return accept;
+            }
+            if (event.text == Key.DownArrow) {
+                root.pick(root.current-index + 1);
+                return accept;
+            }
+            reject
+        }
+    }
+
+    FocusRing { has-focus: fs.has-focus; }
+
+    popup := PopupWindow {
+        width: max(root.width, 180px);
+        x: root.width - self.width;
+        y: root.height + Theme.space-1;
+        close-policy: close-on-click-outside;
+
+        Rectangle {
+            border-radius: Theme.radius-group;
+            background: Theme.bg-surface-raised;
+            border-width: 1px;
+            border-color: Theme.separator;
+            drop-shadow-blur: Theme.shadow-3-blur;
+            drop-shadow-offset-y: Theme.shadow-3-y;
+            drop-shadow-color: Theme.shadow-3-color;
+        }
+
+        VerticalLayout {
+            padding: Theme.space-1 + 1px;
+
+            for option[i] in root.options: item := Rectangle {
+                height: 26px;
+                border-radius: Theme.radius-control - 2px;
+                background: item-ta.has-hover ? Theme.accent : transparent;
+
+                HorizontalLayout {
+                    padding-left: Theme.space-2;
+                    padding-right: Theme.space-3;
+                    spacing: Theme.space-2;
+
+                    Image {
+                        source: AppIcons.check;
+                        colorize: item-ta.has-hover ? Theme.on-accent : Theme.text-primary;
+                        width: Theme.icon-size-small;
+                        height: Theme.icon-size-small;
+                        y: (parent.height - self.height) / 2;
+                        opacity: i == root.current-index ? 1 : 0;
+                    }
+                    Text {
+                        text: option;
+                        color: item-ta.has-hover ? Theme.on-accent : Theme.text-primary;
+                        font-size: Theme.size-body;
+                        vertical-alignment: center;
+                    }
+                }
+
+                item-ta := TouchArea {
+                    clicked => {
+                        root.pick(i);
+                        popup.close();
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component ProgressBar {
+    in property <float> progress; // 0..1
+
+    height: 4px;
+    accessible-role: progress-indicator;
+    accessible-value: round(root.progress * 100) + "%";
+
+    Rectangle {
+        border-radius: self.height / 2;
+        background: Theme.bg-control-track;
+    }
+    Rectangle {
+        x: 0;
+        width: parent.width * clamp(root.progress, 0, 1);
+        border-radius: self.height / 2;
+        background: Theme.progress-fill;
+        animate width { duration: Theme.dur-slow; easing: Theme.ease; }
+    }
+}
+
+export component SearchField {
+    in-out property <string> text <=> input.text;
+    in property <string> placeholder: "Search";
+    callback edited(string);
+
+    public function focus-input() {
+        input.focus();
+        input.select-all();
+    }
+
+    height: Theme.control-height;
+    accessible-role: text-input;
+    accessible-label: root.placeholder;
+    forward-focus: input;
+
+    Rectangle {
+        border-radius: Theme.radius-control + 1px;
+        background: Theme.bg-control;
+        border-width: 1px;
+        border-color: Theme.border-control;
+    }
+
+    HorizontalLayout {
+        padding-left: Theme.space-2;
+        padding-right: Theme.space-1;
+        spacing: Theme.space-2;
+
+        Image {
+            source: AppIcons.search;
+            colorize: Theme.text-secondary;
+            width: Theme.icon-size-small;
+            height: Theme.icon-size-small;
+            y: (parent.height - self.height) / 2;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+
+            Text {
+                x: 0;
+                width: 100%;
+                text: root.placeholder;
+                color: Theme.text-secondary;
+                font-size: Theme.size-body;
+                vertical-alignment: center;
+                visible: input.text == "";
+            }
+
+            input := TextInput {
+                width: 100%;
+                height: 100%;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                vertical-alignment: center;
+                selection-background-color: Theme.selection-fill;
+                selection-foreground-color: Theme.text-primary;
+                single-line: true;
+                edited => { root.edited(self.text); }
+                key-pressed(event) => {
+                    if (event.text == Key.Escape && self.text != "") {
+                        self.text = "";
+                        root.edited("");
+                        return accept;
+                    }
+                    reject
+                }
+            }
+        }
+
+        if input.text != "": IconButton {
+            width: 20px;
+            height: 20px;
+            y: (parent.height - self.height) / 2;
+            icon: AppIcons.close;
+            label: "Clear search";
+            clicked => {
+                input.text = "";
+                root.edited("");
+                input.focus();
+            }
+        }
+    }
+
+    FocusRing { has-focus: input.has-focus; radius: Theme.radius-control + 1px; }
+}

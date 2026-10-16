@@ -1,0 +1,288 @@
+// Video Converter view. All state lives in the `VideoConverter` global, which Rust drives
+// (src/tools/video_converter.rs); this file only lays it out.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, IconButton, Select, Slider, Switch } from "../components/controls.slint";
+import { DropZone, FileItem, FileRow } from "../components/file-list.slint";
+import { InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { EmptyState } from "../components/empty-state.slint";
+
+export global VideoConverter {
+    in property <bool> ffmpeg-found: true;
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    in property <bool> running;
+    in property <bool> can-convert;
+    // Why Convert All is disabled for the current settings; empty when it isn't.
+    in property <string> blocked-reason;
+    in property <string> list-summary;
+
+    in property <[string]> containers;
+    in-out property <int> container-index;
+    in property <[string]> video-codecs;
+    in-out property <int> video-codec-index;
+    in property <[string]> audio-codecs;
+    in-out property <int> audio-codec-index;
+    in property <bool> quality-applies: true;
+    in-out property <float> quality: 60;
+    // Empty when ffmpeg has no working hardware encoder; otherwise e.g. "NVIDIA NVENC".
+    in property <string> hw-name;
+    in property <string> hw-detail;
+    in-out property <bool> hw-enabled;
+    in property <string> output-folder;
+    in property <bool> custom-output;
+
+    callback choose-files();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback settings-changed();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback convert-all();
+    callback cancel-all();
+    callback get-ffmpeg();
+}
+
+component FileList {
+    VerticalLayout {
+        spacing: Theme.space-2;
+
+        HorizontalLayout {
+            spacing: Theme.space-2;
+
+            Text {
+                text: VideoConverter.list-summary;
+                color: Theme.text-secondary;
+                font-size: Theme.size-callout;
+                font-weight: Theme.weight-medium;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Button {
+                text: "Add Files…";
+                icon: AppIcons.plus;
+                kind: ButtonKind.plain;
+                clicked => { VideoConverter.choose-files(); }
+            }
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+            border-radius: Theme.radius-group;
+            background: Theme.bg-surface-raised;
+            border-width: VideoConverter.drop-hover ? 2px : 1px;
+            border-color: VideoConverter.drop-hover ? Theme.accent-text : Theme.separator;
+            clip: true;
+
+            ScrollView {
+                VerticalLayout {
+                    alignment: start;
+
+                    for file[i] in VideoConverter.files: FileRow {
+                        item: file;
+                        first: i == 0;
+                        remove => { VideoConverter.remove(i); }
+                        cancel => { VideoConverter.cancel(i); }
+                        reveal => { VideoConverter.reveal(i); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component Inspector inherits Rectangle {
+    background: Theme.bg-grouped;
+
+    // Hairline between the file list and the inspector.
+    Rectangle {
+        x: 0;
+        width: 1px;
+        background: Theme.separator;
+    }
+
+    VerticalLayout {
+        ScrollView {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-4;
+                spacing: Theme.space-5;
+                alignment: start;
+
+                InspectorSection {
+                    title: "Format";
+
+                    InspectorRow {
+                        label: "Container";
+                        first: true;
+
+                        Select {
+                            label: "Container";
+                            options: VideoConverter.containers;
+                            current-index <=> VideoConverter.container-index;
+                            selected => { VideoConverter.settings-changed(); }
+                        }
+                    }
+                    InspectorRow {
+                        label: "Video";
+
+                        Select {
+                            label: "Video codec";
+                            options: VideoConverter.video-codecs;
+                            current-index <=> VideoConverter.video-codec-index;
+                            selected => { VideoConverter.settings-changed(); }
+                        }
+                    }
+                    InspectorRow {
+                        label: "Audio";
+
+                        Select {
+                            label: "Audio codec";
+                            options: VideoConverter.audio-codecs;
+                            current-index <=> VideoConverter.audio-codec-index;
+                            selected => { VideoConverter.settings-changed(); }
+                        }
+                    }
+                }
+
+                if VideoConverter.quality-applies: InspectorSection {
+                    title: "Quality";
+
+                    VerticalLayout {
+                        padding: Theme.space-3;
+                        spacing: Theme.space-2;
+
+                        Slider {
+                            label: "Quality";
+                            value <=> VideoConverter.quality;
+                            changed => { VideoConverter.settings-changed(); }
+                        }
+                        HorizontalLayout {
+                            Text {
+                                text: "Smaller file";
+                                color: Theme.text-secondary;
+                                font-size: Theme.size-footnote;
+                                horizontal-stretch: 1;
+                            }
+                            Text {
+                                text: "Better quality";
+                                color: Theme.text-secondary;
+                                font-size: Theme.size-footnote;
+                            }
+                        }
+                    }
+                }
+
+                if VideoConverter.hw-name != "": InspectorSection {
+                    footnote: VideoConverter.hw-detail;
+
+                    InspectorRow {
+                        label: "Hardware encoding";
+                        detail: VideoConverter.hw-name;
+                        first: true;
+
+                        VerticalLayout {
+                            alignment: center;
+
+                            Switch {
+                                label: "Hardware encoding";
+                                checked <=> VideoConverter.hw-enabled;
+                                toggled => { VideoConverter.settings-changed(); }
+                            }
+                        }
+                    }
+                }
+
+                InspectorSection {
+                    title: "Save to";
+
+                    InspectorRow {
+                        label: VideoConverter.output-folder;
+                        first: true;
+
+                        if VideoConverter.custom-output: IconButton {
+                            icon: AppIcons.close;
+                            label: "Save next to the source files";
+                            clicked => { VideoConverter.reset-output-folder(); }
+                        }
+                        Button {
+                            text: "Choose…";
+                            kind: ButtonKind.plain;
+                            clicked => { VideoConverter.choose-output-folder(); }
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: Theme.separator;
+        }
+
+        VerticalLayout {
+            padding: Theme.space-4;
+            spacing: Theme.space-2;
+
+            if VideoConverter.blocked-reason != "": Text {
+                text: VideoConverter.blocked-reason;
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                wrap: word-wrap;
+            }
+            if !VideoConverter.running: Button {
+                text: "Convert All";
+                kind: ButtonKind.primary;
+                enabled: VideoConverter.can-convert;
+                height: Theme.control-height-large;
+                clicked => { VideoConverter.convert-all(); }
+            }
+            if VideoConverter.running: Button {
+                text: "Stop All";
+                kind: ButtonKind.secondary;
+                height: Theme.control-height-large;
+                clicked => { VideoConverter.cancel-all(); }
+            }
+        }
+    }
+}
+
+export component VideoConverterView inherits VerticalLayout {
+    if !VideoConverter.ffmpeg-found: EmptyState {
+        icon: AppIcons.alert;
+        title: "FFmpeg wasn't found";
+        message: "Video Converter runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Open Tools, then restart the app.";
+        action-text: "Get FFmpeg";
+        action => { VideoConverter.get-ffmpeg(); }
+    }
+
+    if VideoConverter.ffmpeg-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+
+                if VideoConverter.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: VideoConverter.drop-hover;
+                    title: "Drop videos here";
+                    hint: "MP4, MOV, MKV, WebM, AVI and most other formats";
+                    choose => { VideoConverter.choose-files(); }
+                }
+                if VideoConverter.files.length > 0: FileList {
+                    vertical-stretch: 1;
+                }
+            }
+        }
+
+        Inspector {
+            width: Theme.inspector-width;
+        }
+    }
+}

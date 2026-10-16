@@ -1,0 +1,112 @@
+// About sheet. Showing AboutSlint here is a condition of the Slint royalty-free licence v2.0.
+
+import { AboutSlint } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Button, ButtonKind } from "controls.slint";
+
+export component AboutSheet {
+    in property <bool> open;
+    in property <string> version;
+    callback close();
+
+    visible: self.opacity > 0;
+    opacity: root.open ? 1 : 0;
+    animate opacity { duration: Theme.dur-base; easing: Theme.ease; }
+
+    // Scrim: swallows clicks behind the sheet and closes it.
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: Theme.scrim;
+
+        TouchArea {
+            clicked => { root.close(); }
+        }
+    }
+
+    fs := FocusScope {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2 + (root.open ? 0 : 16px);
+        width: 400px;
+        height: card-layout.preferred-height;
+        animate y { duration: Theme.dur-slow; easing: Theme.ease; }
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                root.close();
+                return accept;
+            }
+            // Trap focus: Tab and Shift+Tab land on Done instead of leaving the sheet.
+            if (event.text == Key.Tab || event.text == Key.Backtab) {
+                done.focus();
+                return accept;
+            }
+            reject
+        }
+
+        Rectangle {
+            border-radius: Theme.radius-surface;
+            background: Theme.bg-surface-raised;
+            border-width: 1px;
+            border-color: Theme.separator;
+            drop-shadow-blur: Theme.shadow-3-blur;
+            drop-shadow-offset-y: Theme.shadow-3-y;
+            drop-shadow-color: Theme.shadow-3-color;
+            // Clicks on the card must not reach the scrim.
+            TouchArea { }
+        }
+
+        card-layout := VerticalLayout {
+            padding: Theme.space-6;
+            spacing: Theme.space-4;
+
+            VerticalLayout {
+                spacing: Theme.space-1;
+
+                Text {
+                    text: "Open Tools";
+                    color: Theme.text-primary;
+                    font-size: Theme.size-title;
+                    font-weight: Theme.weight-semibold;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "Version " + root.version + " · Open source, MIT";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-callout;
+                    horizontal-alignment: center;
+                }
+            }
+
+            Text {
+                text: "Every file stays on your device. Video tools run FFmpeg, which is licensed under the GNU GPL and is not part of this app's MIT code. Icons: Lucide (ISC). Typeface: Inter (SIL OFL 1.1).";
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Theme.separator;
+            }
+
+            AboutSlint {
+                height: 100px;
+            }
+
+            HorizontalLayout {
+                alignment: end;
+
+                done := Button {
+                    text: "Done";
+                    kind: ButtonKind.primary;
+                    clicked => { root.close(); }
+                }
+            }
+        }
+    }
+
+    public function focus-sheet() {
+        fs.focus();
+    }
+}

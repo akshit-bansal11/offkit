@@ -1,0 +1,66 @@
+import { Theme } from "../theme.slint";
+import { Button, ButtonKind } from "controls.slint";
+
+// Centered icon, title and message, with an optional single action.
+export component EmptyState inherits VerticalLayout {
+    in property <image> icon;
+    in property <string> title;
+    in property <string> message;
+    in property <string> action-text;
+    callback action();
+
+    alignment: center;
+    spacing: Theme.space-3;
+    padding: Theme.space-8;
+
+    HorizontalLayout {
+        alignment: center;
+
+        Rectangle {
+            width: 64px;
+            height: 64px;
+            border-radius: Theme.radius-surface + 2px;
+            background: Theme.bg-hover;
+
+            Image {
+                source: root.icon;
+                colorize: Theme.text-secondary;
+                width: 28px;
+                height: 28px;
+            }
+        }
+    }
+
+    Text {
+        text: root.title;
+        color: Theme.text-primary;
+        font-size: Theme.size-title;
+        font-weight: Theme.weight-semibold;
+        horizontal-alignment: center;
+    }
+
+    HorizontalLayout {
+        alignment: center;
+
+        Text {
+            text: root.message;
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+            // A preferred width, not a max: a max here would cap the whole window's width.
+            preferred-width: 420px;
+        }
+    }
+
+    if root.action-text != "": HorizontalLayout {
+        alignment: center;
+        padding-top: Theme.space-2;
+
+        Button {
+            text: root.action-text;
+            kind: ButtonKind.secondary;
+            clicked => { root.action(); }
+        }
+    }
+}

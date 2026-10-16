@@ -1,0 +1,122 @@
+// App shell: sidebar + content (title, description, tool body) + About sheet.
+//
+// Adding a native tool: create `tools/<slug>.slint` exporting a `<Tool>` global (state and
+// callbacks) and a `<Tool>View`, import both below, re-export the global (Rust can only reach
+// globals exported from this file) and add one `if root.current-slug == "<slug>"` line in
+// the content area. The Rust side lives in `src/tools/<slug>.rs`.
+
+import { Palette } from "std-widgets.slint";
+import { Backdrop, Theme } from "theme.slint";
+import { Sidebar, SidebarRow } from "components/sidebar.slint";
+import { AboutSheet } from "components/about-sheet.slint";
+import { VideoConverter, VideoConverterView } from "tools/video-converter.slint";
+import { PlaceholderView } from "tools/placeholder.slint";
+import "fonts/InterVariable.ttf";
+
+export { Backdrop, Palette, VideoConverter, SidebarRow }
+
+export component AppWindow inherits Window {
+    in property <[SidebarRow]> sidebar-rows;
+    in-out property <string> current-slug;
+    in property <string> current-name;
+    in property <string> current-description;
+    in property <string> app-version;
+    callback search-changed(string);
+    callback select-tool(string);
+    callback select-adjacent(int);
+
+    in-out property <bool> about-open;
+
+    title: "Open Tools";
+    // Initial size (1180×760) is set from Rust; the layout alone would size to its content.
+    min-width: 900px;
+    min-height: 600px;
+    default-font-family: Theme.font-family;
+    default-font-size: Theme.size-body;
+    // With Mica/vibrancy the window is cleared so the system backdrop shows through the
+    // sidebar; the content area paints its own opaque background either way.
+    background: Theme.vibrancy ? transparent : Theme.bg-window;
+    forward-focus: shortcuts;
+
+    shortcuts := FocusScope {
+        focus-on-click: false;
+        focus-on-tab-navigation: false;
+
+        KeyBinding {
+            keys: @keys(Control + K);
+            activated => { sidebar.focus-search(); }
+        }
+
+        HorizontalLayout {
+            sidebar := Sidebar {
+                width: Theme.sidebar-width;
+                rows: root.sidebar-rows;
+                current-slug: root.current-slug;
+                search-changed(text) => { root.search-changed(text); }
+                select-tool(slug) => { root.select-tool(slug); }
+                select-adjacent(delta) => { root.select-adjacent(delta); }
+                about => {
+                    root.about-open = true;
+                    about.focus-sheet();
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: Theme.bg-window;
+
+                // Hairline between sidebar and content.
+                Rectangle {
+                    x: 0;
+                    width: 1px;
+                    background: Theme.separator;
+                }
+
+                VerticalLayout {
+                    HorizontalLayout {
+                        padding-left: Theme.space-6;
+                        padding-right: Theme.space-6;
+                        padding-top: Theme.space-6;
+                        padding-bottom: Theme.space-5;
+
+                        VerticalLayout {
+                            spacing: Theme.space-1;
+
+                            Text {
+                                text: root.current-name;
+                                color: Theme.text-primary;
+                                font-size: Theme.size-large-title;
+                                font-weight: Theme.weight-semibold;
+                                accessible-role: none;
+                            }
+                            Text {
+                                text: root.current-description;
+                                color: Theme.text-secondary;
+                                font-size: Theme.size-body;
+                                overflow: elide;
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        vertical-stretch: 1;
+
+                        if root.current-slug == "video-converter": VideoConverterView { }
+                        if root.current-slug != "video-converter": PlaceholderView { }
+                    }
+                }
+            }
+        }
+
+        about := AboutSheet {
+            width: 100%;
+            height: 100%;
+            open: root.about-open;
+            version: root.app-version;
+            close => {
+                root.about-open = false;
+                shortcuts.focus();
+            }
+        }
+    }
+}

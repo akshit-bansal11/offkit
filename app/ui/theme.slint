@@ -1,0 +1,162 @@
+// Design tokens. Two tiers: `Palette*` raw steps, then `Theme` semantic roles.
+// Components read `Theme` only. Every role is defined for light and dark together.
+//
+// Contrast ratios are WCAG 2.2 relative-luminance ratios, computed (alpha composited over
+// the surface named) with a script, not estimated. Targets: text >= 4.5:1, control
+// boundaries / focus ring / meaningful icons >= 3:1. `separator` is a decorative hairline
+// and `text-tertiary` is reserved for disabled text, both exempt under WCAG 1.4.3 / 1.4.11.
+//
+// Category accent colours from tools.json are deliberately unused: one accent (blue) drives
+// every interactive state, so a category colour would compete with selection and focus.
+// tools.json keeps them because it mirrors the website's src/config/tools.ts.
+
+import { Palette } from "std-widgets.slint";
+
+global LightSteps {
+    out property <color> gray-0: #ffffff;
+    out property <color> gray-50: #f5f5f7;
+    out property <color> gray-100: #ececee;
+    out property <color> gray-200: #e3e3e6;
+    out property <color> gray-300: #d1d1d6;
+    out property <color> gray-500: #8a8a8f;
+    out property <color> gray-600: #636366;
+    out property <color> gray-900: #1d1d1f;
+    out property <color> blue-600: #0066cc;
+    out property <color> blue-700: #0058b0;
+    out property <color> blue-800: #004c99;
+    out property <color> green-700: #1a7f37;
+    out property <color> red-700: #c4281c;
+}
+
+global DarkSteps {
+    out property <color> gray-950: #19191b;
+    out property <color> gray-900: #1e1e1e;
+    out property <color> gray-850: #2a2a2c;
+    out property <color> gray-800: #2c2c2e;
+    out property <color> gray-750: #323234;
+    out property <color> gray-700: #3a3a3c;
+    out property <color> gray-500: #7c7c80;
+    out property <color> gray-400: #a1a1a6;
+    out property <color> gray-50: #f5f5f7;
+    out property <color> blue-400: #5eaaff;
+    out property <color> blue-600: #1d6fd6;
+    out property <color> blue-700: #1766c8;
+    out property <color> blue-800: #125ab4;
+    out property <color> green-400: #30d158;
+    out property <color> red-400: #ff6961;
+}
+
+// Set from Rust once Mica (Windows 11) or NSVisualEffectView (macOS) is applied. Kept out of
+// Theme so Theme needn't be exported to Rust (its easing token can't cross that boundary).
+export global Backdrop {
+    in property <bool> vibrancy: false;
+}
+
+export global Theme {
+    // Follows the OS through the style's palette; `Palette.color-scheme` can be forced from Rust.
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+    out property <bool> vibrancy: Backdrop.vibrancy;
+
+    // ---- Surfaces -------------------------------------------------------------------------
+    out property <color> bg-window: dark ? DarkSteps.gray-900 : LightSteps.gray-0;
+    // Opaque sidebar; when vibrancy is on the system backdrop shows through a tint instead.
+    out property <color> bg-sidebar: vibrancy ? (dark ? #1e1e1e73 : #f5f5f773) : (dark ? DarkSteps.gray-850 : LightSteps.gray-100);
+    out property <color> bg-surface: dark ? DarkSteps.gray-900 : LightSteps.gray-0;
+    out property <color> bg-surface-raised: dark ? DarkSteps.gray-800 : LightSteps.gray-0;
+    out property <color> bg-grouped: dark ? DarkSteps.gray-950 : LightSteps.gray-50;
+    out property <color> bg-control: dark ? DarkSteps.gray-750 : LightSteps.gray-0;
+    out property <color> bg-control-track: dark ? DarkSteps.gray-700 : LightSteps.gray-200;
+    out property <color> bg-hover: dark ? #ffffff14 : #0000000d;
+    out property <color> bg-pressed: dark ? #ffffff1f : #00000017;
+    out property <color> scrim: dark ? #00000099 : #00000047;
+
+    // ---- Lines ----------------------------------------------------------------------------
+    out property <color> separator: dark ? #ffffff1a : #0000001a; // decorative hairline
+    // Control boundary. L: #8a8a8f on #ffffff 3.44, on #f5f5f7 3.16. D: #7c7c80 on #2c2c2e 3.35, on #19191b 4.22.
+    out property <color> border-control: dark ? DarkSteps.gray-500 : LightSteps.gray-500;
+
+    // ---- Text -----------------------------------------------------------------------------
+    // L: #1d1d1f on #ffffff 16.83, #f5f5f7 15.46, #ececee 14.26. D: #f5f5f7 on #1e1e1e 15.31, #19191b 16.12, #3a3a3c 10.42.
+    out property <color> text-primary: dark ? DarkSteps.gray-50 : LightSteps.gray-900;
+    // L: #636366 on #ffffff 5.99, #f5f5f7 5.50, #ececee 5.08. D: #a1a1a6 on #1e1e1e 6.48, #2c2c2e 5.42, #2a2a2c 5.57, #19191b 6.82.
+    out property <color> text-secondary: dark ? DarkSteps.gray-400 : LightSteps.gray-600;
+    out property <color> text-tertiary: dark ? DarkSteps.gray-500 : LightSteps.gray-500; // disabled only
+
+    // ---- Accent ---------------------------------------------------------------------------
+    // Filled control. L: #ffffff on #0066cc 5.57; fill on #f5f5f7 5.11. D: #ffffff on #1d6fd6 4.89; fill on #19191b 3.59, on #1e1e1e 3.41.
+    out property <color> accent: dark ? DarkSteps.blue-600 : LightSteps.blue-600;
+    // Hover/pressed go darker in both schemes so the label contrast only rises.
+    // L: #ffffff on #0058b0 6.95, on #004c99 8.42. D: #ffffff on #1766c8 5.57, on #125ab4 6.67.
+    out property <color> accent-hover: dark ? DarkSteps.blue-700 : LightSteps.blue-700;
+    out property <color> accent-pressed: dark ? DarkSteps.blue-800 : LightSteps.blue-800;
+    out property <color> on-accent: #ffffff;
+    // Accent used as a foreground (links, selected icons, focus ring, progress fill).
+    // L: #0066cc on #ffffff 5.57, #ececee 4.72, on selection-fill 3.76. D: #5eaaff on #1e1e1e 6.88, #2c2c2e 5.75, on selection-fill 4.18.
+    out property <color> accent-text: dark ? DarkSteps.blue-400 : LightSteps.blue-600;
+    // Selected sidebar row. text-primary on it: L 11.38, D 9.30.
+    out property <color> selection-fill: dark ? #3d8bff40 : #0066cc29;
+    out property <color> focus-ring: accent-text;
+    // L: #0066cc on track #e3e3e6 4.35. D: #5eaaff on track #3a3a3c 4.69.
+    out property <color> progress-fill: accent-text;
+    out property <color> drop-fill: dark ? #3d8bff1f : #0066cc12;
+
+    // ---- Status ---------------------------------------------------------------------------
+    // L on #ffffff: success 5.08, danger 5.73. D on #2c2c2e: success 6.89, danger 4.94.
+    out property <color> success: dark ? DarkSteps.green-400 : LightSteps.green-700;
+    out property <color> danger: dark ? DarkSteps.red-400 : LightSteps.red-700;
+
+    // ---- Control parts --------------------------------------------------------------------
+    // Switch and slider knobs: a light thumb in both schemes, bounded by border-control/track.
+    out property <color> bg-knob: dark ? DarkSteps.gray-50 : LightSteps.gray-0;
+    out property <float> opacity-disabled: 0.45;
+
+    // ---- Radius ---------------------------------------------------------------------------
+    out property <length> radius-control: 6px;
+    out property <length> radius-group: 10px;
+    out property <length> radius-surface: 14px;
+
+    // ---- Spacing (one scale) --------------------------------------------------------------
+    out property <length> space-1: 4px;
+    out property <length> space-2: 8px;
+    out property <length> space-3: 12px;
+    out property <length> space-4: 16px;
+    out property <length> space-5: 20px;
+    out property <length> space-6: 24px;
+    out property <length> space-8: 32px;
+
+    // ---- Layout ---------------------------------------------------------------------------
+    out property <length> sidebar-width: 240px;
+    out property <length> inspector-width: 280px;
+    out property <length> control-height: 28px;
+    out property <length> control-height-large: 32px; // the inspector's primary action
+    out property <length> row-height: 28px;
+    out property <length> icon-size: 16px;
+    out property <length> icon-size-small: 14px; // icons inside controls
+
+    // ---- Type -----------------------------------------------------------------------------
+    out property <string> font-family: "Inter Variable";
+    out property <length> size-large-title: 26px;
+    out property <length> size-title: 20px;
+    out property <length> size-headline: 15px;
+    out property <length> size-body: 13px;
+    out property <length> size-callout: 12px;
+    out property <length> size-footnote: 11px;
+    out property <int> weight-regular: 400;
+    out property <int> weight-medium: 500;
+    out property <int> weight-semibold: 600;
+
+    // ---- Elevation (2 steps: controls, floating surfaces) ---------------------------------
+    out property <length> shadow-1-blur: 2px;
+    out property <length> shadow-1-y: 1px;
+    out property <color> shadow-1-color: dark ? #00000066 : #0000001f;
+    out property <length> shadow-3-blur: 32px;
+    out property <length> shadow-3-y: 12px;
+    out property <color> shadow-3-color: dark ? #000000a6 : #00000038;
+
+    // ---- Motion ---------------------------------------------------------------------------
+    // One easing everywhere (ease-out cubic); no bounce or elastic curves.
+    out property <duration> dur-fast: 120ms;
+    out property <duration> dur-base: 200ms;
+    out property <duration> dur-slow: 320ms;
+    out property <easing> ease: cubic-bezier(0.215, 0.61, 0.355, 1); // ease-out cubic
+}

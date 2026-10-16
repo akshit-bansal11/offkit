@@ -1,7 +1,9 @@
 // Runs under Node's built-in test runner: `npm test`.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
+import { toolCategories, tools } from "../config/tools.ts";
 import { quantizePixels } from "./design-tools/palette-extractor.ts";
 import {
   audioCodecArgs,
@@ -78,6 +80,45 @@ test("describeFFmpegFailure surfaces the real reason, not the generic trailer", 
     "Processing failed: Could not find tag for codec vorbis in stream #1",
   );
   assert.match(describeFFmpegFailure([]), /not supported/);
+});
+
+// The native app (app/) reads tools.json; the website switches to it in M7. Until then
+// both registries exist, and this keeps them identical.
+test("tools.json matches the registry in src/config/tools.ts", () => {
+  const json = JSON.parse(
+    readFileSync(new URL("../../tools.json", import.meta.url), "utf8"),
+  );
+  assert.deepEqual(
+    json.categories,
+    toolCategories.map(({ name, accentColor }) => ({
+      name,
+      accent: accentColor,
+    })),
+  );
+  assert.deepEqual(
+    json.tools.map(
+      ({
+        slug,
+        name,
+        shortName,
+        description,
+        category,
+      }: Record<string, string>) => ({
+        slug,
+        name,
+        shortName,
+        description,
+        category,
+      }),
+    ),
+    tools.map(({ slug, name, shortName, description, category }) => ({
+      slug,
+      name,
+      shortName,
+      description,
+      category,
+    })),
+  );
 });
 
 test("parseRanges handles lists, ranges, duplicates and out-of-bounds input", () => {

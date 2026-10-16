@@ -1,0 +1,97 @@
+// Inspector building blocks, in the grouped-list idiom of iOS Settings: a section title over a
+// rounded card of rows. Mark the first row of a card with `first: true`; later rows draw the
+// inset separator above themselves.
+
+import { Theme } from "../theme.slint";
+
+export component InspectorSection {
+    in property <string> title;
+    in property <string> footnote;
+
+    VerticalLayout {
+        spacing: Theme.space-2;
+
+        if root.title != "": HorizontalLayout {
+            padding-left: Theme.space-3;
+
+            Text {
+                text: root.title;
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                font-weight: Theme.weight-semibold;
+                accessible-role: none;
+            }
+        }
+
+        Rectangle {
+            border-radius: Theme.radius-group;
+            background: Theme.bg-surface-raised;
+            border-width: 1px;
+            border-color: Theme.separator;
+
+            VerticalLayout {
+                @children
+            }
+        }
+
+        if root.footnote != "": HorizontalLayout {
+            padding-left: Theme.space-3;
+            padding-right: Theme.space-3;
+
+            Text {
+                text: root.footnote;
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                wrap: word-wrap;
+            }
+        }
+    }
+}
+
+// One row: label (and optional detail line) on the left, the control on the right.
+export component InspectorRow {
+    in property <string> label;
+    in property <string> detail;
+    in property <bool> first;
+
+    min-height: root.detail == "" ? 40px : 48px;
+
+    if !root.first: Rectangle {
+        x: Theme.space-3;
+        y: 0;
+        width: parent.width - Theme.space-3;
+        height: 1px;
+        background: Theme.separator;
+    }
+
+    HorizontalLayout {
+        padding-left: Theme.space-3;
+        padding-right: Theme.space-2;
+        spacing: Theme.space-2;
+
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+
+            Text {
+                text: root.label;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                overflow: elide;
+            }
+            if root.detail != "": Text {
+                text: root.detail;
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                overflow: elide;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: end;
+            padding-top: Theme.space-1;
+            padding-bottom: Theme.space-1;
+            @children
+        }
+    }
+}
