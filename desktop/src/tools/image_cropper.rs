@@ -878,7 +878,7 @@ fn sync(app: &AppWindow) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::image::RgbaImage;
+    use ::image::{GenericImageView, RgbaImage};
 
     fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
         Rect { x, y, w, h }
