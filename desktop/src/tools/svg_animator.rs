@@ -330,7 +330,7 @@ impl Template {
     /// Sanitises and re-serialises `source`, measuring its paths. The errors are the website's.
     fn build(source: &str) -> Result<Self, String> {
         let options = roxmltree::ParsingOptions {
-            allow_dtd: true,
+            allow_dtd: false,
             ..roxmltree::ParsingOptions::default()
         };
         let doc = roxmltree::Document::parse_with_options(source, options)
@@ -535,8 +535,41 @@ fn is_dropped(node: Node) -> bool {
     !svg || !ALLOWED_ELEMENTS.contains(&tag.name().to_ascii_lowercase().as_str())
 }
 
+/// Whether every `url(` in a presentation value points at a `#id` in the file. The value is
+/// read as CSS would: escapes decoded, whitespace and quotes ignored, case folded.
+fn urls_stay_local(value: &str) -> bool {
+    let mut decoded = String::with_capacity(value.len());
+    let mut chars = value.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            decoded.push(c);
+            continue;
+        }
+        let mut hex = String::new();
+        while hex.len() < 6 && chars.peek().is_some_and(char::is_ascii_hexdigit) {
+            hex.extend(chars.next());
+        }
+        if hex.is_empty() {
+            decoded.extend(chars.next());
+        } else {
+            let code = u32::from_str_radix(&hex, 16).unwrap_or(0);
+            decoded.push(char::from_u32(code).unwrap_or(char::REPLACEMENT_CHARACTER));
+            // One whitespace character ends a hex escape.
+            if chars.peek().is_some_and(|c| c.is_whitespace()) {
+                chars.next();
+            }
+        }
+    }
+    let flat = decoded
+        .chars()
+        .filter(|c| !c.is_whitespace() && !matches!(c, '"' | '\''))
+        .collect::<String>()
+        .to_ascii_lowercase();
+    flat.split("url(").skip(1).all(|rest| rest.starts_with('#'))
+}
+
 /// Only allowlisted attributes, un-namespaced (or `xlink:href`); a link survives only to the
-/// file's own elements.
+/// file's own elements, and a `url()` only to a `#id` in it.
 fn is_safe_attribute(attribute: &roxmltree::Attribute) -> bool {
     let name = attribute.name().to_ascii_lowercase();
     let namespace_ok = match attribute.namespace() {
@@ -546,6 +579,7 @@ fn is_safe_attribute(attribute: &roxmltree::Attribute) -> bool {
     namespace_ok
         && ALLOWED_ATTRIBUTES.contains(&name.as_str())
         && (name != "href" || attribute.value().trim().starts_with('#'))
+        && urls_stay_local(attribute.value())
 }
 
 fn element_name(node: Node) -> String {
@@ -1179,6 +1213,24 @@ mod tests {
         ] {
             assert_inert(&sanitised(&format!(r#"<a {link}><rect width="1"/></a>"#)));
         }
+    }
+
+    #[test]
+    fn url_references_stay_inside_the_file() {
+        for value in [
+            "url(https://e/x.svg#a)",
+            "URL( 'http://e' )",
+            r"u\72 l(http://e/x.svg#a)",
+            r"\55RL(http://e)",
+            "url(#g) url(//e/x.svg#h)",
+        ] {
+            let markup = sanitised(&format!(r#"<rect width="1" fill="{value}" mask="{value}"/>"#));
+
+            assert!(!markup.contains("//e"), "{markup}");
+            assert!(!markup.contains("mask="), "{markup}");
+        }
+        let kept = sanitised(r##"<rect width="1" fill="url(#g)"/>"##);
+        assert!(kept.contains(r##"fill="url(#g)""##), "{kept}");
     }
 
     #[test]

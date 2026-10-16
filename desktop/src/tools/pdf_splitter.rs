@@ -15,7 +15,7 @@ use std::thread::{self, JoinHandle};
 use ::image::RgbaImage;
 use slint::{ComponentHandle, Image, Model, ModelRc, VecModel};
 
-use super::pdf_toolkit::{PDF_FILTER, Outcome, Task, TaskUpdate, count, get_pdfium, is_pdf, slint_image};
+use super::pdf_toolkit::{PDF_FILTER, Outcome, Task, TaskUpdate, count, get_pdfium, is_pdf, slint_image, unpictured_note};
 use crate::engine::pdf::{self, PageRef};
 use crate::files::{self, candidate_name, file_name, format_size, reserve_dir, reserve_output};
 use crate::jobs::{self, CancelToken, JobError};
@@ -296,8 +296,17 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
             let token = token.clone();
             jobs::post(&weak, move |_| set_thumb(&token, index, &image));
         });
-        if let Err(e) = rendered {
-            eprintln!("thumbnails for {}: {e}", path.display());
+        match rendered {
+            Ok(0) => {}
+            Ok(left_out) => jobs::post(&weak, move |app| {
+                with(|s| {
+                    if Arc::ptr_eq(&s.reading, &token) {
+                        s.task.show_error(unpictured_note(left_out));
+                    }
+                });
+                refresh(&app);
+            }),
+            Err(e) => eprintln!("thumbnails for {}: {e}", path.display()),
         }
     });
     with(|s| {

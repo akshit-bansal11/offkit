@@ -41,6 +41,11 @@ pub const PDFIUM_DOWNLOADS: &str = "https://github.com/bblanchon/pdfium-binaries
 /// The largest page render, in pixels: A4 or Letter at 600 dpi fits. Pages asking for more are
 /// rendered smaller, so a huge or hostile page can't exhaust memory (about 144 MB per render).
 const MAX_RENDER_PIXELS: f32 = 36_000_000.0;
+/// The longest a rendered page may be on either side, in pixels: a 1 x 14400 pt strip at 600 dpi
+/// is under the pixel cap yet 120,000 px tall.
+const MAX_RENDER_EDGE: f32 = 20_000.0;
+/// The most pages that get thumbnails; the rest of a huge PDF still splits and merges, unpictured.
+pub const MAX_THUMBNAIL_PAGES: usize = 500;
 /// The most one PDF stream may decompress to while compressing: a bomb is refused, not inflated.
 const MAX_STREAM_BYTES: usize = 256 * 1024 * 1024;
 /// Decoding limits for images going into a PDF and images inside one.
@@ -598,20 +603,35 @@ impl Raster {
 }
 
 /// The render scale for a page of `width`×`height` points at `dpi`, lowered so the bitmap stays
-/// under `MAX_RENDER_PIXELS`.
-fn render_scale(width: f32, height: f32, dpi: f32) -> f32 {
+/// under `MAX_RENDER_PIXELS` and `MAX_RENDER_EDGE`. A size or scale that isn't a positive
+/// number is an error: it would cap nothing.
+fn render_scale(width: f32, height: f32, dpi: f32) -> Result<f32, String> {
+    let unreadable = || "This page's size can't be read.".to_string();
     let scale = dpi / POINTS_PER_INCH;
+    if ![width, height, scale]
+        .iter()
+        .all(|v| v.is_finite() && *v > 0.0)
+    {
+        return Err(unreadable());
+    }
     let pixels = width * scale * height * scale;
-    if pixels > MAX_RENDER_PIXELS {
-        scale * (MAX_RENDER_PIXELS / pixels).sqrt()
+    let by_area = if pixels > MAX_RENDER_PIXELS {
+        (MAX_RENDER_PIXELS / pixels).sqrt()
     } else {
-        scale
+        1.0
+    };
+    let by_edge = MAX_RENDER_EDGE / (width.max(height) * scale);
+    let capped = scale * by_area.min(by_edge).min(1.0);
+    if capped.is_finite() && capped > 0.0 {
+        Ok(capped)
+    } else {
+        Err(unreadable())
     }
 }
 
 /// A page at `dpi` (pixels = points / 72 × dpi), on white, within `MAX_RENDER_PIXELS`.
 fn render(page: &PdfPage, dpi: f32) -> Result<RgbImage, String> {
-    let scale = render_scale(page.width().value, page.height().value, dpi);
+    let scale = render_scale(page.width().value, page.height().value, dpi)?;
     let config = PdfRenderConfig::new().scale_page_by_factor(scale);
     page.render_with_config(&config)
         .and_then(|bitmap| bitmap.as_image())
@@ -680,23 +700,25 @@ pub fn render_to_folder(
     Ok(unique.len())
 }
 
-/// Renders every page of `path` to fit a `max_edge` square, in order, handing each to `each`
-/// as it's done (page index, image). Stops quietly when cancelled.
+/// Renders the first `MAX_THUMBNAIL_PAGES` pages of `path` to fit a `max_edge` square, in
+/// order, handing each to `each` as it's done (page index, image). Returns how many pages were
+/// left without one. Stops quietly when cancelled.
 pub fn thumbnails(
     pdfium: &Pdfium,
     path: &Path,
     max_edge: u32,
     cancel: &CancelToken,
     mut each: impl FnMut(u32, RgbaImage),
-) -> Result<(), String> {
+) -> Result<usize, String> {
     let doc = open(pdfium, path)?;
     let edge = max_edge as Pixels;
     let config = PdfRenderConfig::new()
         .set_target_width(edge)
         .set_maximum_height(edge);
-    for (i, page) in doc.pages().iter().enumerate() {
+    let total = doc.pages().len().max(0) as usize;
+    for (i, page) in doc.pages().iter().enumerate().take(MAX_THUMBNAIL_PAGES) {
         if cancel.is_cancelled() {
-            return Ok(());
+            return Ok(0);
         }
         let image = page
             .render_with_config(&config)
@@ -704,7 +726,7 @@ pub fn thumbnails(
             .map_err(|e| format!("Couldn't render page {}: {e}", i + 1))?;
         each(i as u32, image.into_rgba8());
     }
-    Ok(())
+    Ok(total.saturating_sub(MAX_THUMBNAIL_PAGES))
 }
 
 // ---- Compression ----------------------------------------------------------------------------
@@ -1432,11 +1454,47 @@ mod tests {
 
     #[test]
     fn huge_renders_are_capped_in_pixels() {
-        let scale = render_scale(14_400.0, 14_400.0, 600.0);
+        let scale = render_scale(14_400.0, 14_400.0, 600.0).unwrap();
 
         let pixels = (14_400.0 * scale).powi(2);
 
         assert!(pixels <= MAX_RENDER_PIXELS * 1.001);
+    }
+
+    #[test]
+    fn long_thin_renders_are_capped_in_edge_length() {
+        let scale = render_scale(1.0, 14_400.0, 600.0).unwrap();
+
+        assert!(14_400.0 * scale <= MAX_RENDER_EDGE * 1.001);
+    }
+
+    #[test]
+    fn unreadable_page_sizes_and_scales_are_errors() {
+        for (w, h, dpi) in [
+            (f32::NAN, 100.0, 72.0),
+            (100.0, f32::INFINITY, 72.0),
+            (0.0, 100.0, 72.0),
+            (100.0, 100.0, 0.0),
+            (100.0, 100.0, f32::NAN),
+        ] {
+            assert_eq!(
+                render_scale(w, h, dpi),
+                Err("This page's size can't be read.".to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn thumbnails_stop_at_the_page_limit() {
+        let dir = temp_dir("thumb-limit");
+        let sizes = vec![(100.0, 100.0); MAX_THUMBNAIL_PAGES + 3];
+        let src = sized_pdf(&dir.join("src.pdf"), &sizes);
+        let mut drawn = 0;
+
+        let left_out = thumbnails(lib(), &src, 16, &CancelToken::default(), |_, _| drawn += 1);
+
+        assert_eq!((drawn, left_out), (MAX_THUMBNAIL_PAGES, Ok(3)));
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
