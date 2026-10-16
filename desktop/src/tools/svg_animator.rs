@@ -329,8 +329,11 @@ enum Output {
 impl Template {
     /// Sanitises and re-serialises `source`, measuring its paths. The errors are the website's.
     fn build(source: &str) -> Result<Self, String> {
+        // DTDs stay on: Illustrator exports carry a DOCTYPE and the website accepts them. roxmltree
+        // supports only internal entities (no external entity resolution) and caps expansion, so
+        // a DOCTYPE can't read files or blow up memory.
         let options = roxmltree::ParsingOptions {
-            allow_dtd: false,
+            allow_dtd: true,
             ..roxmltree::ParsingOptions::default()
         };
         let doc = roxmltree::Document::parse_with_options(source, options)
@@ -1372,5 +1375,32 @@ mod tests {
 
         assert!(clock.elapsed() >= 1.25);
         assert!(clock.elapsed() < 1.5);
+    }
+
+    #[test]
+    fn a_doctype_with_an_internal_entity_is_accepted() {
+        let svg = r#"<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY d "M0 0H10">]><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="&d;"/></svg>"#;
+
+        let template = Template::build(svg).unwrap();
+
+        assert!(
+            template
+                .write(&style(), Output::Smil(Timing::new(0.5, Mode::Sequential)))
+                .contains(r#"d="M0 0H10""#)
+        );
+    }
+
+    #[test]
+    fn a_billion_laughs_document_is_refused() {
+        let mut dtd = String::from(r#"<!ENTITY a0 "lol">"#);
+        for n in 1..10 {
+            let refs = format!("&a{};", n - 1).repeat(10);
+            dtd.push_str(&format!(r#"<!ENTITY a{n} "{refs}">"#));
+        }
+        let svg = format!(
+            r#"<!DOCTYPE svg [{dtd}]><svg xmlns="http://www.w3.org/2000/svg"><text>&a9;</text><path d="M0 0H1"/></svg>"#
+        );
+
+        assert!(Template::build(&svg).is_err());
     }
 }
