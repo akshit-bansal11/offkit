@@ -1,8 +1,265 @@
-// Palette Extractor: a placeholder until the images family builds it. Its state will live in the
-// `PaletteExtractor` global, driven by src/tools/palette_extractor.rs.
+// Palette Extractor view: a toolbar row, then the image beside its swatches and the export. All
+// state lives in the `PaletteExtractor` global, which Rust drives (src/tools/palette_extractor.rs).
 
-import { PlaceholderView } from "placeholder.slint";
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, DropOutline } from "../components/controls.slint";
+import { NumberField, SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
+import { DropZone } from "../components/file-list.slint";
 
-export global PaletteExtractor { }
+export enum PaletteExport { css, json }
+export enum SwatchFormat { hex, rgb, hsl }
 
-export component PaletteExtractorView inherits PlaceholderView { }
+export struct PaletteSwatch {
+    color: color,
+    hex: string, // "#336699"
+    detail: string, // "rgb(51, 102, 153) · hsl(210, 50%, 40%)"
+}
+
+export global PaletteExtractor {
+    in property <bool> drop-hover;
+    // The image types it opens, for the drop zone (Rust: `engine::image::FORMATS_HINT`).
+    in property <string> formats-hint;
+    in property <bool> has-image;
+    in property <image> preview;
+    // "photo.jpg · 4032×3024 · JPEG"
+    in property <string> file-label;
+    in property <bool> busy;
+    in property <string> error;
+    in property <string> note;
+    in property <[PaletteSwatch]> swatches;
+    in-out property <float> count: 10;
+    in-out property <PaletteExport> export-format;
+    in property <string> export-text;
+
+    callback open-image();
+    callback clear();
+    // The count or the export format changed.
+    callback settings-changed();
+    callback copy-swatch(int, SwatchFormat) -> bool;
+    callback copy-export() -> bool;
+    callback save-export();
+}
+
+component SwatchRow {
+    in property <PaletteSwatch> swatch;
+    in property <int> index;
+    in property <bool> first;
+
+    min-height: Theme.palette-row-height;
+    accessible-role: list-item;
+    accessible-label: root.swatch.hex;
+
+    if !root.first: Rectangle {
+        x: Theme.space-3;
+        y: 0;
+        width: parent.width - Theme.space-3;
+        height: 1px;
+        background: Theme.separator;
+    }
+
+    HorizontalLayout {
+        padding-left: Theme.space-3;
+        padding-right: Theme.space-2;
+        spacing: Theme.space-3;
+
+        // Decorative: the hex code beside it names the colour.
+        Rectangle {
+            width: Theme.control-height;
+            height: Theme.control-height;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.radius-control;
+            background: root.swatch.color;
+            border-width: 1px;
+            border-color: Theme.separator;
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            horizontal-stretch: 1;
+
+            Text {
+                text: root.swatch.hex;
+                color: Theme.text-primary;
+                font-family: Theme.font-family-mono;
+                font-size: Theme.size-body;
+            }
+            Text {
+                text: root.swatch.detail;
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                overflow: elide;
+            }
+        }
+        HorizontalLayout {
+            alignment: end;
+            spacing: 0;
+
+            CopyButton {
+                text: "HEX";
+                y: (parent.height - self.height) / 2;
+                copy => { return PaletteExtractor.copy-swatch(root.index, SwatchFormat.hex); }
+            }
+            CopyButton {
+                text: "RGB";
+                y: (parent.height - self.height) / 2;
+                copy => { return PaletteExtractor.copy-swatch(root.index, SwatchFormat.rgb); }
+            }
+            CopyButton {
+                text: "HSL";
+                y: (parent.height - self.height) / 2;
+                copy => { return PaletteExtractor.copy-swatch(root.index, SwatchFormat.hsl); }
+            }
+        }
+    }
+}
+
+export component PaletteExtractorView inherits VerticalLayout {
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    HorizontalLayout {
+        spacing: Theme.space-3;
+
+        Button {
+            text: "Open…";
+            kind: ButtonKind.secondary;
+            clicked => { PaletteExtractor.open-image(); }
+        }
+        Text {
+            text: "Colours";
+            color: Theme.text-primary;
+            font-size: Theme.size-body;
+            vertical-alignment: center;
+        }
+        NumberField {
+            label: "Colours";
+            value <=> PaletteExtractor.count;
+            minimum: 1;
+            maximum: 20;
+            changed => { PaletteExtractor.settings-changed(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        Button {
+            text: "Clear";
+            kind: ButtonKind.secondary;
+            enabled: PaletteExtractor.has-image;
+            clicked => { PaletteExtractor.clear(); }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Theme.space-4;
+        vertical-stretch: 1;
+
+        Pane {
+
+            PaneHeader { title: PaletteExtractor.has-image ? PaletteExtractor.file-label : "Image"; }
+            if !PaletteExtractor.has-image: DropZone {
+                vertical-stretch: 1;
+                drop-hover: PaletteExtractor.drop-hover;
+                icon: AppIcons.image-up;
+                title: "Drop an image here";
+                hint: PaletteExtractor.formats-hint;
+                button-text: "Choose Image…";
+                choose => { PaletteExtractor.open-image(); }
+            }
+            if PaletteExtractor.has-image: DropOutline {
+                vertical-stretch: 1;
+                border-radius: Theme.radius-group;
+                background: Theme.bg-grouped;
+                drop-hover: PaletteExtractor.drop-hover;
+                resting: Theme.separator;
+
+                Image {
+                    x: Theme.space-3;
+                    y: Theme.space-3;
+                    width: parent.width - 2 * Theme.space-3;
+                    height: parent.height - 2 * Theme.space-3;
+                    source: PaletteExtractor.preview;
+                    image-fit: contain;
+                    accessible-role: image;
+                    accessible-label: PaletteExtractor.file-label;
+                }
+            }
+        }
+
+        Pane {
+
+            PaneHeader { title: "Colours"; }
+            Rectangle {
+                vertical-stretch: 1;
+                border-radius: Theme.radius-group;
+                background: Theme.bg-surface-raised;
+                border-width: 1px;
+                border-color: Theme.separator;
+                clip: true;
+
+                if PaletteExtractor.swatches.length == 0: Text {
+                    x: Theme.space-6;
+                    width: parent.width - 2 * Theme.space-6;
+                    text: PaletteExtractor.busy ? "Extracting dominant colours…" : "Open an image to see its most dominant, visibly distinct colours.";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-body;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    wrap: word-wrap;
+                }
+                if PaletteExtractor.swatches.length > 0: ScrollView {
+                    VerticalLayout {
+                        alignment: start;
+
+                        for swatch[i] in PaletteExtractor.swatches: SwatchRow {
+                            swatch: swatch;
+                            index: i;
+                            first: i == 0;
+                        }
+                    }
+                }
+            }
+
+            PaneHeader {
+                title: "Export";
+
+                SegmentedControl {
+                    label: "Export format";
+                    options: ["CSS", "JSON"];
+                    current-index: PaletteExtractor.export-format == PaletteExport.json ? 1 : 0;
+                    selected(i) => {
+                        PaletteExtractor.export-format = i == 1 ? PaletteExport.json : PaletteExport.css;
+                        PaletteExtractor.settings-changed();
+                    }
+                }
+                CopyButton {
+                    enabled: PaletteExtractor.export-text != "";
+                    copy => { return PaletteExtractor.copy-export(); }
+                }
+                Button {
+                    text: "Save…";
+                    kind: ButtonKind.plain;
+                    enabled: PaletteExtractor.export-text != "";
+                    clicked => { PaletteExtractor.save-export(); }
+                }
+            }
+            TextPane {
+                label: "Export";
+                text: PaletteExtractor.export-text;
+                read-only: true;
+                placeholder: PaletteExtractor.export-format == PaletteExport.json ? "The palette as JSON appears here." : "The palette as CSS variables appears here.";
+                vertical-stretch: 0;
+                height: Theme.palette-export-height;
+            }
+        }
+    }
+
+    if PaletteExtractor.error != "": Notice {
+        text: PaletteExtractor.error;
+        tone: NoticeTone.error;
+    }
+    if PaletteExtractor.error == "" && PaletteExtractor.note != "": Notice {
+        text: PaletteExtractor.note;
+    }
+}
