@@ -70,6 +70,15 @@ pub fn count(n: usize, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
 }
 
+/// The note for pages past `pdf::MAX_THUMBNAIL_PAGES`, which get no thumbnail.
+pub fn unpictured_note(left_out: usize) -> String {
+    format!(
+        "{} past the first {} have no preview, but are still included.",
+        count(left_out, "page", "pages"),
+        pdf::MAX_THUMBNAIL_PAGES
+    )
+}
+
 /// A `FileQueue` row's page count: `None` until it's read.
 #[derive(Default)]
 pub struct PageCount(pub Option<u32>);
@@ -467,8 +476,20 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
                 let token = token.clone();
                 jobs::post(&weak, move |_| set_thumb(&token, source, index, &image));
             });
-            if let Err(e) = rendered {
-                eprintln!("thumbnails for {}: {e}", path.display());
+            match rendered {
+                Ok(0) => {}
+                Ok(left_out) => {
+                    let token = token.clone();
+                    jobs::post(&weak, move |app| {
+                        with(|s| {
+                            if Arc::ptr_eq(&s.reading, &token) {
+                                s.task.show_error(unpictured_note(left_out));
+                            }
+                        });
+                        refresh(&app);
+                    });
+                }
+                Err(e) => eprintln!("thumbnails for {}: {e}", path.display()),
             }
             if token.is_cancelled() {
                 return;

@@ -257,7 +257,8 @@ fn svg(c: &Corners, fill: Fill, size: u32) -> String {
 
 /// The SVG drawn at `scale` physical pixels per CSS pixel.
 fn render(svg: &str, scale: f32) -> Result<Pixmap, String> {
-    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).map_err(|e| e.to_string())?;
+    let tree =
+        usvg::Tree::from_str(svg, &crate::engine::svg::options()).map_err(|e| e.to_string())?;
     let size = tree.size().to_int_size().scale_by(scale).ok_or("empty size")?;
     let mut pixmap = Pixmap::new(size.width(), size.height()).ok_or("empty size")?;
     resvg::render(
