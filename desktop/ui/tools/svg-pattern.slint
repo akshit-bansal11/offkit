@@ -1,8 +1,334 @@
-// SVG Pattern Generator: a placeholder until the svg family builds it. Its state will live in the
-// `SvgPattern` global, driven by src/tools/svg_pattern.rs.
+// SVG Pattern Generator view: the tiled preview over the CSS and SVG it produces, with the
+// pattern, tile and colour controls in the inspector. All state lives in the `SvgPattern`
+// global, which Rust drives (src/tools/svg_pattern.rs); Rust renders the preview and the
+// picker's thumbnails.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { FocusRing } from "../components/controls.slint";
+import { ColorWell } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { PreviewCanvas, SliderRow } from "svg-parts.slint";
 
-export global SvgPattern { }
+export struct SvgPatternOption {
+    label: string,
+    thumbnail: image,
+}
 
-export component SvgPatternView inherits PlaceholderView { }
+export global SvgPattern {
+    // The nine patterns in picker order, with thumbnails in the current foreground.
+    in property <[SvgPatternOption]> options;
+    in-out property <int> current-index: 1; // Dots, the website's default
+    in-out property <float> size: 32; // px, 8–128 in steps of 2
+    in-out property <float> width-tenths: 10; // stroke width ×10: 0.5–3
+    in-out property <float> opacity: 50; // foreground opacity, %
+    in-out property <string> bg-hex;
+    in-out property <string> fg-hex;
+    in property <color> bg;
+    in property <color> fg;
+    in property <bool> bg-invalid;
+    in property <bool> fg-invalid;
+    // False for Checker, whose squares have no stroke.
+    in property <bool> uses-width: true;
+    in property <string> caption;
+    in property <string> css;
+    in property <string> svg;
+    in property <image> preview;
+    in property <string> error;
+    in property <string> note;
+
+    // A pattern, slider or colour changed.
+    callback changed();
+    callback bg-edited(string);
+    callback fg-edited(string);
+    callback preview-resized(length, length);
+    callback copy-css() -> bool;
+    callback copy-svg() -> bool;
+    callback save-svg();
+}
+
+// The nine patterns as a 3 × 3 radio group: one Tab stop, arrow keys move the selection (Up
+// and Down by a row), and the selected cell carries the accent ring, so the state never rests
+// on a tint alone.
+component PatternPicker {
+    in property <[SvgPatternOption]> options;
+    in property <int> current-index;
+    callback selected(int);
+
+    private property <int> columns: 3;
+
+    forward-focus: fs;
+    accessible-role: radio-group;
+    accessible-label: "Pattern";
+
+    function pick(i: int) {
+        if (i >= 0 && i < root.options.length && i != root.current-index) {
+            root.selected(i);
+        }
+    }
+
+    VerticalLayout {
+        padding: Theme.space-2;
+        spacing: Theme.space-1;
+
+        for row in [0, 1, 2]: HorizontalLayout {
+            spacing: Theme.space-1;
+
+            for column in [0, 1, 2]: cell := Rectangle {
+                property <int> i: row * root.columns + column;
+                property <bool> current: cell.i == root.current-index;
+
+                height: Theme.svg-picker-cell-height;
+                horizontal-stretch: 1;
+                border-radius: Theme.radius-control;
+                background: cell.current ? Theme.selection-fill : cell-ta.pressed ? Theme.bg-pressed : cell-ta.has-hover ? Theme.bg-hover : transparent;
+                border-width: Theme.drop-outline-width;
+                border-color: cell.current ? Theme.accent-text : transparent;
+                accessible-role: radio-button;
+                accessible-label: root.options[cell.i].label;
+                accessible-checkable: true;
+                accessible-checked: cell.current;
+                accessible-action-default => { root.pick(cell.i); }
+                animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: Theme.space-1;
+                    padding-left: Theme.space-1;
+                    padding-right: Theme.space-1;
+
+                    HorizontalLayout {
+                        alignment: center;
+
+                        Rectangle {
+                            width: Theme.svg-thumb-size + Theme.space-1;
+                            height: Theme.svg-thumb-size + Theme.space-1;
+                            border-radius: Theme.radius-nested;
+                            background: Theme.bg-hover;
+
+                            Image {
+                                source: root.options[cell.i].thumbnail;
+                                width: Theme.svg-thumb-size;
+                                height: Theme.svg-thumb-size;
+                                image-fit: fill;
+                                accessible-role: none;
+                            }
+                        }
+                    }
+                    Text {
+                        text: root.options[cell.i].label;
+                        color: Theme.text-primary;
+                        font-size: Theme.size-footnote;
+                        horizontal-alignment: center;
+                        overflow: elide;
+                        accessible-role: none;
+                    }
+                }
+
+                cell-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.pick(cell.i); }
+                }
+
+                FocusRing {
+                    has-focus: fs.has-focus && cell.current;
+                    radius: Theme.radius-control;
+                }
+            }
+        }
+    }
+
+    fs := FocusScope {
+        focus-on-click: false;
+        key-pressed(event) => {
+            if (event.text == Key.LeftArrow) {
+                root.pick(root.current-index - 1);
+                return accept;
+            }
+            if (event.text == Key.RightArrow) {
+                root.pick(root.current-index + 1);
+                return accept;
+            }
+            if (event.text == Key.UpArrow) {
+                root.pick(root.current-index - root.columns);
+                return accept;
+            }
+            if (event.text == Key.DownArrow) {
+                root.pick(root.current-index + root.columns);
+                return accept;
+            }
+            reject
+        }
+    }
+}
+
+component Settings inherits Inspector {
+    action-text: "Export SVG…";
+    can-run: true;
+    run => { SvgPattern.save-svg(); }
+
+    InspectorSection {
+        title: "Pattern";
+
+        PatternPicker {
+            options: SvgPattern.options;
+            current-index: SvgPattern.current-index;
+            selected(i) => {
+                SvgPattern.current-index = i;
+                SvgPattern.changed();
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Tile";
+
+        SliderRow {
+            label: "Scale";
+            value-text: SvgPattern.size + " px";
+            first: true;
+            value <=> SvgPattern.size;
+            minimum: 8;
+            maximum: 128;
+            step: 2;
+            changed => { SvgPattern.changed(); }
+        }
+        if SvgPattern.uses-width: SliderRow {
+            label: "Width";
+            value-text: (SvgPattern.width-tenths / 10) + "×";
+            value <=> SvgPattern.width-tenths;
+            minimum: 5;
+            maximum: 30;
+            changed => { SvgPattern.changed(); }
+        }
+        SliderRow {
+            label: "Opacity";
+            value-text: SvgPattern.opacity + "%";
+            value <=> SvgPattern.opacity;
+            minimum: 0;
+            maximum: 100;
+            changed => { SvgPattern.changed(); }
+        }
+    }
+
+    InspectorSection {
+        title: "Colors";
+
+        InspectorRow {
+            label: "Background";
+            first: true;
+
+            ColorWell {
+                width: Theme.svg-color-well-width;
+                label: "Background color";
+                color: SvgPattern.bg;
+                hex <=> SvgPattern.bg-hex;
+                invalid: SvgPattern.bg-invalid;
+                edited(text) => { SvgPattern.bg-edited(text); }
+                accepted(text) => { SvgPattern.bg-edited(text); }
+            }
+        }
+        InspectorRow {
+            label: "Foreground";
+
+            ColorWell {
+                width: Theme.svg-color-well-width;
+                label: "Foreground color";
+                color: SvgPattern.fg;
+                hex <=> SvgPattern.fg-hex;
+                invalid: SvgPattern.fg-invalid;
+                edited(text) => { SvgPattern.fg-edited(text); }
+                accepted(text) => { SvgPattern.fg-edited(text); }
+            }
+        }
+    }
+}
+
+export component SvgPatternView inherits VerticalLayout {
+    HorizontalLayout {
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding: Theme.space-6;
+            padding-top: 0;
+            spacing: Theme.space-4;
+
+            VerticalLayout {
+                vertical-stretch: 3;
+                spacing: Theme.space-2;
+
+                PreviewCanvas {
+                    vertical-stretch: 1;
+                    label: "Pattern preview: " + SvgPattern.caption;
+                    resized(width, height) => { SvgPattern.preview-resized(width, height); }
+
+                    // Rendered at exactly this size, so `fill` draws it pixel for pixel.
+                    Image {
+                        width: 100%;
+                        height: 100%;
+                        source: SvgPattern.preview;
+                        image-fit: fill;
+                        accessible-role: none;
+                    }
+                }
+                Text {
+                    text: SvgPattern.caption;
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-callout;
+                }
+            }
+
+            HorizontalLayout {
+                vertical-stretch: 2;
+                spacing: Theme.space-4;
+
+                Pane {
+
+                    PaneHeader {
+                        title: "CSS";
+
+                        CopyButton {
+                            copy => { return SvgPattern.copy-css(); }
+                        }
+                    }
+                    TextPane {
+                        label: "CSS";
+                        text: SvgPattern.css;
+                        read-only: true;
+                    }
+                }
+
+                Pane {
+
+                    PaneHeader {
+                        title: "SVG";
+
+                        CopyButton {
+                            copy => { return SvgPattern.copy-svg(); }
+                        }
+                    }
+                    TextPane {
+                        label: "SVG";
+                        text: SvgPattern.svg;
+                        read-only: true;
+                    }
+                }
+            }
+
+            if SvgPattern.bg-invalid || SvgPattern.fg-invalid: Notice {
+                text: "Enter a hex color such as #3b82f6. The pattern keeps the last valid one.";
+                tone: NoticeTone.error;
+            }
+            if SvgPattern.error != "": Notice {
+                text: SvgPattern.error;
+                tone: NoticeTone.error;
+            }
+            if SvgPattern.error == "" && SvgPattern.note != "": Notice {
+                text: SvgPattern.note;
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}
