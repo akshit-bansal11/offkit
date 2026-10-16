@@ -1,8 +1,105 @@
-// Archive Extractor: a placeholder until the dev family builds it. Its state will live in the
-// `ArchiveExtractor` global, driven by src/tools/archive_extractor.rs.
+// Archive Extractor view. All state lives in the `ArchiveExtractor` global, which Rust drives
+// (src/tools/archive_extractor.rs); this file only lays it out.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { DropZone, FileItem, FileList } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
 
-export global ArchiveExtractor { }
+export global ArchiveExtractor {
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    in property <bool> running;
+    in property <bool> can-extract;
+    in property <string> list-summary;
+    in property <string> output-folder;
+    in property <bool> custom-output;
+    // The byte cap against decompression bombs, in words.
+    in property <string> size-limit;
 
-export component ArchiveExtractorView inherits PlaceholderView { }
+    callback choose-files();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback extract-all();
+    callback cancel-all();
+}
+
+component Settings inherits Inspector {
+    action-text: "Extract All";
+    can-run: ArchiveExtractor.can-extract;
+    running: ArchiveExtractor.running;
+    run => { ArchiveExtractor.extract-all(); }
+    stop => { ArchiveExtractor.cancel-all(); }
+
+    // What the engine guarantees (src/engine/archive.rs), so the user knows before extracting.
+    InspectorSection {
+        title: "Safety";
+        footnote: "Each archive gets a new folder, and nothing outside it is touched. A failed or stopped extraction leaves nothing behind.";
+
+        InspectorRow {
+            label: "Links and devices";
+            detail: "Skipped, never created";
+            first: true;
+        }
+        InspectorRow {
+            label: "Paths leaving the folder";
+            detail: "Stop the extraction";
+        }
+        InspectorRow {
+            label: "Size limit";
+            detail: ArchiveExtractor.size-limit;
+        }
+    }
+
+    OutputFolderSection {
+        folder: ArchiveExtractor.output-folder;
+        custom: ArchiveExtractor.custom-output;
+        reset-label: "Extract next to each archive";
+        choose => { ArchiveExtractor.choose-output-folder(); }
+        reset => { ArchiveExtractor.reset-output-folder(); }
+    }
+}
+
+export component ArchiveExtractorView inherits VerticalLayout {
+    HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+
+                if ArchiveExtractor.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: ArchiveExtractor.drop-hover;
+                    icon: AppIcons.extract;
+                    title: "Drop archives here";
+                    hint: "ZIP, TAR, TAR.GZ, GZ and 7z. Each one opens into a new folder beside it.";
+                    button-text: "Choose Archives…";
+                    choose => { ArchiveExtractor.choose-files(); }
+                }
+                if ArchiveExtractor.files.length > 0: FileList {
+                    vertical-stretch: 1;
+                    files: ArchiveExtractor.files;
+                    summary: ArchiveExtractor.list-summary;
+                    drop-hover: ArchiveExtractor.drop-hover;
+                    icon: AppIcons.archive;
+                    activity: "Extracting";
+                    cancel-label: "Cancel extraction";
+                    add-text: "Add Archives…";
+                    add => { ArchiveExtractor.choose-files(); }
+                    remove(i) => { ArchiveExtractor.remove(i); }
+                    cancel(i) => { ArchiveExtractor.cancel(i); }
+                    reveal(i) => { ArchiveExtractor.reveal(i); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

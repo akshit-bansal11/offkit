@@ -1,8 +1,141 @@
-// Archiver: a placeholder until the dev family builds it. Its state will live in the
-// `Archiver` global, driven by src/tools/archiver.rs.
+// Archiver view. All state lives in the `Archiver` global, which Rust drives
+// (src/tools/archiver.rs); this file only lays it out.
 
-import { PlaceholderView } from "placeholder.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, Select } from "../components/controls.slint";
+import { Notice, NoticeTone } from "../components/editor.slint";
+import { DropZone, FileItem, FileList } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
 
-export global Archiver { }
+export global Archiver {
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    in property <bool> running;
+    in property <bool> can-create;
+    // Why Create Archive is unavailable; empty when it isn't.
+    in property <string> blocked-reason;
+    in property <string> list-summary;
+    in property <string> error;
+    in property <string> note;
 
-export component ArchiverView inherits PlaceholderView { }
+    in property <[string]> formats;
+    in-out property <int> format-index;
+    in property <[string]> levels;
+    in-out property <int> level-index;
+
+    callback choose-files();
+    callback choose-folder();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback create();
+    callback cancel-all();
+}
+
+component Settings inherits Inspector {
+    action-text: "Create Archive…";
+    stop-text: "Stop";
+    can-run: Archiver.can-create;
+    running: Archiver.running;
+    note: Archiver.blocked-reason;
+    run => { Archiver.create(); }
+    stop => { Archiver.cancel-all(); }
+
+    InspectorSection {
+        title: "Archive";
+        footnote: "ZIP opens without extra software almost everywhere. 7z usually makes the smallest file.";
+
+        InspectorRow {
+            label: "Format";
+            first: true;
+
+            Select {
+                label: "Format";
+                options: Archiver.formats;
+                current-index <=> Archiver.format-index;
+            }
+        }
+        InspectorRow {
+            label: "Compression";
+
+            Select {
+                label: "Compression";
+                options: Archiver.levels;
+                current-index <=> Archiver.level-index;
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Add";
+
+        InspectorRow {
+            label: "Files";
+            first: true;
+
+            Button {
+                text: "Choose…";
+                kind: ButtonKind.plain;
+                clicked => { Archiver.choose-files(); }
+            }
+        }
+        InspectorRow {
+            label: "A folder";
+
+            Button {
+                text: "Choose…";
+                kind: ButtonKind.plain;
+                clicked => { Archiver.choose-folder(); }
+            }
+        }
+    }
+}
+
+export component ArchiverView inherits VerticalLayout {
+    HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-4;
+
+                if Archiver.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: Archiver.drop-hover;
+                    icon: AppIcons.archive;
+                    title: "Drop files and folders here";
+                    hint: "Each keeps its name, and a folder keeps everything inside it. Links are left out.";
+                    choose => { Archiver.choose-files(); }
+                }
+                if Archiver.files.length > 0: FileList {
+                    vertical-stretch: 1;
+                    files: Archiver.files;
+                    summary: Archiver.list-summary;
+                    drop-hover: Archiver.drop-hover;
+                    icon: AppIcons.file;
+                    activity: "Adding";
+                    cancel-label: "Stop archiving";
+                    add => { Archiver.choose-files(); }
+                    remove(i) => { Archiver.remove(i); }
+                    cancel(i) => { Archiver.cancel(i); }
+                    reveal(i) => { Archiver.reveal(i); }
+                }
+
+                if Archiver.error != "": Notice {
+                    text: Archiver.error;
+                    tone: NoticeTone.error;
+                }
+                if Archiver.error == "" && Archiver.note != "": Notice {
+                    text: Archiver.note;
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}
