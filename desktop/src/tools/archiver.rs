@@ -16,7 +16,7 @@ use std::thread::{self, JoinHandle};
 
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
-use crate::engine::archive::{self, MAX_ENTRIES, Plan, Target, plural, shown};
+use crate::engine::archive::{self, MAX_ENTRIES, Plan, Target, echoed, plural};
 use crate::files::{self, file_name, format_size, same_file};
 use crate::jobs::{self, CancelToken, JobError};
 use crate::select::{self, index};
@@ -181,7 +181,7 @@ pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
                 {
                     refused.push(format!(
                         "Another item is already named “{}”. Rename one to archive both.",
-                        shown(&name)
+                        echoed(&name)
                     ));
                 }
                 Ok(_) => {
@@ -408,11 +408,11 @@ fn saved_note(saved: &std::path::Path, skipped: &[String]) -> String {
     let saved = format!("Saved as {}", file_name(saved));
     match skipped {
         [] => saved,
-        [one] => format!("{saved} · left out 1 item: “{}”", shown(one)),
+        [one] => format!("{saved} · left out 1 item: “{}”", echoed(one)),
         [first, rest @ ..] => format!(
             "{saved} · left out {}: “{}” and {} more",
             plural(skipped.len(), "item"),
-            shown(first),
+            echoed(first),
             rest.len()
         ),
     }
