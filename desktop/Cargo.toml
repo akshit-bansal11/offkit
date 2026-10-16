@@ -17,7 +17,8 @@ slint = { version = "=1.18.1", features = ["unstable-winit-030"] }
 rfd = "=0.17.2"
 window-vibrancy = "=0.8.1"
 serde = { version = "=1.0.229", features = ["derive"] }
-serde_json = "=1.0.154"
+# `preserve_order` (text family): JSON Formatter keeps key order unless asked to sort.
+serde_json = { version = "=1.0.154", features = ["preserve_order"] }
 anyhow = "=1.0.104"
 # Already in the tree via Slint's image loader; used only by the snapshot hook.
 png = "=0.18.1"
