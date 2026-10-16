@@ -1,7 +1,6 @@
 // Audio Editor view: a waveform with trim handles, then speed, pitch and EQ, with format,
 // preview and export in the inspector. All state lives in the `AudioEditor` global, which Rust
 // drives (src/tools/audio_editor.rs); this file lays it out and keeps the trim in bounds.
-// `Waveform` is exported for the Audio Joiner's rows.
 
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
@@ -60,7 +59,7 @@ export global AudioEditor {
 
 // Bars scaled to the element's width, one per peak; bars between `start` and `end` (fractions
 // of the whole) take the accent, the rest stay grey.
-export component Waveform {
+component Waveform {
     in property <[float]> peaks;
     in property <float> start: 0;
     in property <float> end: 1;
