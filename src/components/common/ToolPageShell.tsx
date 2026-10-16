@@ -104,7 +104,7 @@ export function ToolPageShell({
 
         <header className="mb-8 text-center">
           <h1
-            className="text-5xl font-semibold tracking-tight sm:text-8xl"
+            className="text-4xl font-semibold tracking-tight break-words sm:text-8xl"
             style={{
               background: `linear-gradient(135deg, rgb(${theme.primaryRgb} / 0.5) 0%, rgb(${theme.primaryRgb} / 1) 45%, rgb(${theme.primaryRgb} / 0.65) 100%)`,
               WebkitBackgroundClip: "text",
