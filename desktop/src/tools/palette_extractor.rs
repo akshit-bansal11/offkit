@@ -50,7 +50,7 @@ fn quantize(rgba: &[u8], count: usize) -> Vec<Rgb> {
     // stable sort give them.
     let mut buckets: Vec<Bucket> = Vec::new();
     let mut index: HashMap<u32, usize> = HashMap::new();
-    for px in rgba.chunks_exact(4) {
+    for px in rgba.as_chunks::<4>().0 {
         if px[3] < MIN_ALPHA {
             continue;
         }
@@ -66,7 +66,7 @@ fn quantize(rgba: &[u8], count: usize) -> Vec<Rgb> {
         bucket.sum[1] += g;
         bucket.sum[2] += b;
     }
-    buckets.sort_by(|a, b| b.n.cmp(&a.n));
+    buckets.sort_by_key(|b| std::cmp::Reverse(b.n));
 
     let mut picked: Vec<Rgb> = Vec::new();
     for bucket in buckets {

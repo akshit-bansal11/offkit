@@ -21,7 +21,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use ::image::{DynamicImage, GenericImageView};
+use ::image::DynamicImage;
 use slint::{ComponentHandle, Image, Model, ModelRc, VecModel};
 
 use crate::engine::image::{self, Format, INPUT_EXTENSIONS, Source};
