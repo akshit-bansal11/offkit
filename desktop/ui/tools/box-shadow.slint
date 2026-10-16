@@ -224,13 +224,13 @@ component LayerRow {
             }
         }
         IconButton {
-            icon: AppIcons.move-up;
+            icon: AppIcons.chevron-up;
             label: "Move " + root.layer.label + " up";
             enabled: root.can-move-up;
             clicked => { root.move-up(); }
         }
         IconButton {
-            icon: AppIcons.move-down;
+            icon: AppIcons.chevron-down;
             label: "Move " + root.layer.label + " down";
             enabled: root.can-move-down;
             clicked => { root.move-down(); }

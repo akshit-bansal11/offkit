@@ -50,6 +50,11 @@ lopdf = { version = "=0.45.0", default-features = false }
 # --- svg ---
 # Re-exports usvg and tiny-skia.
 resvg = "=0.48.1"
+# SVGO-compatible optimiser (MIT); 0.0.x has no semver promise, so both are pinned exactly.
+# oxvg_ast is the document type the optimiser runs on (same project, licence and version);
+# its roxmltree parser is the roxmltree 0.21 usvg already uses.
+oxvg_optimiser = "=0.0.9"
+oxvg_ast = { version = "=0.0.9", features = ["roxmltree"] }
 
 # --- colors ---
 

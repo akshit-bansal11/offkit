@@ -1,0 +1,85 @@
+// Pieces the three SVG tools share (SVG Optimizer, SVG Pattern Generator, SVG Border Animator).
+// Not a tool view itself: each tool's file imports what it needs from here.
+
+import { Theme } from "../theme.slint";
+import { Slider } from "../components/controls.slint";
+
+// A slider row inside an InspectorSection: its label and current value above the track. Later
+// rows draw the inset separator above themselves, as InspectorRow does; mark the first with
+// `first: true`.
+export component SvgSliderRow {
+    in property <string> label;
+    in property <string> value-text;
+    in-out property <float> value;
+    in property <float> minimum;
+    in property <float> maximum;
+    in property <float> step: 1;
+    in property <bool> enabled: true;
+    in property <bool> first;
+    callback changed(float);
+
+    if !root.first: Rectangle {
+        x: Theme.space-3;
+        y: 0;
+        width: parent.width - Theme.space-3;
+        height: 1px;
+        background: Theme.separator;
+    }
+
+    VerticalLayout {
+        padding: Theme.space-3;
+        spacing: Theme.space-2;
+
+        HorizontalLayout {
+            spacing: Theme.space-2;
+
+            Text {
+                text: root.label;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                horizontal-stretch: 1;
+                overflow: elide;
+                accessible-role: none;
+            }
+            Text {
+                text: root.value-text;
+                color: Theme.text-secondary;
+                font-size: Theme.size-body;
+                accessible-role: none;
+            }
+        }
+        Slider {
+            label: root.label;
+            enabled: root.enabled;
+            value <=> root.value;
+            minimum: root.minimum;
+            maximum: root.maximum;
+            step: root.step;
+            changed(v) => { root.changed(v); }
+        }
+    }
+}
+
+// The frame a rendered preview sits in; the tool puts its Image inside. It reports its size in
+// logical pixels whenever that changes, so Rust renders the image at the display's real
+// resolution instead of letting it be scaled up blurry.
+export component SvgPreviewCanvas inherits Rectangle {
+    // The accessible description of what the preview shows.
+    in property <string> label;
+    callback resized(length, length);
+
+    border-radius: Theme.radius-group;
+    background: Theme.bg-grouped;
+    border-width: 1px;
+    border-color: Theme.separator;
+    clip: true;
+    min-height: Theme.svg-preview-min-height;
+    accessible-role: image;
+    accessible-label: root.label;
+
+    init => { root.resized(self.width, self.height); }
+    changed width => { root.resized(self.width, self.height); }
+    changed height => { root.resized(self.width, self.height); }
+
+    @children
+}
