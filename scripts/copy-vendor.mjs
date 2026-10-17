@@ -15,7 +15,8 @@ const files = [
     "public/vendor/ffmpeg/ffmpeg-core.wasm",
   ],
   [
-    "node_modules/@imagemagick/magick-wasm/dist/magick.wasm",
+    // 0.0.44 ships dist/x86 (32-bit, the package's default "./magick.wasm" export) and dist/x64.
+    "node_modules/@imagemagick/magick-wasm/dist/x86/magick.wasm",
     "public/vendor/magick.wasm",
   ],
   [

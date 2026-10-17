@@ -25,8 +25,8 @@ export async function compressPdf(
   file: File,
   { scale, quality, onProgress }: CompressPdfOptions,
 ): Promise<Blob | null> {
-  const source = await pdfjsLib.getDocument({ data: await file.arrayBuffer() })
-    .promise;
+  const loadingTask = pdfjsLib.getDocument({ data: await file.arrayBuffer() });
+  const source = await loadingTask.promise;
   try {
     const output = await PDFDocument.create();
 
@@ -61,7 +61,8 @@ export async function compressPdf(
     });
     return blob.size < file.size ? blob : null;
   } finally {
-    // Frees the worker-side copy of the document.
-    await source.destroy();
+    // Frees the worker-side copy of the document. pdfjs 6 moved destroy() from
+    // the document to its loading task.
+    await loadingTask.destroy();
   }
 }
