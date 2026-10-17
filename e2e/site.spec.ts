@@ -14,7 +14,7 @@ test("landing page offers the download and leads to the docs", async ({
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Download for Windows" }),
-  ).toHaveAttribute("href", //releases/latest$/);
+  ).toHaveAttribute("href", /\/releases\/latest$/);
   await page.getByRole("link", { name: "Read the docs" }).click();
   await expect(
     page.getByRole("heading", { level: 1, name: "Documentation" }),
