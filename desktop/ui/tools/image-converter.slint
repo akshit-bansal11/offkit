@@ -1,0 +1,190 @@
+// Image Converter view: the file list beside the batch settings. All state lives in the
+// `ImageConverter` global, which Rust drives (src/tools/image_converter.rs).
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Select, Slider, Switch } from "../components/controls.slint";
+import { NumberField } from "../components/fields.slint";
+import { DropZone, FileItem, FileList } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
+
+export global ImageConverter {
+    // The image types it opens, for the drop zone (Rust: `engine::image::FORMATS_HINT`).
+    in property <string> formats-hint;
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    in property <bool> running;
+    in property <bool> can-convert;
+    in property <string> list-summary;
+
+    in property <[string]> formats;
+    in-out property <int> format-index;
+    in property <bool> quality-applies;
+    // What to know about the chosen format; empty when there's nothing.
+    in property <string> format-note;
+    in-out property <float> quality: 85;
+    in-out property <bool> resize;
+    in-out property <float> max-width: 1920;
+    in-out property <float> max-height: 1920;
+    // The largest side an image may have (Rust: `engine::image::MAX_SIDE`).
+    in property <float> max-side;
+    in property <string> output-folder;
+    in property <bool> custom-output;
+
+    callback choose-files();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback settings-changed();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback convert-all();
+    callback cancel-all();
+}
+
+component Settings inherits Inspector {
+    action-text: "Convert All";
+    can-run: ImageConverter.can-convert;
+    running: ImageConverter.running;
+    run => { ImageConverter.convert-all(); }
+    stop => { ImageConverter.cancel-all(); }
+
+    InspectorSection {
+        title: "Format";
+        footnote: ImageConverter.format-note;
+
+        InspectorRow {
+            label: "Save as";
+            first: true;
+
+            Select {
+                label: "Save as";
+                options: ImageConverter.formats;
+                current-index <=> ImageConverter.format-index;
+                selected => { ImageConverter.settings-changed(); }
+            }
+        }
+    }
+
+    if ImageConverter.quality-applies: InspectorSection {
+        title: "Quality";
+
+        VerticalLayout {
+            padding: Theme.space-3;
+            spacing: Theme.space-2;
+
+            Slider {
+                label: "Quality";
+                minimum: 10;
+                value <=> ImageConverter.quality;
+                changed => { ImageConverter.settings-changed(); }
+            }
+            HorizontalLayout {
+                Text {
+                    text: "Smaller file";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: "Better quality";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Size";
+        footnote: ImageConverter.resize ? "Keeps the aspect ratio, and never makes an image larger." : "";
+
+        InspectorRow {
+            label: "Fit within";
+            first: true;
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Fit within a size";
+                    checked <=> ImageConverter.resize;
+                    toggled => { ImageConverter.settings-changed(); }
+                }
+            }
+        }
+        if ImageConverter.resize: InspectorRow {
+            label: "Width";
+
+            NumberField {
+                label: "Maximum width";
+                unit: "px";
+                minimum: 1;
+                maximum: ImageConverter.max-side;
+                step: 10;
+                value <=> ImageConverter.max-width;
+                changed => { ImageConverter.settings-changed(); }
+            }
+        }
+        if ImageConverter.resize: InspectorRow {
+            label: "Height";
+
+            NumberField {
+                label: "Maximum height";
+                unit: "px";
+                minimum: 1;
+                maximum: ImageConverter.max-side;
+                step: 10;
+                value <=> ImageConverter.max-height;
+                changed => { ImageConverter.settings-changed(); }
+            }
+        }
+    }
+
+    OutputFolderSection {
+        folder: ImageConverter.output-folder;
+        custom: ImageConverter.custom-output;
+        footnote: "Converted images leave out EXIF data: location, camera details and colour profile.";
+        choose => { ImageConverter.choose-output-folder(); }
+        reset => { ImageConverter.reset-output-folder(); }
+    }
+}
+
+export component ImageConverterView inherits VerticalLayout {
+    HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+
+                if ImageConverter.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: ImageConverter.drop-hover;
+                    icon: AppIcons.image-up;
+                    title: "Drop images here";
+                    hint: ImageConverter.formats-hint;
+                    choose => { ImageConverter.choose-files(); }
+                }
+                if ImageConverter.files.length > 0: FileList {
+                    vertical-stretch: 1;
+                    files: ImageConverter.files;
+                    summary: ImageConverter.list-summary;
+                    drop-hover: ImageConverter.drop-hover;
+                    icon: AppIcons.image;
+                    activity: "Converting";
+                    cancel-label: "Cancel conversion";
+                    add => { ImageConverter.choose-files(); }
+                    remove(i) => { ImageConverter.remove(i); }
+                    cancel(i) => { ImageConverter.cancel(i); }
+                    reveal(i) => { ImageConverter.reveal(i); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

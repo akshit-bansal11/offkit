@@ -1,0 +1,201 @@
+// Directory Scaffold view (shown as Directory Scaffold): a local folder's tree as text or a Markdown
+// list, with the options in an inspector. All state lives in the `DirectoryScaffold` global, which
+// Rust drives (src/tools/directory_scaffold.rs); this file only lays it out.
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, Select, Switch } from "../components/controls.slint";
+import { SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
+import { DropZone } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+
+export enum ScaffoldFormat { tree, markdown }
+export enum ScaffoldSort { folders-first, name }
+
+export global DirectoryScaffold {
+    // The chosen folder's name; empty until one is chosen.
+    in property <string> folder;
+    // "project · 12 folders · 210 files".
+    in property <string> summary;
+    // The start of the output, for the pane; Copy and Save use all of it.
+    in property <string> output;
+    // The output was longer than the pane shows.
+    in property <bool> cut;
+    in property <bool> walking;
+    in property <bool> drop-hover;
+    in property <string> error;
+    in property <string> note;
+
+    in-out property <ScaffoldFormat> format;
+    in-out property <ScaffoldSort> sort;
+    in-out property <bool> show-hidden;
+    in-out property <bool> folders-only;
+    in-out property <bool> use-gitignore: true;
+    in property <[string]> depths;
+    in-out property <int> depth-index;
+
+    callback choose-folder();
+    // Any option that changes what the walk finds.
+    callback options-changed();
+    callback format-changed();
+    callback stop();
+    callback copy-output() -> bool;
+    callback save-output();
+}
+
+component SwitchRow inherits InspectorRow {
+    in-out property <bool> checked;
+    callback toggled();
+
+    VerticalLayout {
+        alignment: center;
+
+        Switch {
+            label: root.label;
+            checked <=> root.checked;
+            toggled => { root.toggled(); }
+        }
+    }
+}
+
+component Settings inherits Inspector {
+    action-text: "Choose Folder…";
+    stop-text: "Stop";
+    can-run: true;
+    running: DirectoryScaffold.walking;
+    run => { DirectoryScaffold.choose-folder(); }
+    stop => { DirectoryScaffold.stop(); }
+
+    InspectorSection {
+        title: "Show";
+
+        InspectorRow {
+            label: "Depth";
+            first: true;
+
+            Select {
+                label: "Depth";
+                options: DirectoryScaffold.depths;
+                current-index <=> DirectoryScaffold.depth-index;
+                selected => { DirectoryScaffold.options-changed(); }
+            }
+        }
+        SwitchRow {
+            label: "Hidden files";
+            checked <=> DirectoryScaffold.show-hidden;
+            toggled => { DirectoryScaffold.options-changed(); }
+        }
+        SwitchRow {
+            label: "Folders only";
+            checked <=> DirectoryScaffold.folders-only;
+            toggled => { DirectoryScaffold.options-changed(); }
+        }
+    }
+
+    InspectorSection {
+        title: "Order";
+
+        VerticalLayout {
+            padding: Theme.space-2;
+
+            SegmentedControl {
+                label: "Order";
+                options: ["Folders first", "By name"];
+                current-index: DirectoryScaffold.sort == ScaffoldSort.name ? 1 : 0;
+                selected(i) => {
+                    DirectoryScaffold.sort = i == 1 ? ScaffoldSort.name : ScaffoldSort.folders-first;
+                    DirectoryScaffold.options-changed();
+                }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Ignore";
+        footnote: "Leaves out what the folder's .gitignore files exclude, and the .git folder.";
+
+        SwitchRow {
+            label: "Use .gitignore";
+            first: true;
+            checked <=> DirectoryScaffold.use-gitignore;
+            toggled => { DirectoryScaffold.options-changed(); }
+        }
+    }
+}
+
+export component DirectoryScaffoldView inherits VerticalLayout {
+    property <bool> markdown: DirectoryScaffold.format == ScaffoldFormat.markdown;
+
+    HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-4;
+
+                if DirectoryScaffold.folder == "": DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: DirectoryScaffold.drop-hover;
+                    icon: AppIcons.folder-tree;
+                    title: "Drop a folder here";
+                    hint: "See its tree as text or a Markdown list, to copy or save. Nothing leaves your computer.";
+                    button-text: "Choose Folder…";
+                    choose => { DirectoryScaffold.choose-folder(); }
+                }
+
+                if DirectoryScaffold.folder != "": Pane {
+                    vertical-stretch: 1;
+
+                    PaneHeader {
+                        title: DirectoryScaffold.summary;
+
+                        SegmentedControl {
+                            label: "Format";
+                            options: ["Tree", "Markdown"];
+                            current-index: root.markdown ? 1 : 0;
+                            selected(i) => {
+                                DirectoryScaffold.format = i == 1 ? ScaffoldFormat.markdown : ScaffoldFormat.tree;
+                                DirectoryScaffold.format-changed();
+                            }
+                        }
+                        CopyButton {
+                            enabled: DirectoryScaffold.output != "";
+                            copy => { return DirectoryScaffold.copy-output(); }
+                        }
+                        Button {
+                            text: "Save…";
+                            kind: ButtonKind.plain;
+                            enabled: DirectoryScaffold.output != "";
+                            clicked => { DirectoryScaffold.save-output(); }
+                        }
+                    }
+                    TextPane {
+                        label: root.markdown ? "Markdown" : "Tree";
+                        text: DirectoryScaffold.output;
+                        read-only: true;
+                        drop-hover: DirectoryScaffold.drop-hover;
+                        placeholder: "Reading the folder…";
+                    }
+                }
+
+                if DirectoryScaffold.error != "": Notice {
+                    text: DirectoryScaffold.error;
+                    tone: NoticeTone.error;
+                }
+                if DirectoryScaffold.error == "" && DirectoryScaffold.note != "": Notice {
+                    text: DirectoryScaffold.note;
+                }
+                if DirectoryScaffold.cut: Notice {
+                    text: "The pane shows the start of the tree. Copy and Save use all of it.";
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

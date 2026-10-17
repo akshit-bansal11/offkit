@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/**", "wip/**"]
   pull_request:
 
 permissions:
@@ -13,7 +13,56 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Native Rust + Slint crate. Runs on every branch; wip/** pushes only touch desktop/.
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop -> target
+      # Chocolatey shims ffmpeg.exe and ffprobe.exe into its bin dir, already on PATH; the media tests skip without them.
+      - run: choco install ffmpeg -y --no-progress
+      - name: Fetch pdfium (when the script exists)
+        if: hashFiles('desktop/scripts/fetch-pdfium.ps1') != ''
+        shell: pwsh
+        working-directory: desktop
+        run: ./scripts/fetch-pdfium.ps1
+      - run: cargo fmt --check
+        working-directory: desktop
+      # `cargo fmt` skips modules declared inside the `tools!` macro, so format every tracked file directly.
+      - name: rustfmt the macro-declared tool modules
+        shell: bash
+        working-directory: desktop
+        run: |
+          rustfmt --edition 2024 $(git ls-files 'src/*.rs' 'src/**/*.rs')
+          if ! git diff --quiet; then
+            git diff > rustfmt.patch
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: rustfmt-patch
+          path: desktop/rustfmt.patch
+          if-no-files-found: ignore
+      - run: cargo clippy --locked --all-targets -- -D warnings
+        working-directory: desktop
+      - run: cargo test --locked
+        working-directory: desktop
+      # Nobody can run cargo locally, so CI is where Cargo.lock gets regenerated.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cargo-lock
+          path: desktop/Cargo.lock
+
   check:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/native-app' || startsWith(github.ref, 'refs/heads/feat/')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -23,14 +72,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-        env:
-          # These jobs never launch the desktop app, so skip Electron's large binary download.
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npm run check:ci
       - run: npm test
       - run: npm audit --omit=dev --audit-level=high
 
   e2e-web:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/native-app' || startsWith(github.ref, 'refs/heads/feat/')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -40,44 +87,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-        env:
-          # These jobs never launch the desktop app, so skip Electron's large binary download.
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e:web
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report-web
-          path: playwright-report
-          retention-days: 7
-
-  # The desktop app only ships for Windows, so its tests run there against the real Electron binary.
-  e2e-desktop:
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      # Package first, then test the packaged app: it reads its files out of app.asar, which the dev tree does not.
-      - run: npm run dist
-      - run: npm run test:e2e:packaged
-        env:
-          OPEN_TOOLS_EXE: release/win-unpacked/Open Tools.exe
-      - uses: actions/upload-artifact@v4
-        with:
-          name: open-tools-windows
-          path: |
-            release/Open-Tools-Setup.exe
-            release/Open-Tools-Portable.exe
-          retention-days: 7
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report-desktop
           path: playwright-report
           retention-days: 7

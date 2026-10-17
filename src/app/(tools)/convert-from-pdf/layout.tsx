@@ -1,15 +1,11 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("convert-from-pdf");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "Convert from PDF",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("convert-from-pdf");
 
 export default function Layout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return children;
 }

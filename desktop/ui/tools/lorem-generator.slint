@@ -1,0 +1,123 @@
+// Lorem Generator view: the generator's settings in a toolbar row, then the text in one pane.
+// All state lives in the `LoremGenerator` global, which Rust drives
+// (src/tools/lorem_generator.rs); every change regenerates at once.
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind } from "../components/controls.slint";
+import { Checkbox, NumberField, SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
+
+export enum LoremUnit { words, sentences, paragraphs }
+export enum LoremStyle { classic, english }
+
+export global LoremGenerator {
+    in-out property <LoremUnit> unit: LoremUnit.paragraphs;
+    in-out property <float> count: 3;
+    // 500 words, or 100 sentences or paragraphs; Rust sets it with the unit.
+    in property <float> max-count: 100;
+    in-out property <LoremStyle> style;
+    in-out property <bool> start-with-lorem: true;
+    in property <string> output;
+    // "3 paragraphs · 214 words".
+    in property <string> summary;
+    in property <string> error;
+    in property <string> note;
+
+    // A setting changed; Rust regenerates with the same seed.
+    callback changed();
+    // A new seed, so new text.
+    callback regenerate();
+    callback copy-output() -> bool;
+    callback save-output();
+}
+
+export component LoremGeneratorView inherits VerticalLayout {
+    property <bool> classic: LoremGenerator.style == LoremStyle.classic;
+
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    HorizontalLayout {
+        spacing: Theme.space-3;
+
+        SegmentedControl {
+            label: "Length unit";
+            options: ["Words", "Sentences", "Paragraphs"];
+            current-index: LoremGenerator.unit == LoremUnit.words ? 0 : LoremGenerator.unit == LoremUnit.sentences ? 1 : 2;
+            selected(i) => {
+                LoremGenerator.unit = i == 0 ? LoremUnit.words : i == 1 ? LoremUnit.sentences : LoremUnit.paragraphs;
+                LoremGenerator.changed();
+            }
+        }
+        NumberField {
+            label: "Count";
+            value <=> LoremGenerator.count;
+            minimum: 1;
+            maximum: LoremGenerator.max-count;
+            changed => { LoremGenerator.changed(); }
+        }
+        SegmentedControl {
+            label: "Word list";
+            options: ["Classic", "English"];
+            current-index: root.classic ? 0 : 1;
+            selected(i) => {
+                LoremGenerator.style = i == 0 ? LoremStyle.classic : LoremStyle.english;
+                LoremGenerator.changed();
+            }
+        }
+        Checkbox {
+            text: "Start with “Lorem ipsum”";
+            enabled: root.classic;
+            checked <=> LoremGenerator.start-with-lorem;
+            toggled => { LoremGenerator.changed(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        Button {
+            text: "Regenerate";
+            icon: AppIcons.regenerate;
+            kind: ButtonKind.secondary;
+            clicked => { LoremGenerator.regenerate(); }
+        }
+    }
+
+    Pane {
+        vertical-stretch: 1;
+
+        PaneHeader {
+            title: "Text";
+
+            Text {
+                text: LoremGenerator.summary;
+                color: Theme.text-secondary;
+                font-size: Theme.size-callout;
+                vertical-alignment: center;
+            }
+            CopyButton {
+                enabled: LoremGenerator.output != "";
+                copy => { return LoremGenerator.copy-output(); }
+            }
+            Button {
+                text: "Save…";
+                kind: ButtonKind.plain;
+                enabled: LoremGenerator.output != "";
+                clicked => { LoremGenerator.save-output(); }
+            }
+        }
+        TextPane {
+            label: "Generated text";
+            text: LoremGenerator.output;
+            read-only: true;
+            mono: false;
+        }
+    }
+
+    if LoremGenerator.error != "": Notice {
+        text: LoremGenerator.error;
+        tone: NoticeTone.error;
+    }
+    if LoremGenerator.error == "" && LoremGenerator.note != "": Notice {
+        text: LoremGenerator.note;
+    }
+}

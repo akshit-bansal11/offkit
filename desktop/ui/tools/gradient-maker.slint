@@ -1,0 +1,259 @@
+// Gradient Maker: a stops editor (colour, position, order) and the gradient's kind and angle or
+// shape on the left; the rendered preview, the CSS and Tailwind output and the PNG export on the
+// right. The preview is drawn by the same renderer as the export, so it is what exports. State
+// lives in the `GradientMaker` global, driven by src/tools/gradient_maker.rs.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, IconButton, Select, Slider } from "../components/controls.slint";
+import { SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, PaneHeader } from "../components/editor.slint";
+import { OutputBlock, PickerWell, Swatch } from "colors-shared.slint";
+
+export enum GradientKind { linear, radial, conic }
+
+export struct MakerStop {
+    // What the colour field shows; `color` is what Rust read from it.
+    text: string,
+    color: color,
+    invalid: bool,
+    // 0–100.
+    position: float,
+}
+
+export global GradientMaker {
+    in-out property <GradientKind> kind;
+    in-out property <float> angle: 135;
+    in-out property <int> shape;
+    in-out property <float> conic-from: 90;
+    in property <[string]> shapes;
+    // Edited in place: the colour field and position slider write back into their row.
+    in property <[MakerStop]> stops;
+    in property <image> preview;
+    in property <string> gradient;
+    in property <string> background;
+    in property <string> tailwind;
+    in property <string> error;
+    in property <string> note;
+    in property <bool> can-export;
+
+    // The kind, angle, shape or start changed.
+    callback changed();
+    callback stop-edited(int);
+    callback stop-picked(int, color);
+    callback move-stop(int, int);
+    callback remove-stop(int);
+    callback add-stop();
+    callback copy(string) -> bool;
+    callback export();
+}
+
+component StopRow inherits HorizontalLayout {
+    in property <int> index;
+    in property <int> count;
+    in-out property <MakerStop> stop;
+
+    spacing: Theme.space-2;
+
+    PickerWell {
+        width: Theme.maker-color-width;
+        horizontal-stretch: 0;
+        label: "Stop " + (root.index + 1) + " colour";
+        color: root.stop.color;
+        hex <=> root.stop.text;
+        invalid: root.stop.invalid;
+        edited => { GradientMaker.stop-edited(root.index); }
+        picked(c) => { GradientMaker.stop-picked(root.index, c); }
+    }
+    Slider {
+        y: (parent.height - self.height) / 2;
+        label: "Stop " + (root.index + 1) + " position";
+        minimum: 0;
+        maximum: 100;
+        step: 1;
+        value <=> root.stop.position;
+        changed => { GradientMaker.changed(); }
+    }
+    Text {
+        width: Theme.maker-value-width;
+        text: round(root.stop.position) + "%";
+        color: Theme.text-secondary;
+        font-size: Theme.size-body;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        accessible-role: none;
+    }
+    IconButton {
+        icon: AppIcons.move-up;
+        label: "Move stop " + (root.index + 1) + " up";
+        enabled: root.index > 0;
+        clicked => { GradientMaker.move-stop(root.index, root.index - 1); }
+    }
+    IconButton {
+        icon: AppIcons.move-down;
+        label: "Move stop " + (root.index + 1) + " down";
+        enabled: root.index < root.count - 1;
+        clicked => { GradientMaker.move-stop(root.index, root.index + 1); }
+    }
+    IconButton {
+        icon: AppIcons.trash;
+        label: "Remove stop " + (root.index + 1);
+        // A gradient needs two stops.
+        enabled: root.count > 2;
+        clicked => { GradientMaker.remove-stop(root.index); }
+    }
+}
+
+export component GradientMakerView inherits VerticalLayout {
+    padding: Theme.space-6;
+    padding-top: 0;
+
+    HorizontalLayout {
+    spacing: Theme.space-6;
+
+    VerticalLayout {
+        spacing: Theme.space-4;
+        horizontal-stretch: 1;
+
+        HorizontalLayout {
+            spacing: Theme.space-3;
+
+            SegmentedControl {
+                label: "Gradient type";
+                options: ["Linear", "Radial", "Conic"];
+                current-index: GradientMaker.kind == GradientKind.radial ? 1 : GradientMaker.kind == GradientKind.conic ? 2 : 0;
+                selected(i) => {
+                    GradientMaker.kind = i == 1 ? GradientKind.radial : i == 2 ? GradientKind.conic : GradientKind.linear;
+                    GradientMaker.changed();
+                }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            if GradientMaker.kind == GradientKind.radial: Select {
+                label: "Radial shape";
+                options: GradientMaker.shapes;
+                current-index <=> GradientMaker.shape;
+                selected => { GradientMaker.changed(); }
+            }
+        }
+        if GradientMaker.kind != GradientKind.radial: HorizontalLayout {
+            spacing: Theme.space-3;
+
+            Text {
+                text: GradientMaker.kind == GradientKind.conic ? "Start angle" : "Angle";
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                vertical-alignment: center;
+                accessible-role: none;
+            }
+            if GradientMaker.kind == GradientKind.linear: Slider {
+                y: (parent.height - self.height) / 2;
+                label: "Angle";
+                minimum: 0;
+                maximum: 360;
+                step: 5;
+                value <=> GradientMaker.angle;
+                changed => { GradientMaker.changed(); }
+            }
+            if GradientMaker.kind == GradientKind.conic: Slider {
+                y: (parent.height - self.height) / 2;
+                label: "Start angle";
+                minimum: 0;
+                maximum: 360;
+                step: 5;
+                value <=> GradientMaker.conic-from;
+                changed => { GradientMaker.changed(); }
+            }
+            Text {
+                width: Theme.maker-value-width;
+                text: round(GradientMaker.kind == GradientKind.conic ? GradientMaker.conic-from : GradientMaker.angle) + "°";
+                color: Theme.text-secondary;
+                font-size: Theme.size-body;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+                accessible-role: none;
+            }
+        }
+
+        PaneHeader {
+            title: GradientMaker.stops.length + " stops";
+
+            Button {
+                text: "Add Stop";
+                icon: AppIcons.plus;
+                kind: ButtonKind.plain;
+                clicked => { GradientMaker.add-stop(); }
+            }
+        }
+        ScrollView {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                alignment: start;
+                spacing: Theme.space-2;
+                padding-left: Theme.space-1;
+                padding-right: Theme.space-3;
+                padding-top: Theme.space-1;
+
+                for stop[i] in GradientMaker.stops: StopRow {
+                    index: i;
+                    count: GradientMaker.stops.length;
+                    stop <=> stop;
+                }
+            }
+        }
+    }
+
+    VerticalLayout {
+        width: Theme.maker-side-width;
+        spacing: Theme.space-4;
+        alignment: start;
+
+        Swatch {
+            height: self.width * 9 / 16;
+
+            Image {
+                width: 100%;
+                height: 100%;
+                source: GradientMaker.preview;
+                image-fit: fill;
+                accessible-role: image;
+                accessible-label: "Preview of " + GradientMaker.gradient;
+            }
+        }
+        HorizontalLayout {
+            spacing: Theme.space-2;
+
+            CopyButton {
+                text: "Copy Gradient";
+                enabled: GradientMaker.gradient != "";
+                copy => { return GradientMaker.copy(GradientMaker.gradient); }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            Button {
+                text: "Export PNG…";
+                icon: AppIcons.download;
+                enabled: GradientMaker.can-export;
+                clicked => { GradientMaker.export(); }
+            }
+        }
+        if GradientMaker.error != "": Notice {
+            text: GradientMaker.error;
+            tone: NoticeTone.error;
+        }
+        if GradientMaker.error == "" && GradientMaker.note != "": Notice {
+            text: GradientMaker.note;
+        }
+        OutputBlock {
+            title: "CSS";
+            value: GradientMaker.background;
+            copy => { return GradientMaker.copy(GradientMaker.background); }
+        }
+        OutputBlock {
+            title: "Tailwind";
+            value: GradientMaker.tailwind;
+            copy => { return GradientMaker.copy(GradientMaker.tailwind); }
+        }
+    }
+    }
+}

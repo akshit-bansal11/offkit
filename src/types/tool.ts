@@ -3,8 +3,12 @@
 
 import type { LucideIcon } from "lucide-react";
 
+export type Platform = "web" | "desktop";
+
 export interface ToolDefinition {
   slug: string;
+  /** Where the tool runs. A tool can be web-only or desktop-only. */
+  platforms: Platform[];
   href: `/${string}`;
   name: string;
   shortName?: string;

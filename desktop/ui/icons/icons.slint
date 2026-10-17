@@ -1,0 +1,128 @@
+// Lucide icons (lucide-static 0.577.0, the version the website's lucide-react uses; ISC, see LICENSE).
+// Slint resolves image paths at compile time, so every icon is listed here by name.
+// Adding a tool icon: copy `<name>.svg` from lucide-static into this folder and add a line to
+// `tool()`. The registry test `every_tool_icon_is_mapped` fails until both exist.
+// Adding an interface icon: copy the svg in and add a property inside your family's block below,
+// so parallel families never edit the same lines.
+
+export global AppIcons {
+    // --- shared ---
+    out property <image> search: @image-url("search.svg");
+    out property <image> close: @image-url("x.svg");
+    out property <image> folder: @image-url("folder.svg");
+    out property <image> plus: @image-url("plus.svg");
+    out property <image> done: @image-url("circle-check.svg");
+    out property <image> alert: @image-url("circle-alert.svg");
+    out property <image> info: @image-url("info.svg");
+    out property <image> hammer: @image-url("hammer.svg");
+    out property <image> chevrons-up-down: @image-url("chevrons-up-down.svg");
+    out property <image> check: @image-url("check.svg");
+    out property <image> trash: @image-url("trash-2.svg");
+    out property <image> film: @image-url("film.svg");
+    out property <image> copy: @image-url("copy.svg");
+    out property <image> minus: @image-url("minus.svg");
+    out property <image> swap: @image-url("arrow-left-right.svg");
+    out property <image> file: @image-url("file.svg");
+    // --- end shared ---
+
+    // --- audio ---
+    out property <image> music: @image-url("music.svg");
+    out property <image> audio-lines: @image-url("audio-lines.svg");
+    out property <image> list-music: @image-url("list-music.svg");
+    out property <image> arrow-up: @image-url("arrow-up.svg");
+    out property <image> arrow-down: @image-url("arrow-down.svg");
+    out property <image> play: @image-url("play.svg");
+    out property <image> reset: @image-url("rotate-ccw.svg");
+    // --- end audio ---
+
+
+    // --- images ---
+    out property <image> image: @image-url("image.svg");
+    out property <image> image-up: @image-url("image-up.svg");
+    out property <image> crop: @image-url("crop.svg");
+    // --- end images ---
+
+    // --- pdf ---
+    out property <image> move-up: @image-url("arrow-up.svg");
+    out property <image> move-down: @image-url("arrow-down.svg");
+    out property <image> move-earlier: @image-url("arrow-left.svg");
+    out property <image> move-later: @image-url("arrow-right.svg");
+    out property <image> rotate-left: @image-url("rotate-ccw.svg");
+    out property <image> rotate-right: @image-url("rotate-cw.svg");
+    // --- end pdf ---
+
+    // --- svg ---
+    // --- end svg ---
+
+    // --- colors ---
+    out property <image> download: @image-url("download.svg");
+    // Not a lucide icon: the tile behind translucent colours (see Theme.checker-*).
+    out property <image> checker: @image-url("checker.svg");
+    // --- end colors ---
+
+    // --- css ---
+    out property <image> chevron-up: @image-url("chevron-up.svg");
+    out property <image> chevron-down: @image-url("chevron-down.svg");
+    // --- end css ---
+
+    // --- text ---
+    out property <image> regenerate: @image-url("refresh-cw.svg");
+    // The Markdown Editor's toolbar.
+    out property <image> bold: @image-url("bold.svg");
+    out property <image> italic: @image-url("italic.svg");
+    out property <image> code: @image-url("code.svg");
+    out property <image> heading-1: @image-url("heading-1.svg");
+    out property <image> heading-2: @image-url("heading-2.svg");
+    out property <image> heading-3: @image-url("heading-3.svg");
+    out property <image> link: @image-url("link.svg");
+    out property <image> bullet-list: @image-url("list.svg");
+    out property <image> numbered-list: @image-url("list-ordered.svg");
+    out property <image> quote: @image-url("text-quote.svg");
+    out property <image> rule: @image-url("separator-horizontal.svg");
+    out property <image> table: @image-url("table.svg");
+    // --- end text ---
+
+    // --- dev ---
+    out property <image> folder-tree: @image-url("folder-tree.svg");
+    out property <image> archive: @image-url("folder-archive.svg");
+    out property <image> extract: @image-url("folder-open.svg");
+    // --- end dev ---
+
+    // Tool icons, keyed by the `icon` field of tools.json.
+    public pure function tool(name: string) -> image {
+        if (name == "arrow-left-right") { return @image-url("arrow-left-right.svg"); }
+        if (name == "binary") { return @image-url("binary.svg"); }
+        if (name == "blend") { return @image-url("blend.svg"); }
+        if (name == "box") { return @image-url("box.svg"); }
+        if (name == "crop") { return @image-url("crop.svg"); }
+        if (name == "droplet") { return @image-url("droplet.svg"); }
+        if (name == "file-braces") { return @image-url("file-braces.svg"); }
+        if (name == "file-diff") { return @image-url("file-diff.svg"); }
+        if (name == "file-input") { return @image-url("file-input.svg"); }
+        if (name == "file-output") { return @image-url("file-output.svg"); }
+        if (name == "file-pen") { return @image-url("file-pen.svg"); }
+        if (name == "file-text") { return @image-url("file-text.svg"); }
+        if (name == "film") { return @image-url("film.svg"); }
+        if (name == "folder-archive") { return @image-url("folder-archive.svg"); }
+        if (name == "folder-open") { return @image-url("folder-open.svg"); }
+        if (name == "folder-tree") { return @image-url("folder-tree.svg"); }
+        if (name == "grid-3x3") { return @image-url("grid-3x3.svg"); }
+        if (name == "image-up") { return @image-url("image-up.svg"); }
+        if (name == "layers") { return @image-url("layers.svg"); }
+        if (name == "library-big") { return @image-url("library-big.svg"); }
+        if (name == "list-music") { return @image-url("list-music.svg"); }
+        if (name == "list-video") { return @image-url("list-video.svg"); }
+        if (name == "merge") { return @image-url("merge.svg"); }
+        if (name == "minimize-2") { return @image-url("minimize-2.svg"); }
+        if (name == "palette") { return @image-url("palette.svg"); }
+        if (name == "pipette") { return @image-url("pipette.svg"); }
+        if (name == "scissors") { return @image-url("scissors.svg"); }
+        if (name == "shapes") { return @image-url("shapes.svg"); }
+        if (name == "sliders-horizontal") { return @image-url("sliders-horizontal.svg"); }
+        if (name == "sparkles") { return @image-url("sparkles.svg"); }
+        if (name == "square-split-horizontal") { return @image-url("square-split-horizontal.svg"); }
+        if (name == "type") { return @image-url("type.svg"); }
+        if (name == "wand-sparkles") { return @image-url("wand-sparkles.svg"); }
+        return @image-url("box.svg");
+    }
+}

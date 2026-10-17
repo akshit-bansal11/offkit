@@ -1,0 +1,259 @@
+// Glassmorphism view: the rendered scene with the glass card over it, the CSS or Tailwind it
+// makes, and the card's settings in the inspector. All state lives in the `Glassmorphism`
+// global, which Rust drives (src/tools/glassmorphism.rs). Rust renders the scene and the
+// blurred backdrop behind the card (`frost`); the card's tint and border are drawn here, over it.
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { DropOutline, Select } from "../components/controls.slint";
+import { ColorWell } from "../components/fields.slint";
+import { Notice, NoticeTone } from "../components/editor.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { CodePane, ValueControl } from "box-shadow.slint";
+
+export global Glassmorphism {
+    in-out property <float> blur;
+    in-out property <float> opacity;
+    in-out property <float> saturation;
+    in-out property <float> border;
+    in-out property <string> tint-hex;
+    in property <bool> tint-invalid;
+    // The card's fill and edge: the tint at its opacity, white at the border's.
+    in property <color> tint;
+    in property <color> edge;
+
+    in property <[string]> backgrounds;
+    in-out property <int> background-index;
+    // The open background image's file name; empty when there is none.
+    in property <string> image-name;
+
+    in property <image> scene;
+    in property <image> frost;
+    // Where the card sits in the preview, in logical pixels.
+    in property <length> card-x;
+    in property <length> card-y;
+    in property <length> card-width;
+    in property <length> card-height;
+
+    in-out property <int> format-index;
+    in property <string> css;
+    in property <string> tailwind;
+    in property <string> error;
+    in property <bool> drop-hover;
+
+    // A setting changed.
+    callback changed();
+    callback tint-edited(string);
+    callback tint-accepted(string);
+    callback open-image();
+    // The preview area's size, in logical pixels.
+    callback resized(float, float);
+    callback copy() -> bool;
+}
+
+component Settings inherits Inspector {
+    action-text: "Open Image…";
+    can-run: true;
+    run => { Glassmorphism.open-image(); }
+
+    InspectorSection {
+        title: "Frost";
+        footnote: "The preview approximates CSS backdrop-filter: it blurs and saturates the scene on this computer, so a browser may differ slightly at the card's edges.";
+
+        ValueControl {
+            label: "Blur";
+            unit: "px";
+            first: true;
+            maximum: 40;
+            value <=> Glassmorphism.blur;
+            changed => { Glassmorphism.changed(); }
+        }
+        ValueControl {
+            label: "Saturation";
+            unit: "%";
+            maximum: 200;
+            step: 10;
+            value <=> Glassmorphism.saturation;
+            changed => { Glassmorphism.changed(); }
+        }
+    }
+
+    InspectorSection {
+        title: "Tint";
+
+        InspectorRow {
+            label: "Colour";
+            first: true;
+
+            ColorWell {
+                label: "Tint colour";
+                hex <=> Glassmorphism.tint-hex;
+                color: Glassmorphism.tint;
+                invalid: Glassmorphism.tint-invalid;
+                edited(text) => { Glassmorphism.tint-edited(text); }
+                accepted(text) => { Glassmorphism.tint-accepted(text); }
+            }
+        }
+        ValueControl {
+            label: "Opacity";
+            unit: "%";
+            value <=> Glassmorphism.opacity;
+            changed => { Glassmorphism.changed(); }
+        }
+    }
+
+    InspectorSection {
+        title: "Border";
+        footnote: "A 1 px white edge.";
+
+        ValueControl {
+            label: "Opacity";
+            unit: "%";
+            first: true;
+            value <=> Glassmorphism.border;
+            changed => { Glassmorphism.changed(); }
+        }
+    }
+
+    InspectorSection {
+        title: "Background";
+        footnote: Glassmorphism.image-name != "" ? "Image: " + Glassmorphism.image-name : "Open an image, or drop one on the preview, to try the glass over your own.";
+
+        InspectorRow {
+            label: "Scene";
+            first: true;
+
+            Select {
+                label: "Background";
+                options: Glassmorphism.backgrounds;
+                current-index <=> Glassmorphism.background-index;
+                selected => { Glassmorphism.changed(); }
+            }
+        }
+    }
+}
+
+export component GlassmorphismView inherits VerticalLayout {
+    HorizontalLayout {
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding: Theme.space-6;
+            padding-top: 0;
+            spacing: Theme.space-4;
+
+            Rectangle {
+                vertical-stretch: 1;
+                min-height: 240px;
+                border-radius: Theme.radius-surface;
+                background: Theme.bg-grouped;
+                clip: true;
+                init => { Glassmorphism.resized(self.width / 1px, self.height / 1px); }
+                changed width => { Glassmorphism.resized(self.width / 1px, self.height / 1px); }
+                changed height => { Glassmorphism.resized(self.width / 1px, self.height / 1px); }
+
+                Image {
+                    width: 100%;
+                    height: 100%;
+                    source: Glassmorphism.scene;
+                    image-fit: fill;
+                    accessible-role: none;
+                }
+
+                // The card: the frosted backdrop, the tint over it, then the edge on top.
+                Rectangle {
+                    x: Glassmorphism.card-x;
+                    y: Glassmorphism.card-y;
+                    width: Glassmorphism.card-width;
+                    height: Glassmorphism.card-height;
+                    border-radius: Theme.css-glass-radius;
+                    clip: true;
+                    accessible-role: image;
+                    accessible-label: "Preview of the glass card over the " + Glassmorphism.backgrounds[Glassmorphism.background-index] + " background";
+
+                    Image {
+                        width: 100%;
+                        height: 100%;
+                        source: Glassmorphism.frost;
+                        image-fit: fill;
+                    }
+                    Rectangle { background: Glassmorphism.tint; }
+                }
+                Rectangle {
+                    x: Glassmorphism.card-x;
+                    y: Glassmorphism.card-y;
+                    width: Glassmorphism.card-width;
+                    height: Glassmorphism.card-height;
+                    border-radius: Theme.css-glass-radius;
+                    border-width: 1px;
+                    border-color: Glassmorphism.edge;
+
+                    // The website's sample content.
+                    VerticalLayout {
+                        padding: Theme.space-8;
+                        spacing: Theme.space-2;
+                        alignment: center;
+
+                        HorizontalLayout {
+                            alignment: center;
+                            padding-bottom: Theme.space-4;
+
+                            Rectangle {
+                                width: Theme.css-glass-tile-size;
+                                height: Theme.css-glass-tile-size;
+                                border-radius: Theme.css-glass-radius;
+                                background: Theme.css-glass-tile;
+                                border-width: 1px;
+                                border-color: Theme.css-glass-tile;
+
+                                Image {
+                                    source: AppIcons.tool("droplet");
+                                    colorize: Theme.css-glass-ink;
+                                    width: Theme.css-glass-icon-size;
+                                    height: Theme.css-glass-icon-size;
+                                }
+                            }
+                        }
+                        Text {
+                            text: "Glassmorphism";
+                            color: Theme.css-glass-ink;
+                            font-size: Theme.size-title;
+                            font-weight: Theme.weight-semibold;
+                            horizontal-alignment: center;
+                        }
+                        Text {
+                            text: "Beautiful frosted visual hierarchies that securely refract light directly on your device.";
+                            color: Theme.css-glass-ink-secondary;
+                            font-size: Theme.size-body;
+                            font-weight: Theme.weight-medium;
+                            horizontal-alignment: center;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+
+                DropOutline {
+                    border-radius: parent.border-radius;
+                    drop-hover: Glassmorphism.drop-hover;
+                    resting: Theme.separator;
+                }
+            }
+
+            CodePane {
+                formats: ["CSS", "Tailwind"];
+                format-index: Glassmorphism.format-index;
+                code: Glassmorphism.format-index == 1 ? Glassmorphism.tailwind : Glassmorphism.css;
+                format-selected(i) => { Glassmorphism.format-index = i; }
+                copy => { return Glassmorphism.copy(); }
+            }
+
+            if Glassmorphism.error != "": Notice {
+                text: Glassmorphism.error;
+                tone: NoticeTone.error;
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

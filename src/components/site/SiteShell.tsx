@@ -22,7 +22,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           className="flex flex-wrap items-center justify-between gap-4"
         >
           <Link href="/" className="text-lg font-semibold tracking-tight">
-            Open Tools
+            Offkit
           </Link>
           <ul className="flex flex-wrap items-center gap-2">
             <li>
@@ -46,7 +46,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
       </main>
       <footer className="page-main relative z-10 text-sm text-muted-foreground">
         <p>
-          Open Tools is open source.{" "}
+          Offkit is open source.{" "}
           <a
             className="underline underline-offset-4"
             href={siteConfig.repositoryUrl}

@@ -1,0 +1,262 @@
+// CSS Blob Generator view: the rendered blob over the CSS, Tailwind or SVG it makes, and the
+// corner radii in the inspector. All state lives in the `BlobGenerator` global, which Rust
+// drives (src/tools/blob_generator.rs).
+
+import { Theme } from "../theme.slint";
+import { Button, Switch } from "../components/controls.slint";
+import { ColorWell, NumberField, SegmentedControl } from "../components/fields.slint";
+import { Notice, NoticeTone } from "../components/editor.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { CodePane, ValueControl } from "box-shadow.slint";
+
+export enum BlobCorner { top-left, top-right, bottom-right, bottom-left }
+// Which radius a control sets; `both` is the 4-point mode's single radius.
+export enum BlobAxis { x, y, both }
+export enum BlobPreset { smooth, organic, wild }
+
+export struct BlobCornerRow {
+    corner: BlobCorner,
+    name: string,
+    // Percent of the box's width and height.
+    x: float,
+    y: float,
+}
+
+export global BlobGenerator {
+    in property <[BlobCornerRow]> corners;
+    // 8-point gives each corner its own horizontal and vertical radius; 4-point one radius.
+    in-out property <bool> eight-point;
+    in-out property <bool> lock-axes;
+    in-out property <bool> mirror;
+    in-out property <float> seed;
+    in property <float> max-seed;
+    in-out property <float> size;
+    in-out property <string> color-hex;
+    in property <color> color;
+    in property <bool> color-invalid;
+    in-out property <bool> gradient;
+
+    in property <image> preview;
+    in-out property <int> format-index;
+    in property <string> css;
+    in property <string> tailwind;
+    in property <string> svg;
+    in property <string> error;
+    in property <string> note;
+
+    callback edit(BlobCorner, BlobAxis, float);
+    callback apply-preset(BlobPreset);
+    callback randomize();
+    callback seed-changed(float);
+    // The fill or size changed.
+    callback changed();
+    callback color-edited(string);
+    callback color-accepted(string);
+    callback copy() -> bool;
+    callback save-svg();
+}
+
+component Settings inherits Inspector {
+    action-text: "Randomize";
+    can-run: true;
+    run => { BlobGenerator.randomize(); }
+
+    InspectorSection {
+        title: "Shape";
+        footnote: "Each side's two radii are kept to 100% or less, so an edit never moves the other corners.";
+
+        InspectorRow {
+            label: "Points";
+            first: true;
+
+            SegmentedControl {
+                label: "Points";
+                options: ["4-Point", "8-Point"];
+                current-index: BlobGenerator.eight-point ? 1 : 0;
+                selected(i) => { BlobGenerator.eight-point = i == 1; }
+            }
+        }
+        InspectorRow {
+            label: "Lock X/Y per corner";
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Lock X/Y per corner";
+                    checked <=> BlobGenerator.lock-axes;
+                }
+            }
+        }
+        InspectorRow {
+            label: "Mirror diagonals";
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Mirror diagonals";
+                    checked <=> BlobGenerator.mirror;
+                }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Presets";
+        footnote: "Randomize moves to the next seed; a seed always makes the same blob.";
+
+        HorizontalLayout {
+            padding: Theme.space-2;
+            spacing: Theme.space-2;
+
+            Button {
+                text: "Smooth";
+                horizontal-stretch: 1;
+                clicked => { BlobGenerator.apply-preset(BlobPreset.smooth); }
+            }
+            Button {
+                text: "Organic";
+                horizontal-stretch: 1;
+                clicked => { BlobGenerator.apply-preset(BlobPreset.organic); }
+            }
+            Button {
+                text: "Wild";
+                horizontal-stretch: 1;
+                clicked => { BlobGenerator.apply-preset(BlobPreset.wild); }
+            }
+        }
+        InspectorRow {
+            label: "Seed";
+
+            NumberField {
+                label: "Seed";
+                minimum: 1;
+                maximum: BlobGenerator.max-seed;
+                value <=> BlobGenerator.seed;
+                changed(v) => { BlobGenerator.seed-changed(v); }
+            }
+        }
+    }
+
+    for c in BlobGenerator.corners: InspectorSection {
+        title: c.name;
+
+        if BlobGenerator.eight-point: ValueControl {
+            label: "X radius";
+            unit: "%";
+            first: true;
+            value <=> c.x;
+            changed(v) => { BlobGenerator.edit(c.corner, BlobAxis.x, v); }
+        }
+        if BlobGenerator.eight-point: ValueControl {
+            label: "Y radius";
+            unit: "%";
+            value <=> c.y;
+            changed(v) => { BlobGenerator.edit(c.corner, BlobAxis.y, v); }
+        }
+        if !BlobGenerator.eight-point: ValueControl {
+            label: "Radius";
+            unit: "%";
+            first: true;
+            value <=> c.x;
+            changed(v) => { BlobGenerator.edit(c.corner, BlobAxis.both, v); }
+        }
+    }
+
+    InspectorSection {
+        title: "Fill";
+        footnote: "Size sets the preview and the SVG; the CSS takes its element's size.";
+
+        InspectorRow {
+            label: "Colour";
+            first: true;
+
+            ColorWell {
+                label: "Blob colour";
+                hex <=> BlobGenerator.color-hex;
+                color: BlobGenerator.color;
+                invalid: BlobGenerator.color-invalid;
+                edited(text) => { BlobGenerator.color-edited(text); }
+                accepted(text) => { BlobGenerator.color-accepted(text); }
+            }
+        }
+        InspectorRow {
+            label: "Gradient depth";
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Gradient depth";
+                    checked <=> BlobGenerator.gradient;
+                    toggled => { BlobGenerator.changed(); }
+                }
+            }
+        }
+        InspectorRow {
+            label: "Size";
+
+            NumberField {
+                label: "Size";
+                unit: "px";
+                minimum: 80;
+                maximum: 480;
+                step: 10;
+                value <=> BlobGenerator.size;
+                changed => { BlobGenerator.changed(); }
+            }
+        }
+    }
+}
+
+export component BlobGeneratorView inherits VerticalLayout {
+    HorizontalLayout {
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding: Theme.space-6;
+            padding-top: 0;
+            spacing: Theme.space-4;
+
+            Rectangle {
+                vertical-stretch: 1;
+                min-height: 240px;
+                border-radius: Theme.radius-surface;
+                background: Theme.bg-grouped;
+                border-width: 1px;
+                border-color: Theme.separator;
+
+                Image {
+                    width: BlobGenerator.size * 1px;
+                    height: BlobGenerator.size * 1px;
+                    source: BlobGenerator.preview;
+                    image-fit: fill;
+                    accessible-role: image;
+                    accessible-label: "Preview of the blob";
+                }
+            }
+
+            CodePane {
+                formats: ["CSS", "Tailwind", "SVG"];
+                format-index: BlobGenerator.format-index;
+                code: BlobGenerator.format-index == 1 ? BlobGenerator.tailwind : BlobGenerator.format-index == 2 ? BlobGenerator.svg : BlobGenerator.css;
+                save-text: BlobGenerator.format-index == 2 ? "Save SVG…" : "";
+                format-selected(i) => { BlobGenerator.format-index = i; }
+                copy => { return BlobGenerator.copy(); }
+                save => { BlobGenerator.save-svg(); }
+            }
+
+            if BlobGenerator.error != "": Notice {
+                text: BlobGenerator.error;
+                tone: NoticeTone.error;
+            }
+            if BlobGenerator.error == "" && BlobGenerator.note != "": Notice {
+                text: BlobGenerator.note;
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

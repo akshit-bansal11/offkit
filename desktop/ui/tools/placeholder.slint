@@ -1,0 +1,12 @@
+// Shown for every tool that hasn't been rebuilt natively yet. No controls: nothing to fake.
+
+import { AppIcons } from "../icons/icons.slint";
+import { EmptyState } from "../components/empty-state.slint";
+
+export component PlaceholderView inherits VerticalLayout {
+    EmptyState {
+        icon: AppIcons.hammer;
+        title: "Being rebuilt natively";
+        message: "This tool is coming to the desktop app soon.";
+    }
+}

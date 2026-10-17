@@ -1,0 +1,113 @@
+// Color Converter: one colour typed, pasted or picked, shown in every format with a copy for
+// each. State lives in the `ColorConverter` global, driven by src/tools/color_converter.rs.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { CopyButton, Notice, NoticeTone } from "../components/editor.slint";
+import { PickerWell, Swatch } from "colors-shared.slint";
+
+export struct ColorFormat {
+    label: string,
+    value: string,
+}
+
+export global ColorConverter {
+    in-out property <string> input;
+    // The colour read from `input`; `valid` is false while it isn't one.
+    in property <color> color;
+    in property <bool> valid;
+    // The syntax `input` was read as: "HEX", "OKLCH", "Tailwind", ….
+    in property <string> detected;
+    in property <[ColorFormat]> formats;
+    in property <string> error;
+
+    callback edited(string);
+    callback picked(color);
+    callback copy-format(int) -> bool;
+}
+
+export component ColorConverterView inherits VerticalLayout {
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    HorizontalLayout {
+        spacing: Theme.space-3;
+
+        PickerWell {
+            label: "Colour";
+            color: ColorConverter.color;
+            hex <=> ColorConverter.input;
+            invalid: !ColorConverter.valid && ColorConverter.input != "";
+            edited(text) => { ColorConverter.edited(text); }
+            picked(c) => { ColorConverter.picked(c); }
+        }
+        if ColorConverter.valid: Text {
+            text: "Read as " + ColorConverter.detected;
+            color: Theme.text-secondary;
+            font-size: Theme.size-callout;
+            vertical-alignment: center;
+        }
+    }
+
+    if ColorConverter.error != "": Notice {
+        text: ColorConverter.error;
+        tone: NoticeTone.error;
+    }
+
+    HorizontalLayout {
+        spacing: Theme.space-6;
+        vertical-stretch: 1;
+
+        VerticalLayout {
+            width: Theme.colors-preview-width;
+            spacing: Theme.space-2;
+            alignment: start;
+
+            Swatch {
+                height: Theme.colors-preview-width;
+                fill: ColorConverter.valid ? ColorConverter.color : transparent;
+
+                if !ColorConverter.valid: Text {
+                    text: "Type a colour to see it here.";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-callout;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        ScrollView {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                alignment: start;
+                padding-right: Theme.space-3;
+
+                InspectorSection {
+                    title: "Formats";
+
+                    for format[i] in ColorConverter.formats: InspectorRow {
+                        label: format.label;
+                        first: i == 0;
+
+                        Text {
+                            text: format.value;
+                            color: Theme.text-primary;
+                            font-family: Theme.font-family-mono;
+                            font-size: Theme.size-body;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        CopyButton {
+                            copy => { return ColorConverter.copy-format(i); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

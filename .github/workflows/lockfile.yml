@@ -1,0 +1,26 @@
+name: Lockfile
+
+# Nobody can run npm locally, so CI is where package-lock.json gets regenerated.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["feat/**"]
+    paths: [package.json]
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json

@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("svg-optimizer");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "SVG Optimizer",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("svg-optimizer");
 
 export default function Layout({
   children,

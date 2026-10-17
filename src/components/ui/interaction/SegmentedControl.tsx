@@ -15,7 +15,7 @@ type SegmentedControlOption = {
 };
 
 const segmentedControlVariants = cva(
-  "inline-flex items-center rounded-lg border p-1",
+  "inline-flex max-w-full flex-wrap items-center rounded-lg border p-1",
   {
     variants: {
       variant: {

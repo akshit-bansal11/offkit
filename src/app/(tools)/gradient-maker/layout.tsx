@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("gradient-maker");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "Gradient Maker",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("gradient-maker");
 
 export default function Layout({
   children,

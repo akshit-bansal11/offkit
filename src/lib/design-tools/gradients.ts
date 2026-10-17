@@ -1,7 +1,7 @@
 import {
   DEFAULT_GRADIENT_IMAGE_HEIGHT,
   DEFAULT_GRADIENT_IMAGE_WIDTH,
-} from "@/lib/design-tools/constants";
+} from "./constants.ts";
 
 export type GradientKind = "linear" | "radial" | "conic";
 
@@ -329,22 +329,142 @@ function renderLinearGradient(
   ctx.fillRect(0, 0, width, height);
 }
 
-function renderRadialGradient(
-  ctx: CanvasRenderingContext2D,
+/** The part of a 2D canvas context a radial fill uses, so tests can pass a recorder. */
+export type RadialCanvas = Pick<
+  CanvasRenderingContext2D,
+  | "save"
+  | "restore"
+  | "scale"
+  | "createRadialGradient"
+  | "fillRect"
+  | "fillStyle"
+>;
+
+export function renderRadialGradient(
+  ctx: RadialCanvas,
   parsed: ParsedGradient,
   width: number,
   height: number,
 ) {
-  // Simple centered radial for now
-  const cx = width / 2;
-  const cy = height / 2;
-  const r1 = Math.min(width, height) / 2;
+  const { cx, cy, rx, ry } = radialGeometry(parsed.orientation, width, height);
+  // Canvas gradients are circular, so an ellipse is a circle of radius rx
+  // drawn in a space squashed vertically by ry / rx.
+  const squash = ry / rx;
 
-  const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, r1);
+  ctx.save();
+  ctx.scale(1, squash);
+  const gradient = ctx.createRadialGradient(
+    cx,
+    cy / squash,
+    0,
+    cx,
+    cy / squash,
+    rx,
+  );
   addStopsToGradient(gradient, parsed.stops);
-
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0, 0, width, height / squash);
+  ctx.restore();
+}
+
+const RADIAL_SIZE_KEYWORDS = [
+  "closest-side",
+  "closest-corner",
+  "farthest-side",
+  "farthest-corner",
+] as const;
+
+const X_KEYWORDS: Record<string, number> = { left: 0, center: 0.5, right: 1 };
+const Y_KEYWORDS: Record<string, number> = { top: 0, center: 0.5, bottom: 1 };
+
+/** A px or % length against `size`, or null when the token is neither. */
+function resolveLength(token: string, size: number): number | null {
+  const match = token.match(/^(-?\d*\.?\d+)(px|%)$/);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  return match[2] === "%" ? (amount / 100) * size : amount;
+}
+
+/**
+ * Centre and radii of a CSS radial gradient's ending shape on a width x
+ * height box, following the CSS Images rules: an explicit size (one length
+ * for a circle, two for an ellipse) or a size keyword, farthest-corner by
+ * default; ellipse unless "circle" or a single length is given; centred
+ * unless an "at" position is given.
+ */
+export function radialGeometry(
+  orientation: string,
+  width: number,
+  height: number,
+) {
+  const value = orientation.trim().toLowerCase();
+  const [shapePart, positionPart = ""] = value.split(/\bat\b/);
+  const { x: cx, y: cy } = radialPosition(positionPart, width, height);
+  const shapeTokens = shapePart.trim().split(/\s+/).filter(Boolean);
+
+  const lengths = shapeTokens.filter((token) => /^-?[\d.]+(px|%)$/.test(token));
+  const circle =
+    shapeTokens.includes("circle") ||
+    (!shapeTokens.includes("ellipse") && lengths.length === 1);
+  if (circle && lengths.length === 1) {
+    const radius = Math.max(resolveLength(lengths[0], width) ?? 1, 1);
+    return { cx, cy, rx: radius, ry: radius };
+  }
+  if (!circle && lengths.length === 2) {
+    return {
+      cx,
+      cy,
+      rx: Math.max(resolveLength(lengths[0], width) ?? 1, 1),
+      ry: Math.max(resolveLength(lengths[1], height) ?? 1, 1),
+    };
+  }
+
+  const size =
+    RADIAL_SIZE_KEYWORDS.find((keyword) => shapeTokens.includes(keyword)) ??
+    "farthest-corner";
+  const pick = size.startsWith("closest") ? Math.min : Math.max;
+  const sideX = pick(cx, width - cx);
+  const sideY = pick(cy, height - cy);
+  const toCorner = size.endsWith("corner");
+
+  if (circle) {
+    const r = toCorner ? Math.hypot(sideX, sideY) : pick(sideX, sideY);
+    const radius = Math.max(r, 1);
+    return { cx, cy, rx: radius, ry: radius };
+  }
+
+  // A corner-sized ellipse keeps the side-sized aspect ratio and passes
+  // through the corner, which scales both radii by the square root of two.
+  const scale = toCorner ? Math.SQRT2 : 1;
+  return {
+    cx,
+    cy,
+    rx: Math.max(sideX * scale, 1),
+    ry: Math.max(sideY * scale, 1),
+  };
+}
+
+/**
+ * The centre named by a CSS <position> of one or two values. Keywords decide
+ * their own axis, so "top left" and "left 30%" both work; a single value that
+ * is not top or bottom sets x and centres y.
+ */
+function radialPosition(position: string, width: number, height: number) {
+  let [first = "center", second = "center"] = position
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const verticalFirst = first === "top" || first === "bottom";
+  const horizontalSecond = second === "left" || second === "right";
+  if (verticalFirst || horizontalSecond) [first, second] = [second, first];
+
+  const x = Object.hasOwn(X_KEYWORDS, first)
+    ? X_KEYWORDS[first] * width
+    : (resolveLength(first, width) ?? width / 2);
+  const y = Object.hasOwn(Y_KEYWORDS, second)
+    ? Y_KEYWORDS[second] * height
+    : (resolveLength(second, height) ?? height / 2);
+  return { x, y };
 }
 
 function addStopsToGradient(gradient: CanvasGradient, stops: string[]) {

@@ -1,0 +1,177 @@
+// Base64 view, the reference editor-style tool: a toolbar row, then input and output panes side
+// by side. All state lives in the `Base64` global, which Rust drives (src/tools/base64.rs).
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, DropOutline } from "../components/controls.slint";
+import { Checkbox, SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
+
+export enum Base64Mode { encode, decode }
+
+export global Base64 {
+    in-out property <Base64Mode> mode;
+    in-out property <bool> url-safe;
+    in-out property <string> input;
+    in property <string> output;
+    // Stands in for an empty output, e.g. when decoding produced binary data.
+    in property <string> output-placeholder;
+    // "photo.png · 1.2 MB" while a file is the input instead of typed text.
+    in property <string> file-label;
+    in property <string> error;
+    in property <string> note;
+    in property <bool> can-copy;
+    in property <bool> can-save;
+    in property <bool> can-swap;
+    in property <bool> drop-hover;
+
+    // The input, mode or URL-safe option changed.
+    callback changed();
+    callback open-file();
+    callback remove-file();
+    callback swap();
+    callback clear();
+    callback copy-output() -> bool;
+    callback save-output();
+}
+
+// The input pane's stand-in while a file is the input.
+component FileCard inherits DropOutline {
+    border-radius: Theme.radius-group;
+    background: Theme.bg-surface-raised;
+    drop-hover: Base64.drop-hover;
+    vertical-stretch: 1;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: Theme.space-2;
+
+        HorizontalLayout {
+            alignment: center;
+            spacing: Theme.space-2;
+
+            Image {
+                source: AppIcons.file;
+                colorize: Theme.text-secondary;
+                width: Theme.icon-size;
+                height: Theme.icon-size;
+                y: (parent.height - self.height) / 2;
+            }
+            Text {
+                text: Base64.file-label;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                font-weight: Theme.weight-medium;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+        HorizontalLayout {
+            alignment: center;
+
+            Button {
+                text: "Remove File";
+                kind: ButtonKind.plain;
+                clicked => { Base64.remove-file(); }
+            }
+        }
+    }
+}
+
+export component Base64View inherits VerticalLayout {
+    property <bool> decoding: Base64.mode == Base64Mode.decode;
+    property <string> input-title: Base64.file-label != "" ? "File" : root.decoding ? "Base64" : "Text";
+    property <string> output-title: root.decoding ? "Text" : "Base64";
+
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    HorizontalLayout {
+        spacing: Theme.space-3;
+
+        SegmentedControl {
+            label: "Mode";
+            options: ["Encode", "Decode"];
+            current-index: root.decoding ? 1 : 0;
+            selected(i) => {
+                Base64.mode = i == 1 ? Base64Mode.decode : Base64Mode.encode;
+                Base64.changed();
+            }
+        }
+        if !root.decoding: Checkbox {
+            text: "URL-safe";
+            checked <=> Base64.url-safe;
+            toggled => { Base64.changed(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        Button {
+            text: "Open…";
+            kind: ButtonKind.secondary;
+            clicked => { Base64.open-file(); }
+        }
+        Button {
+            text: "Swap";
+            icon: AppIcons.swap;
+            kind: ButtonKind.secondary;
+            enabled: Base64.can-swap;
+            clicked => { Base64.swap(); }
+        }
+        Button {
+            text: "Clear";
+            kind: ButtonKind.secondary;
+            enabled: Base64.input != "" || Base64.file-label != "";
+            clicked => { Base64.clear(); }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Theme.space-4;
+        vertical-stretch: 1;
+
+        Pane {
+
+            PaneHeader { title: root.input-title; }
+            if Base64.file-label == "": TextPane {
+                label: root.input-title;
+                text <=> Base64.input;
+                placeholder: root.decoding ? "Paste Base64, or drop a file that holds it." : "Type or paste text, or drop a file.";
+                drop-hover: Base64.drop-hover;
+                edited => { Base64.changed(); }
+            }
+            if Base64.file-label != "": FileCard { }
+        }
+
+        Pane {
+
+            PaneHeader {
+                title: root.output-title;
+
+                CopyButton {
+                    enabled: Base64.can-copy;
+                    copy => { return Base64.copy-output(); }
+                }
+                Button {
+                    text: "Save…";
+                    kind: ButtonKind.plain;
+                    enabled: Base64.can-save;
+                    clicked => { Base64.save-output(); }
+                }
+            }
+            TextPane {
+                label: root.output-title;
+                text: Base64.output;
+                read-only: true;
+                placeholder: Base64.output-placeholder;
+            }
+        }
+    }
+
+    if Base64.error != "": Notice {
+        text: Base64.error;
+        tone: NoticeTone.error;
+    }
+    if Base64.error == "" && Base64.note != "": Notice {
+        text: Base64.note;
+    }
+}
