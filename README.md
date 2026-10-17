@@ -1,7 +1,6 @@
 # Offkit
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
-[![Electron](https://img.shields.io/badge/Electron-44-47848f)](https://www.electronjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org)
 [![React](https://img.shields.io/badge/React-19-149eca)](https://react.dev)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-22c55e)](https://github.com/akshit-bansal11/offkit/releases/latest)
@@ -11,7 +10,7 @@ Offkit is a Windows desktop app with 37 file tools for images, video, audio, PDF
 
 ## Install
 
-Download `Open-Tools-Setup.exe` from the [latest release](https://github.com/akshit-bansal11/offkit/releases/latest), or `Open-Tools-Portable.exe` to run without installing.
+Download the app from the [latest release](https://github.com/akshit-bansal11/offkit/releases/latest).
 
 - The installer is not code-signed, so Windows SmartScreen may warn. Choose More info, then Run anyway.
 - The app does not update itself.
@@ -50,16 +49,10 @@ The full reference is on the docs page, which is generated from `src/config/tool
 
 ## How it is built
 
-One Next.js codebase, two build targets chosen by `BUILD_TARGET`.
-
-| Target | Routes | Output | Ships as |
-|--------|--------|--------|----------|
-| desktop | `page.desktop.tsx` files: launcher and tools | static export in `out/` | Electron app, NSIS installer and portable exe on GitHub Releases |
-| web | `page.web.tsx` files: landing page and docs | normal Next build | the website |
+The website is one Next.js build. The native Windows app lives in `desktop/` (Rust + Slint) and ships on GitHub Releases.
 
 The wasm engines and the pdf.js worker are copied from `node_modules` into `public/vendor/` by `scripts/copy-vendor.mjs`, so the app never fetches them from a CDN.
 
-- **App shell:** Electron, electron-builder
 - **Framework:** Next.js 16, React 19
 - **Language:** TypeScript
 - **Styling/UI:** Tailwind CSS, shadcn/ui (Radix UI primitives + `class-variance-authority` + `tailwind-merge`)
@@ -72,12 +65,11 @@ The wasm engines and the pdf.js worker are copied from `node_modules` into `publ
 ```
 src/
 ├── app/
-│   ├── (tools)/<slug>/        one folder per tool: layout.tsx + page.desktop.tsx
-│   ├── docs/page.web.tsx      docs page (website)
+│   ├── (tools)/<slug>/        one folder per tool: layout.tsx + page.tsx
+│   ├── docs/page.tsx          docs page (website)
 │   ├── layout.tsx             root layout
-│   ├── page.desktop.tsx       launcher (app)
-│   ├── page.web.tsx           landing page (website)
-│   ├── not-found.web.tsx
+│   ├── page.tsx               landing page
+│   ├── not-found.tsx
 │   ├── opengraph-image.tsx
 │   ├── robots.ts
 │   └── sitemap.ts
@@ -98,9 +90,7 @@ src/
 │   ├── pdf/pdfjs.ts           pdf.js loader
 │   └── tools/<slug>/          logic specific to one tool
 └── types/tool.ts
-electron/main.mjs              Electron main process
-electron-builder.yml           installer config
-scripts/                       copy-vendor, next-desktop
+scripts/                       copy-vendor
 e2e/                           Playwright specs
 ```
 
@@ -108,14 +98,9 @@ e2e/                           Playwright specs
 
 ```bash
 npm install                 # install dependencies
-npm run dev:desktop         # the tools, in a browser at http://localhost:3000
 npm run dev                 # the website
-npm run build:desktop       # build the static export into out/
-npm run app                 # run the desktop app from the export
-npm run dist                # build the installers into release/
 npm run check               # format, lint, typecheck (writes fixes)
 npm test                    # unit tests
-npm run test:e2e:desktop    # browser tests against the desktop build
 npm run test:e2e:web        # browser tests against the website
 ```
 
@@ -129,7 +114,7 @@ Contributions are welcome, as PRs and issues.
 
 **To add a tool:**
 
-1. Create `src/app/(tools)/your-tool/` with `layout.tsx` and `page.desktop.tsx`.
+1. Create `src/app/(tools)/your-tool/` with `layout.tsx` and `page.tsx`.
 2. Register it in `src/config/tools.ts`. The launcher and the docs page both pick it up from there.
 3. Use `ToolPageShell` as the layout wrapper.
 
