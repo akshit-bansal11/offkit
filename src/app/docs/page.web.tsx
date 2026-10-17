@@ -111,9 +111,9 @@ export default function DocsPage() {
           <p className={body}>
             This website counts page views with Vercel Web Analytics and reports
             script errors to Better Stack. Neither receives your files, and
-            Better Stack&apos;s script does not load on the Directory Scaffold page.
-            The Windows app blocks every other outbound request and sends no
-            analytics or error reports.
+            Better Stack&apos;s script does not load on the Directory Scaffold
+            page. The Windows app blocks every other outbound request and sends
+            no analytics or error reports.
           </p>
         </section>
 

@@ -52,7 +52,9 @@ test("a docs entry opens its tool", async ({ page }) => {
 });
 
 test("a tool URL is served in place, not redirected", async ({ request }) => {
-  const response = await request.get("/directory-scaffold", { maxRedirects: 0 });
+  const response = await request.get("/directory-scaffold", {
+    maxRedirects: 0,
+  });
 
   expect(response.status()).toBe(200);
 });
