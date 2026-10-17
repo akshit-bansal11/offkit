@@ -1,9 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a7ae0"/><stop offset="1" stop-color="#0052ad"/></linearGradient></defs>
-<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#g)"/>
-<path d="M100 285A185 185 0 0 1 285 100H739A185 185 0 0 1 924 285Q512 390 100 285Z" fill="#fff" fill-opacity=".1"/>
-<path d="M392 410V348a48 48 0 0 1 48-48H584a48 48 0 0 1 48 48V410H576V356H448V410Z" fill="#fff"/>
-<rect x="252" y="410" width="520" height="120" rx="48" fill="#fff"/>
-<rect x="252" y="566" width="520" height="170" rx="48" fill="#fff"/>
-<rect x="452" y="500" width="120" height="96" rx="24" fill="#fff"/>
+  <rect x="96" y="96" width="832" height="832" rx="188" fill="#ffc23d"/>
+  <rect x="200" y="362" width="624" height="300" rx="150" fill="#1b1f3b"/>
+  <circle cx="350" cy="512" r="112" fill="#ffffff"/>
+  <circle cx="676" cy="512" r="46" fill="none" stroke="#ffc23d" stroke-width="22"/>
 </svg>
