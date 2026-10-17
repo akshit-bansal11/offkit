@@ -1653,7 +1653,7 @@ Error opening output file o4.mkv.";
             eprintln!("note: FFmpeg not found; skipping a test that runs it");
             return None;
         };
-        let dir = std::env::temp_dir().join(format!("open-tools-{test}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("offkit-{test}-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         Some((ff, dir))
     }

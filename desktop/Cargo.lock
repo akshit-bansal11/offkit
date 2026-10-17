@@ -4397,7 +4397,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "open-tools"
+name = "offkit"
 version = "0.1.0"
 dependencies = [
  "anyhow",

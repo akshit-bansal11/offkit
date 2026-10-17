@@ -1,22 +1,22 @@
-# Open Tools
+# Offkit
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 [![Electron](https://img.shields.io/badge/Electron-44-47848f)](https://www.electronjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org)
 [![React](https://img.shields.io/badge/React-19-149eca)](https://react.dev)
-[![Platform: Windows](https://img.shields.io/badge/Platform-Windows-22c55e)](https://github.com/akshit-bansal11/open-tools/releases/latest)
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows-22c55e)](https://github.com/akshit-bansal11/offkit/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Open Tools is a Windows desktop app with 37 file tools for images, video, audio, PDFs, SVG, colors and text. Everything runs on your PC. Nothing is uploaded. There is no account and no telemetry.
+Offkit is a Windows desktop app with 37 file tools for images, video, audio, PDFs, SVG, colors and text. Everything runs on your PC. Nothing is uploaded. There is no account and no telemetry.
 
 ## Install
 
-Download `Open-Tools-Setup.exe` from the [latest release](https://github.com/akshit-bansal11/open-tools/releases/latest), or `Open-Tools-Portable.exe` to run without installing.
+Download `Open-Tools-Setup.exe` from the [latest release](https://github.com/akshit-bansal11/offkit/releases/latest), or `Open-Tools-Portable.exe` to run without installing.
 
 - The installer is not code-signed, so Windows SmartScreen may warn. Choose More info, then Run anyway.
 - The app does not update itself.
 
-Documentation: [open-tools.akshitbansal.me/docs](https://open-tools.akshitbansal.me/docs)
+Documentation: [offkit.akshitbansal.me/docs](https://offkit.akshitbansal.me/docs)
 
 ## Tools
 
@@ -143,7 +143,7 @@ The project's code is MIT, see [LICENSE](LICENSE). The packaged app bundles thir
 
 ## Links
 
-- **Website:** [open-tools.akshitbansal.me](https://open-tools.akshitbansal.me)
-- **Docs:** [open-tools.akshitbansal.me/docs](https://open-tools.akshitbansal.me/docs)
+- **Website:** [offkit.akshitbansal.me](https://offkit.akshitbansal.me)
+- **Docs:** [offkit.akshitbansal.me/docs](https://offkit.akshitbansal.me/docs)
 - **GitHub:** [github.com/akshit-bansal11](https://github.com/akshit-bansal11)
 - **LinkedIn:** [linkedin.com/in/akshit-bansal11](https://linkedin.com/in/akshit-bansal11)

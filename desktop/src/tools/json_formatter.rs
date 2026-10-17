@@ -22,7 +22,7 @@ pub const SLUG: &str = "json-formatter";
 const TOOL: &str = "JSON Formatter";
 /// The website's sample, shown on first open and by Sample.
 const SAMPLE: &str = r#"{
-  "name": "open-tools",
+  "name": "offkit",
   "tool": "json-formatter",
   "features": ["pretty print", "minify", "validate"],
   "localFirst": true

@@ -2258,7 +2258,7 @@ mod tests {
     // at the top left, so that corner is the first colour and the far corner the last.
     #[test]
     fn save_png_writes_the_export_size_and_honours_the_radial_shape() {
-        let path = std::env::temp_dir().join("open-tools-colors-radial-export.png");
+        let path = std::env::temp_dir().join("offkit-colors-radial-export.png");
         let g = gradient("radial-gradient(ellipse at top left, red, blue)");
 
         let message = save_png(&g, &path);
@@ -2267,7 +2267,7 @@ mod tests {
         fs::remove_file(&path).unwrap();
         assert_eq!(
             message,
-            Ok("Saved open-tools-colors-radial-export.png".into())
+            Ok("Saved offkit-colors-radial-export.png".into())
         );
         assert_eq!((saved.width(), saved.height()), (1600, 900));
         assert_eq!(pixel(&saved, 0, 0), [255, 0, 0, 255]);

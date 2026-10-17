@@ -1,12 +1,12 @@
 [package]
-name = "open-tools"
+name = "offkit"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
 publish = false
 
 [[bin]]
-name = "open-tools"
+name = "offkit"
 path = "src/main.rs"
 
 # One section per family, so a family adding a crate edits only its own hunk. Every version is

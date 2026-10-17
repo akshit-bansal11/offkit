@@ -83,8 +83,8 @@ fn main() -> anyhow::Result<()> {
     tools::init_all(&app);
     install_file_drop(&app);
 
-    let snapshot = std::env::var_os("OPEN_TOOLS_SNAPSHOT").map(PathBuf::from);
-    let tool = std::env::var("OPEN_TOOLS_TOOL").unwrap_or_else(|_| video_converter::SLUG.into());
+    let snapshot = std::env::var_os("OFFKIT_SNAPSHOT").map(PathBuf::from);
+    let tool = std::env::var("OFFKIT_TOOL").unwrap_or_else(|_| video_converter::SLUG.into());
     select_tool(&app, &registry, video_converter::SLUG);
     match &snapshot {
         Some(path) => prepare_snapshot(&app, path.clone(), &tool),
@@ -213,14 +213,14 @@ fn apply_backdrop(app: &AppWindow) {
 }
 
 // ---- Verification hook --------------------------------------------------------------------
-// OPEN_TOOLS_SNAPSHOT=<png> renders the window to a PNG ~1.5 s after start, then exits.
-// Optional: OPEN_TOOLS_TOOL=<slug>, OPEN_TOOLS_THEME=light|dark,
-// OPEN_TOOLS_FILES=<path;path> (handed to that tool's `add_paths`, as a drop would be),
-// OPEN_TOOLS_CONVERT=1 (Video Converter: start converting once probes finish),
-// OPEN_TOOLS_ABOUT=1 (open the About sheet). Lets an agent check the UI without a human.
+// OFFKIT_SNAPSHOT=<png> renders the window to a PNG ~1.5 s after start, then exits.
+// Optional: OFFKIT_TOOL=<slug>, OFFKIT_THEME=light|dark,
+// OFFKIT_FILES=<path;path> (handed to that tool's `add_paths`, as a drop would be),
+// OFFKIT_CONVERT=1 (Video Converter: start converting once probes finish),
+// OFFKIT_ABOUT=1 (open the About sheet). Lets an agent check the UI without a human.
 
 fn prepare_snapshot(app: &AppWindow, path: PathBuf, tool: &str) {
-    if let Ok(theme) = std::env::var("OPEN_TOOLS_THEME") {
+    if let Ok(theme) = std::env::var("OFFKIT_THEME") {
         use slint::language::ColorScheme;
         let scheme = if theme == "dark" {
             ColorScheme::Dark
@@ -229,13 +229,13 @@ fn prepare_snapshot(app: &AppWindow, path: PathBuf, tool: &str) {
         };
         app.global::<Palette>().set_color_scheme(scheme);
     }
-    if let Some(files) = std::env::var_os("OPEN_TOOLS_FILES") {
+    if let Some(files) = std::env::var_os("OFFKIT_FILES") {
         tools::add_paths(app, tool, std::env::split_paths(&files).collect());
     }
-    if std::env::var_os("OPEN_TOOLS_CONVERT").is_some() {
+    if std::env::var_os("OFFKIT_CONVERT").is_some() {
         video_converter::convert_when_ready(app);
     }
-    app.set_about_open(std::env::var_os("OPEN_TOOLS_ABOUT").is_some());
+    app.set_about_open(std::env::var_os("OFFKIT_ABOUT").is_some());
     // Count the delay from the first event-loop turn, not from before window creation.
     let weak = app.as_weak();
     slint::Timer::single_shot(Duration::ZERO, move || {

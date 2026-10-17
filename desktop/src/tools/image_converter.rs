@@ -259,7 +259,7 @@ mod tests {
 
     fn temp_dir(test: &str) -> PathBuf {
         let dir =
-            std::env::temp_dir().join(format!("open-tools-convert-{test}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("offkit-convert-{test}-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         dir
     }

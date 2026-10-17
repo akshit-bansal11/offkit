@@ -885,7 +885,7 @@ mod tests {
 
     fn temp_dir(test: &str) -> PathBuf {
         let dir =
-            std::env::temp_dir().join(format!("open-tools-scaffold-{test}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("offkit-scaffold-{test}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir

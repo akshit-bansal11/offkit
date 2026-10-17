@@ -294,7 +294,7 @@ mod tests {
     use std::fs;
 
     fn temp_dir(test: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("open-tools-{test}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("offkit-{test}-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         dir
     }

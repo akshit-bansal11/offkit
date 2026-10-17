@@ -36,7 +36,7 @@ export default function JsonFormatterPage() {
 }
 
 const SAMPLE_JSON = `{
-  "name": "open-tools",
+  "name": "offkit",
   "tool": "json-formatter",
   "features": ["pretty print", "minify", "validate"],
   "localFirst": true

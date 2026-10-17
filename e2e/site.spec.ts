@@ -10,7 +10,7 @@ test("landing page offers the download and leads to the docs", async ({
 }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { level: 1, name: "Open Tools" }),
+    page.getByRole("heading", { level: 1, name: "Offkit" }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Download for Windows" }),

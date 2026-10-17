@@ -14,7 +14,7 @@ try {
     $archive = Join-Path $work 'pdfium-win-x64.tgz'
     $url = "https://github.com/bblanchon/pdfium-binaries/releases/download/$release/pdfium-win-x64.tgz"
     Write-Host "Downloading $url"
-    Invoke-WebRequest -Uri $url -OutFile $archive -UserAgent 'open-tools-build-check'
+    Invoke-WebRequest -Uri $url -OutFile $archive -UserAgent 'offkit-build-check'
 
     $actual = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash.ToLowerInvariant()
     if ($actual -ne $expected) {

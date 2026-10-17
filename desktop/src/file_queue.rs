@@ -387,7 +387,7 @@ mod tests {
     /// A queue over `names`, created as files in a fresh temp folder, all Ready.
     fn queue(test: &str, names: &[&str]) -> (FileQueue<Probe>, PathBuf) {
         let dir =
-            std::env::temp_dir().join(format!("open-tools-queue-{test}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("offkit-queue-{test}-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let paths: Vec<PathBuf> = names.iter().map(|n| dir.join(n)).collect();
         for p in &paths {

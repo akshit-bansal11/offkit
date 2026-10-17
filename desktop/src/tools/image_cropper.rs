@@ -1060,7 +1060,7 @@ mod tests {
 
     #[test]
     fn cropping_a_file_writes_the_crop_beside_it() {
-        let dir = std::env::temp_dir().join(format!("open-tools-crop-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("offkit-crop-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let input = dir.join("photo.png");
         DynamicImage::ImageRgba8(RgbaImage::new(64, 48))

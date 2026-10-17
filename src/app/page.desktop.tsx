@@ -39,7 +39,7 @@ export default function Home() {
               className="pointer-events-none absolute left-1/2 top-[44%] h-28 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/15 blur-[100px] sm:h-40 sm:w-[26rem]"
             />
             <h1 className="brand-title relative z-10 text-4xl font-semibold tracking-tight sm:text-8xl">
-              Open Tools
+              Offkit
             </h1>
             <p className="relative z-10 mt-4 max-w-2xl text-center text-base leading-7 text-muted-foreground sm:text-lg">
               A growing collection of focused utilities for image, video, audio,

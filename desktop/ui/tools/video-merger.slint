@@ -301,7 +301,7 @@ export component VideoMergerView inherits VerticalLayout {
     if !VideoMerger.ffmpeg-found: EmptyState {
         icon: AppIcons.alert;
         title: "FFmpeg wasn't found";
-        message: "Video Merger runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Open Tools, then restart the app.";
+        message: "Video Merger runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Offkit, then restart the app.";
         action-text: "Get FFmpeg";
         action => { VideoMerger.get-ffmpeg(); }
     }

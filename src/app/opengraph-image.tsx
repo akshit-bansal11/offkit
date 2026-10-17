@@ -29,7 +29,7 @@ export default function Image() {
         color: "#ffffff",
       }}
     >
-      <div style={{ fontSize: 120 }}>Open Tools</div>
+      <div style={{ fontSize: 120 }}>Offkit</div>
       <div style={{ fontSize: 40, color: "#a3a3a3" }}>
         File tools that run on your device. Nothing is uploaded.
       </div>

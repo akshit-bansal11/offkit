@@ -273,7 +273,7 @@ pub mod test_media {
 
     /// A fresh folder for one test.
     pub fn temp_dir(test: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("open-tools-{test}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("offkit-{test}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -417,7 +417,7 @@ mod tests {
 
     #[test]
     fn the_sweep_removes_only_old_preview_folders() {
-        let dir = std::env::temp_dir().join(format!("open-tools-sweep-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("offkit-sweep-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(dir.join("a preview")).unwrap();
         fs::create_dir_all(dir.join("b preview (2)")).unwrap();

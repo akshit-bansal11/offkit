@@ -239,7 +239,7 @@ mod tests {
     /// A 2×2 opaque red PNG in a fresh temp folder.
     fn red_png(test: &str) -> (PathBuf, PathBuf) {
         let dir =
-            std::env::temp_dir().join(format!("open-tools-svg-{test}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("offkit-svg-{test}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("red.png");
         ::image::RgbaImage::from_pixel(2, 2, ::image::Rgba([255, 0, 0, 255]))

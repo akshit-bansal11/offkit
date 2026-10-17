@@ -1,5 +1,5 @@
 // page.web.tsx
-// Landing page for the website build: what Open Tools is, every tool to open in the browser, and the Windows download.
+// Landing page for the website build: what Offkit is, every tool to open in the browser, and the Windows download.
 
 import { Download } from "lucide-react";
 import type { Metadata } from "next";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { siteConfig } from "@/config/site";
 import { tools, toolsByCategory } from "@/config/tools";
 
-const TITLE = "Open Tools: file tools that run on your device";
+const TITLE = "Offkit: file tools that run on your device";
 
 export const metadata: Metadata = {
   title: { absolute: TITLE },
@@ -30,7 +30,7 @@ export default function Home() {
       <div className="flex flex-col items-center gap-10">
         <section className="flex flex-col items-center p-8 sm:p-10">
           <h1 className="brand-title relative z-10 text-4xl font-semibold tracking-tight sm:text-8xl">
-            Open Tools
+            Offkit
           </h1>
           <p className="mt-4 max-w-2xl text-center text-base leading-7 text-muted-foreground sm:text-lg">
             {tools.length} file tools that run on your device. Use them here in

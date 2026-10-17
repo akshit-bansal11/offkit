@@ -153,7 +153,7 @@ test("getToolMetadata gives a tool page its own title, description and canonical
           url: "/opengraph-image",
           width: 1200,
           height: 630,
-          alt: "Open Tools: file tools that run on your device",
+          alt: "Offkit: file tools that run on your device",
         },
       ],
     },

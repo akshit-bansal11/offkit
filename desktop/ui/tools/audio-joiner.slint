@@ -216,7 +216,7 @@ export component AudioJoinerView inherits VerticalLayout {
     if !AudioJoiner.ffmpeg-found: EmptyState {
         icon: AppIcons.alert;
         title: "FFmpeg wasn't found";
-        message: "Audio Joiner runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Open Tools, then restart the app.";
+        message: "Audio Joiner runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Offkit, then restart the app.";
         action-text: "Get FFmpeg";
         action => { AudioJoiner.get-ffmpeg(); }
     }

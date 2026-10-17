@@ -88,7 +88,7 @@ for (const tool of tools) {
     await expect(
       page.getByRole("heading", { level: 1, name: tool.name, exact: true }),
     ).toBeVisible();
-    await expect(page).toHaveTitle(`${tool.name} | open-tools`);
+    await expect(page).toHaveTitle(`${tool.name} | offkit`);
     // Head metadata has no accessible role; the canonical tag is read directly.
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",

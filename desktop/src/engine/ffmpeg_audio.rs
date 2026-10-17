@@ -519,7 +519,7 @@ pub(crate) mod tests {
             return None;
         };
         let dir =
-            std::env::temp_dir().join(format!("open-tools-audio-{test}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("offkit-audio-{test}-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         Some((ff, dir))
     }

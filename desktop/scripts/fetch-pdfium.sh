@@ -56,7 +56,7 @@ trap 'rm -rf "$work"' EXIT
 archive="$work/pdfium-$target.tgz"
 url="https://github.com/bblanchon/pdfium-binaries/releases/download/$(echo "$RELEASE" | sed 's|/|%2F|')/pdfium-$target.tgz"
 echo "Downloading $url"
-curl --fail --location --silent --show-error --user-agent open-tools-build-check --output "$archive" "$url"
+curl --fail --location --silent --show-error --user-agent offkit-build-check --output "$archive" "$url"
 
 actual=$(sha256 "$archive")
 if [ "$actual" != "$expected" ]; then

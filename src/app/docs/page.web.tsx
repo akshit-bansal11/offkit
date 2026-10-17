@@ -9,7 +9,7 @@ import { runsOnWeb, toolsByCategory } from "@/config/tools";
 
 const TITLE = "Documentation";
 const DESCRIPTION =
-  "How to use Open Tools in your browser or install it on Windows, what each tool does, and its known limits.";
+  "How to use Offkit in your browser or install it on Windows, what each tool does, and its known limits.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -74,7 +74,7 @@ export default function DocsPage() {
               PC&quot; because the installer is not code-signed. Choose More
               info, then Run anyway.
             </li>
-            <li>Open Open Tools from the Start menu.</li>
+            <li>Open Offkit from the Start menu.</li>
           </ol>
           <p className={body}>
             To use the app without installing it, download{" "}
@@ -89,7 +89,7 @@ export default function DocsPage() {
           </p>
           <p className={body}>
             To uninstall, open Settings, then Apps, then Installed apps, find
-            Open Tools and choose Uninstall.
+            Offkit and choose Uninstall.
           </p>
         </section>
 

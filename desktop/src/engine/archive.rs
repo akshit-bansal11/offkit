@@ -1571,7 +1571,7 @@ mod tests {
 
     fn temp_dir(test: &str) -> PathBuf {
         let dir =
-            std::env::temp_dir().join(format!("open-tools-archive-{test}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("offkit-archive-{test}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir

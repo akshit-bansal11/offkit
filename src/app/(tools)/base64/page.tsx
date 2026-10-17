@@ -34,7 +34,7 @@ export default function Base64Page() {
   );
 }
 
-const SAMPLE_TEXT = "open-tools keeps small utilities easy to use.";
+const SAMPLE_TEXT = "offkit keeps small utilities easy to use.";
 
 type Mode = "encode" | "decode";
 

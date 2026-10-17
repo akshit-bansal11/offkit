@@ -6,7 +6,7 @@
 //! - `pub fn set_drop_hover(app: &AppWindow, hover: bool)`: files are being dragged over the
 //!   window while this tool shows.
 //! - `pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>)`: files were dropped (one batch per
-//!   drop), or preloaded by the snapshot hook (`OPEN_TOOLS_FILES`).
+//!   drop), or preloaded by the snapshot hook (`OFFKIT_FILES`).
 //! - `pub fn shutdown() -> Vec<JoinHandle<()>>`: cancels background work and hands back its
 //!   threads; called once the window closes. Every tool cancels first, then all are joined
 //!   together, so no partial output outlives the app.
