@@ -43,7 +43,7 @@ import { LoremGenerator, LoremGeneratorView } from "tools/lorem-generator.slint"
 import { DiffChecker, DiffCheckerView } from "tools/diff-checker.slint";
 import { JsonFormatter, JsonFormatterView } from "tools/json-formatter.slint";
 import { MdEditor, MdEditorView } from "tools/md-editor.slint";
-import { GitScaffold, GitScaffoldView } from "tools/git-scaffold.slint";
+import { DirectoryScaffold, DirectoryScaffoldView } from "tools/directory-scaffold.slint";
 import { ArchiveExtractor, ArchiveExtractorView } from "tools/archive-extractor.slint";
 import { Archiver, ArchiverView } from "tools/archiver.slint";
 import "fonts/InterVariable.ttf";
@@ -59,7 +59,7 @@ export {
     ColorConverter, GradientMaker, GradientLibrary, GradientConverter, PaletteLibrary,
     BlobGenerator, Glassmorphism, BoxShadow,
     Base64, LoremGenerator, DiffChecker, JsonFormatter, MdEditor,
-    GitScaffold, ArchiveExtractor, Archiver
+    DirectoryScaffold, ArchiveExtractor, Archiver
 }
 
 export component AppWindow inherits Window {
@@ -182,7 +182,7 @@ export component AppWindow inherits Window {
                         if root.current-slug == "diff-checker": DiffCheckerView { }
                         if root.current-slug == "json-formatter": JsonFormatterView { }
                         if root.current-slug == "md-editor": MdEditorView { }
-                        if root.current-slug == "git-scaffold": GitScaffoldView { }
+                        if root.current-slug == "directory-scaffold": DirectoryScaffoldView { }
                         if root.current-slug == "archive-extractor": ArchiveExtractorView { }
                         if root.current-slug == "archiver": ArchiverView { }
                     }

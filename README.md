@@ -22,7 +22,7 @@ Documentation: [open-tools.akshitbansal.me/docs](https://open-tools.akshitbansal
 
 - **Audio:** Audio Converter, Audio Extractor, Audio Editor, Audio Joiner.
 - **Video:** Video Converter, Frames Extractor, Video Editor, Video Merger.
-- **Dev:** Git Scaffold, Archive Extractor, Archiver.
+- **Dev:** Directory Scaffold, Archive Extractor, Archiver.
 - **Images:** Image Cropper, Image Converter.
 - **SVG:** SVG Border Animator, SVG Pattern Generator, SVG Optimizer.
 - **Colors:** Gradient Maker, Gradient Library, Palette Library, Palette Extractor, Gradient Converter, Color Converter.
@@ -43,7 +43,7 @@ The full reference is on the docs page, which is generated from `src/config/tool
 ## Privacy
 
 - Files are processed on the device.
-- The app cancels requests a page makes to the network. The one exception is a read of a repository's file tree from `api.github.com`, which Git Scaffold makes when you use it.
+- The app cancels requests a page makes to the network. The one exception is a read of a repository's file tree from `api.github.com`, which Directory Scaffold makes when you use it.
 - Permissions are refused, except clipboard write, and clipboard read on the Diff Checker.
 - Links open in your default browser only when they point at this project's GitHub repository.
 - The app has no analytics or error reporting. Those exist only on the website.

@@ -320,7 +320,7 @@ test.describe("git scaffold (GitHub API, mocked)", () => {
         },
       });
     });
-    await page.goto("/git-scaffold");
+    await page.goto("/directory-scaffold");
 
     await page
       .getByRole("textbox", { name: "URL or owner/repo" })
@@ -352,7 +352,7 @@ test.describe("git scaffold (GitHub API, mocked)", () => {
         headers: { "access-control-allow-origin": "*" },
       }),
     );
-    await page.goto("/git-scaffold");
+    await page.goto("/directory-scaffold");
 
     await page
       .getByRole("textbox", { name: "URL or owner/repo" })
@@ -379,7 +379,7 @@ test.describe("git scaffold (GitHub API, mocked)", () => {
         },
       }),
     );
-    await page.goto("/git-scaffold");
+    await page.goto("/directory-scaffold");
 
     await page
       .getByRole("textbox", { name: "URL or owner/repo" })

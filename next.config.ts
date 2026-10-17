@@ -16,6 +16,14 @@ const desktopConfig: NextConfig = {
 // A static export has no server to send headers; Electron sends its own policy.
 const webConfig: NextConfig = {
   pageExtensions: ["web.tsx", "tsx", "ts"],
+  // Git Scaffold became Directory Scaffold; keep the old URL working.
+  redirects: async () => [
+    {
+      source: "/git-scaffold",
+      destination: "/directory-scaffold",
+      permanent: true,
+    },
+  ],
   headers: async () => [
     {
       source: "/:path*",

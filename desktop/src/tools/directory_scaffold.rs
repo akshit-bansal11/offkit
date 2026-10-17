@@ -1,6 +1,6 @@
-//! Git Scaffold (shown as Directory Scaffold once tools.json renames it): a local folder's tree
+//! Directory Scaffold (shown as Directory Scaffold once tools.json renames it): a local folder's tree
 //! as ASCII and as a Markdown list, to copy or save. It reads the chosen folder and nothing
-//! else; it makes no network request. Its Slint side is ui/tools/git-scaffold.slint.
+//! else; it makes no network request. Its Slint side is ui/tools/directory-scaffold.slint.
 //!
 //! The walk runs on a worker, never follows a link (a link shows as `name -> target`), stops at
 //! `MAX_ENTRIES`, and can honour the folder's .gitignore files through the small matcher below:
@@ -21,9 +21,9 @@ use crate::engine::archive::{plural, shown, thousands};
 use crate::files::{self, file_name};
 use crate::jobs::{self, CancelToken, JobError};
 use crate::select::{self, index};
-use crate::{AppWindow, GitScaffold, ScaffoldFormat, ScaffoldSort, clipboard};
+use crate::{AppWindow, DirectoryScaffold, ScaffoldFormat, ScaffoldSort, clipboard};
 
-pub const SLUG: &str = "git-scaffold";
+pub const SLUG: &str = "directory-scaffold";
 /// Items listed at most; a bigger folder is cut off with a note.
 const MAX_ENTRIES: usize = 20_000;
 /// The most output text the pane shows; Copy and Save use all of it (see `tools::base64`).
@@ -650,7 +650,7 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
 }
 
 pub fn init(app: &AppWindow) {
-    let g = app.global::<GitScaffold>();
+    let g = app.global::<DirectoryScaffold>();
     g.set_depths(select::options(DEPTHS.iter().map(|(label, _)| *label)));
     let weak = app.as_weak();
     g.on_choose_folder(move || {
@@ -675,14 +675,14 @@ pub fn init(app: &AppWindow) {
     g.on_stop(move || {
         let Some(app) = weak.upgrade() else { return };
         with(|s| s.walk.cancel());
-        app.global::<GitScaffold>().set_walking(false);
+        app.global::<DirectoryScaffold>().set_walking(false);
     });
     let weak = app.as_weak();
     g.on_copy_output(move || {
         let Some(app) = weak.upgrade() else {
             return false;
         };
-        let g = app.global::<GitScaffold>();
+        let g = app.global::<DirectoryScaffold>();
         let text = with(|s| current(s, g.get_format()).to_string());
         match clipboard::copy_text(&text) {
             Ok(()) => true,
@@ -701,12 +701,12 @@ pub fn init(app: &AppWindow) {
 }
 
 pub fn set_drop_hover(app: &AppWindow, hover: bool) {
-    app.global::<GitScaffold>().set_drop_hover(hover);
+    app.global::<DirectoryScaffold>().set_drop_hover(hover);
 }
 
 /// A dropped folder becomes the one shown; a file or several items are refused with a reason.
 pub fn add_paths(app: &AppWindow, paths: Vec<PathBuf>) {
-    let g = app.global::<GitScaffold>();
+    let g = app.global::<DirectoryScaffold>();
     match <[PathBuf; 1]>::try_from(paths) {
         Ok([path]) if path.is_dir() => open_folder(app, path),
         Ok([path]) => g.set_error(
@@ -730,13 +730,13 @@ pub fn shutdown() -> Vec<JoinHandle<()>> {
 }
 
 fn open_folder(app: &AppWindow, dir: PathBuf) {
-    let g = app.global::<GitScaffold>();
+    let g = app.global::<DirectoryScaffold>();
     g.set_folder(file_name(&dir).into());
     with(|s| s.folder = Some(dir));
     start_walk(app);
 }
 
-fn options(g: &GitScaffold) -> Options {
+fn options(g: &DirectoryScaffold) -> Options {
     Options {
         depth: DEPTHS[index(g.get_depth_index(), DEPTHS.len())].1,
         hidden: g.get_show_hidden(),
@@ -748,7 +748,7 @@ fn options(g: &GitScaffold) -> Options {
 
 /// Walks the chosen folder again with the current options, replacing any walk in progress.
 fn start_walk(app: &AppWindow) {
-    let g = app.global::<GitScaffold>();
+    let g = app.global::<DirectoryScaffold>();
     let options = options(&g);
     let Some((dir, token)) = with(|s| {
         let dir = s.folder.clone()?;
@@ -766,7 +766,7 @@ fn start_walk(app: &AppWindow) {
         if with(|s| {
             Arc::ptr_eq(&s.walk, &walking) && s.worker.as_ref().is_some_and(|w| !w.is_finished())
         }) {
-            app.global::<GitScaffold>().set_walking(true);
+            app.global::<DirectoryScaffold>().set_walking(true);
         }
     });
     let weak = app.as_weak();
@@ -788,7 +788,7 @@ fn finish_walk(
     if !with(|s| Arc::ptr_eq(&s.walk, token)) {
         return; // A newer walk replaced this one.
     }
-    let g = app.global::<GitScaffold>();
+    let g = app.global::<DirectoryScaffold>();
     g.set_walking(false);
     let (tree, ascii, markdown) = match result {
         Ok(done) => done,
@@ -847,7 +847,7 @@ fn current(s: &State, format: ScaffoldFormat) -> &str {
 
 /// Shows the chosen format, cut to `PREVIEW_BYTES`.
 fn show_output(app: &AppWindow) {
-    let g = app.global::<GitScaffold>();
+    let g = app.global::<DirectoryScaffold>();
     with(|s| {
         let full = current(s, g.get_format());
         let shown = preview(full);
@@ -857,7 +857,7 @@ fn show_output(app: &AppWindow) {
 }
 
 fn save_output(app: &AppWindow) {
-    let g = app.global::<GitScaffold>();
+    let g = app.global::<DirectoryScaffold>();
     let format = g.get_format();
     let ext = match format {
         ScaffoldFormat::Tree => "txt",

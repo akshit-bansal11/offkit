@@ -12,7 +12,7 @@ const ROOT = path.join(app.getAppPath(), "out");
 
 // Schemes a page may load from. file: is absent: this process reads the export from disk itself, so nothing ever needs it.
 const PAGE_SCHEMES = new Set(["app:", "blob:", "data:", "devtools:"]);
-// Git Scaffold reads a repository's file list from GitHub. It is the only tool allowed online,
+// Directory Scaffold reads a repository's file list from GitHub. It is the only tool allowed online,
 // and only for that one read: allowing all of api.github.com would let injected script post data out.
 const GITHUB_API = "https://api.github.com";
 // /repositories/<id>/… is where GitHub redirects a renamed or transferred repository.
@@ -20,7 +20,7 @@ const GITHUB_TREE_PATH =
   /^\/(repos\/[^/]+\/[^/]+|repositories\/\d+)\/git\/trees\//;
 // OPTIONS is the preflight the browser sends before a request that carries a token.
 const GITHUB_METHODS = new Set(["GET", "OPTIONS"]);
-// A free-form query string would be a place to put data, so only the one Git Scaffold sends is accepted.
+// A free-form query string would be a place to put data, so only the one Directory Scaffold sends is accepted.
 const GITHUB_TREE_QUERIES = new Set(["", "?recursive=1"]);
 // The app links to its own repository and nowhere else. Opening arbitrary URLs would let
 // injected script hand data to the default browser, which this process cannot filter.

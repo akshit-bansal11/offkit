@@ -3,7 +3,7 @@
 import { Copy, Download, Loader2, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
-import { GitTreeNodeItem } from "@/components/tools/git-scaffold/GitTreeNodeItem";
+import { GitTreeNodeItem } from "@/components/tools/directory-scaffold/GitTreeNodeItem";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/feedback/Badge";
 import { Input } from "@/components/ui/form/Input";
@@ -16,25 +16,25 @@ import {
   CardTitle,
 } from "@/components/ui/layout/Card";
 import { getToolBySlug } from "@/config/tools";
-import { fetchRepoTree } from "@/lib/tools/git-scaffold/github";
-import type { TreeNode } from "@/lib/tools/git-scaffold/types";
+import { fetchRepoTree } from "@/lib/tools/directory-scaffold/github";
+import type { TreeNode } from "@/lib/tools/directory-scaffold/types";
 import {
   buildTree,
   countNodes,
   parseRepoIdentity,
   treeToAscii,
-} from "@/lib/tools/git-scaffold/utils";
+} from "@/lib/tools/directory-scaffold/utils";
 
-const tool = getToolBySlug("git-scaffold");
+const tool = getToolBySlug("directory-scaffold");
 
-export default function GitScaffoldPage() {
+export default function DirectoryScaffoldPage() {
   if (!tool) {
     return null;
   }
 
   return (
     <ToolPageShell title={tool.name} description={tool.description}>
-      <GitScaffoldTool />
+      <DirectoryScaffoldTool />
     </ToolPageShell>
   );
 }
@@ -42,7 +42,7 @@ export default function GitScaffoldPage() {
 // Versions before 16 October 2026 saved the token here in plain text.
 const LEGACY_TOKEN_STORAGE_KEY = "git_scaffold_token";
 
-function GitScaffoldTool() {
+function DirectoryScaffoldTool() {
   const [repoInput, setRepoInput] = useState("");
   // The token lives in this component's memory only: it is never written to
   // storage, a URL or a log, and it is gone when the page closes.

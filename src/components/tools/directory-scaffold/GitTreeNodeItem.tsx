@@ -3,7 +3,7 @@
 
 import { File, Folder, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import type { TreeNode } from "@/lib/tools/git-scaffold/types";
+import type { TreeNode } from "@/lib/tools/directory-scaffold/types";
 
 interface GitTreeNodeItemProps {
   node: TreeNode;

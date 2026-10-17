@@ -1,6 +1,6 @@
 import { getToolMetadata } from "@/config/tools";
 
-export const metadata = getToolMetadata("git-scaffold");
+export const metadata = getToolMetadata("directory-scaffold");
 
 export default function Layout({
   children,

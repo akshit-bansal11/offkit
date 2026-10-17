@@ -52,7 +52,7 @@ test("a docs entry opens its tool", async ({ page }) => {
 });
 
 test("a tool URL is served in place, not redirected", async ({ request }) => {
-  const response = await request.get("/git-scaffold", { maxRedirects: 0 });
+  const response = await request.get("/directory-scaffold", { maxRedirects: 0 });
 
   expect(response.status()).toBe(200);
 });
@@ -78,7 +78,7 @@ const SECURITY_HEADERS: Record<string, RegExp> = {
   "strict-transport-security": /^max-age=63072000; includeSubDomains; preload$/,
 };
 
-for (const path of ["/", "/git-scaffold", "/vendor/pdf.worker.min.mjs"]) {
+for (const path of ["/", "/directory-scaffold", "/vendor/pdf.worker.min.mjs"]) {
   test(`${path} is served with the security headers`, async ({ request }) => {
     const response = await request.get(path);
 
@@ -118,7 +118,7 @@ test("robots.txt, sitemap.xml and the social image are served", async ({
   expect(sitemap.status()).toBe(200);
   const urls = await sitemap.text();
   expect(urls).toContain(`<loc>${siteConfig.url}/docs</loc>`);
-  expect(urls).toContain(`<loc>${siteConfig.url}/git-scaffold</loc>`);
+  expect(urls).toContain(`<loc>${siteConfig.url}/directory-scaffold</loc>`);
   const image = await request.get("/opengraph-image");
   expect(image.status()).toBe(200);
   expect(image.headers()["content-type"]).toContain("image/png");
@@ -142,3 +142,12 @@ for (const route of routes) {
     expect(overflows).toBe(false);
   });
 }
+
+test("the old /git-scaffold URL redirects permanently to /directory-scaffold", async ({
+  request,
+}) => {
+  const response = await request.get("/git-scaffold", { maxRedirects: 0 });
+
+  expect(response.status()).toBe(308);
+  expect(response.headers().location).toBe("/directory-scaffold");
+});

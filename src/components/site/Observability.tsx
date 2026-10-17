@@ -24,7 +24,7 @@ export function Observability() {
   const unobserved = UNOBSERVED_PATHS.includes(pathname);
 
   useEffect(() => {
-    // A loaded script cannot be unloaded. Arriving at Git Scaffold by an
+    // A loaded script cannot be unloaded. Arriving at Directory Scaffold by an
     // in-app link after another page started it, a full load starts clean.
     if (unobserved && "betterstack" in window) window.location.reload();
   }, [unobserved]);

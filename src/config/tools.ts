@@ -134,12 +134,12 @@ export const tools: ToolDefinition[] = [
     icon: Layers,
   },
   {
-    slug: "git-scaffold",
-    href: "/git-scaffold",
-    name: "Git Scaffold",
+    slug: "directory-scaffold",
+    href: "/directory-scaffold",
+    name: "Directory Scaffold",
     shortName: "Scaffold",
     description:
-      "Paste a public GitHub repository URL and instantly visualize its full directory structure including all filenames.",
+      "Turn a folder or a public GitHub repo into an ASCII or Markdown tree.",
     category: "Dev",
     highlights: ["Collapsible file tree UI", "ASCII tree copy and TXT export"],
     icon: FolderTree,

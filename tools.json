@@ -87,10 +87,10 @@
       "icon": "layers"
     },
     {
-      "slug": "git-scaffold",
-      "name": "Git Scaffold",
+      "slug": "directory-scaffold",
+      "name": "Directory Scaffold",
       "shortName": "Scaffold",
-      "description": "Paste a public GitHub repository URL and instantly visualize its full directory structure including all filenames.",
+      "description": "Turn a folder or a public GitHub repo into an ASCII or Markdown tree.",
       "category": "Dev",
       "icon": "folder-tree"
     },

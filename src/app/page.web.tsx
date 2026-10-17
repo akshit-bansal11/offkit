@@ -98,7 +98,7 @@ export default function Home() {
               <dt className="font-medium">No file traffic</dt>
               <dd className="mt-2 text-sm leading-6 text-muted-foreground">
                 No tool sends your files anywhere. The one tool that goes online
-                is Git Scaffold, which asks GitHub for a repository&apos;s file
+                is Directory Scaffold, which asks GitHub for a repository&apos;s file
                 list when you use it. The Windows app blocks every other
                 outbound request.
               </dd>

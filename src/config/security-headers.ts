@@ -8,13 +8,13 @@ export const BETTER_STACK_SCRIPT_ORIGIN = "https://betterstack.net";
 const BETTER_STACK_INGEST_ORIGIN =
   "https://s2791328.us-west-2a.betterstackdata.com";
 
-// Git Scaffold reads repository trees from here, and is the only tool that goes online.
+// Directory Scaffold reads repository trees from here, and is the only tool that goes online.
 const GITHUB_API_ORIGIN = "https://api.github.com";
 
-// Pages that load no script from another origin. Git Scaffold can hold a
+// Pages that load no script from another origin. Directory Scaffold can hold a
 // GitHub token, so Better Stack's script, which records sessions, stays off it.
 // Vercel Web Analytics still runs there: it is served from this origin.
-export const UNOBSERVED_PATHS: readonly string[] = ["/git-scaffold"];
+export const UNOBSERVED_PATHS: readonly string[] = ["/directory-scaffold"];
 
 /**
  * The policy every page is served with.

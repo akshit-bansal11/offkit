@@ -106,7 +106,7 @@ tools! {
     md_editor,
 
     // dev
-    git_scaffold,
+    directory_scaffold,
     archive_extractor,
     archiver,
 }

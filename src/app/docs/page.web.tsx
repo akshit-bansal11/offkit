@@ -102,7 +102,7 @@ export default function DocsPage() {
             the Windows app alike. Nothing is uploaded and there is no account.
           </p>
           <p className={body}>
-            Git Scaffold is the one tool that goes online: it asks
+            Directory Scaffold is the one tool that goes online: it asks
             api.github.com for a repository&apos;s file list, and only when you
             run it. A GitHub token you give it for a private repository is kept
             in memory on that page only. It is never saved, and it is sent only
@@ -111,7 +111,7 @@ export default function DocsPage() {
           <p className={body}>
             This website counts page views with Vercel Web Analytics and reports
             script errors to Better Stack. Neither receives your files, and
-            Better Stack&apos;s script does not load on the Git Scaffold page.
+            Better Stack&apos;s script does not load on the Directory Scaffold page.
             The Windows app blocks every other outbound request and sends no
             analytics or error reports.
           </p>
