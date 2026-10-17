@@ -42,7 +42,7 @@
     "@biomejs/biome": "^2.5.15",
     "@playwright/test": "^1.64.0",
     "@types/diff": "^7.0.2",
-    "@types/node": "^20",
+    "@types/node": "^26",
     "@types/pdfjs-dist": "^2.10.377",
     "@types/react": "^19",
     "@types/react-dom": "^19",
