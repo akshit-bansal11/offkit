@@ -518,8 +518,7 @@ pub(crate) mod tests {
             eprintln!("note: FFmpeg not found; skipping a test that runs it");
             return None;
         };
-        let dir =
-            std::env::temp_dir().join(format!("offkit-audio-{test}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("offkit-audio-{test}-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         Some((ff, dir))
     }

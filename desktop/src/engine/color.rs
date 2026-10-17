@@ -2265,10 +2265,7 @@ mod tests {
 
         let saved = Pixmap::load_png(&path).unwrap();
         fs::remove_file(&path).unwrap();
-        assert_eq!(
-            message,
-            Ok("Saved offkit-colors-radial-export.png".into())
-        );
+        assert_eq!(message, Ok("Saved offkit-colors-radial-export.png".into()));
         assert_eq!((saved.width(), saved.height()), (1600, 900));
         assert_eq!(pixel(&saved, 0, 0), [255, 0, 0, 255]);
         assert_eq!(pixel(&saved, 1599, 899), [0, 0, 255, 255]);
