@@ -16,7 +16,7 @@ test("landing page offers the download and leads to the docs", async ({
     page.getByRole("link", { name: "Download for Windows" }),
   ).toHaveAttribute(
     "href",
-    /\/releases\/latest\/download\/Open-Tools-Setup\.exe$/,
+    /\/releases\/latest$/,
   );
   await page.getByRole("link", { name: "Read the docs" }).click();
   await expect(

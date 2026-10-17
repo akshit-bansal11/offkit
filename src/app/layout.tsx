@@ -4,7 +4,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Observability } from "@/components/site/Observability";
 import { siteConfig } from "@/config/site";
-import { IS_DESKTOP } from "@/config/target";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,13 +47,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
-        {/* The desktop app sends nothing anywhere; analytics and error reporting are for the website only. */}
-        {!IS_DESKTOP && (
-          <>
-            <Analytics />
-            <Observability />
-          </>
-        )}
+        <Analytics />
+        <Observability />
       </body>
     </html>
   );

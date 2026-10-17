@@ -2,20 +2,10 @@ import type { NextConfig } from "next";
 import path from "path";
 import { fileURLToPath } from "url";
 import { securityHeaders } from "./src/config/security-headers";
-import { IS_DESKTOP } from "./src/config/target";
 
 const repoRoot = path.dirname(fileURLToPath(import.meta.url));
-
-// The desktop app is a static export loaded by Electron, which has no image optimizer.
-const desktopConfig: NextConfig = {
-  output: "export",
-  pageExtensions: ["desktop.tsx", "tsx", "ts"],
-  images: { unoptimized: true },
-};
-
-// A static export has no server to send headers; Electron sends its own policy.
-const webConfig: NextConfig = {
-  pageExtensions: ["web.tsx", "tsx", "ts"],
+const nextConfig: NextConfig = {
+  reactCompiler: true,
   // Git Scaffold became Directory Scaffold; keep the old URL working.
   redirects: async () => [
     {
@@ -30,17 +20,6 @@ const webConfig: NextConfig = {
       headers: securityHeaders(process.env.NODE_ENV === "development"),
     },
   ],
-};
-
-// One codebase, two builds. Tool pages are plain page.tsx files, so both
-// builds serve them. Only the home page differs: the desktop build picks up
-// page.desktop.tsx (the launcher) and the web build page.web.tsx (the
-// landing page) plus not-found.web.tsx and the docs.
-// Metadata files (robots, sitemap, social image) keep plain names: Next did
-// not pick them up under a compound extension.
-const nextConfig: NextConfig = {
-  reactCompiler: true,
-  ...(IS_DESKTOP ? desktopConfig : webConfig),
   turbopack: {
     root: repoRoot,
     // JSZip's source build reaches Node's stream and util polyfills, whose

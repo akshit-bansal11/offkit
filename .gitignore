@@ -48,9 +48,6 @@ next-env.d.ts
 # wasm engines copied from node_modules by scripts/copy-vendor.mjs
 /public/vendor/
 
-# electron-builder output
-/release/
-
 # native app (desktop/) build output and locally vendored ffmpeg binaries
 /desktop/target/
 /desktop/vendor/

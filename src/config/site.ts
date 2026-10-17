@@ -17,11 +17,8 @@ export const siteConfig = {
     height: 630,
     alt: "Offkit: file tools that run on your device",
   },
-  // File names are fixed by electron-builder.yml so these links always point at the newest release.
   download: {
-    installer: `${REPOSITORY_URL}/releases/latest/download/Open-Tools-Setup.exe`,
-    portable: `${REPOSITORY_URL}/releases/latest/download/Open-Tools-Portable.exe`,
-    // The release page, for tools that are not in the website at all.
+    // The releases page; native file names carry the version, so no link points at one file.
     latest: `${REPOSITORY_URL}/releases/latest`,
   },
   author: {

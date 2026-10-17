@@ -1,4 +1,4 @@
-// page.web.tsx
+// page.tsx
 // Documentation page: install steps, privacy, per-tool reference with a link to each tool, and known limits.
 
 import type { Metadata } from "next";
@@ -64,8 +64,8 @@ export default function DocsPage() {
           <ol className={`${body} list-decimal space-y-2 pl-5`}>
             <li>
               Download{" "}
-              <a className={link} href={siteConfig.download.installer}>
-                Open-Tools-Setup.exe
+              <a className={link} href={siteConfig.download.latest}>
+                the latest release
               </a>
               .
             </li>
@@ -76,13 +76,6 @@ export default function DocsPage() {
             </li>
             <li>Open Offkit from the Start menu.</li>
           </ol>
-          <p className={body}>
-            To use the app without installing it, download{" "}
-            <a className={link} href={siteConfig.download.portable}>
-              Open-Tools-Portable.exe
-            </a>{" "}
-            and run it from any folder.
-          </p>
           <p className={body}>
             The app does not update itself. To update, download the newest
             installer and run it again.

@@ -1,5 +1,5 @@
-// page.web.tsx
-// Landing page for the website build: what Offkit is, every tool to open in the browser, and the Windows download.
+// page.tsx
+// Landing page: what Offkit is, every tool to open in the browser, and the Windows download.
 
 import { Download } from "lucide-react";
 import type { Metadata } from "next";
@@ -39,7 +39,7 @@ export default function Home() {
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">
-              <a href={siteConfig.download.installer}>
+              <a href={siteConfig.download.latest}>
                 <Download aria-hidden="true" />
                 Download for Windows
               </a>
@@ -54,14 +54,7 @@ export default function Home() {
             </Button>
           </div>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Windows 10 or later, 64-bit. Prefer no installer?{" "}
-            <a
-              className="underline underline-offset-4"
-              href={siteConfig.download.portable}
-            >
-              Get the portable version
-            </a>
-            .
+            Windows 10 or later, 64-bit.
           </p>
         </section>
 

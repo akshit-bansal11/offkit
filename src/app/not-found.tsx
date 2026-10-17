@@ -1,5 +1,5 @@
-// not-found.web.tsx
-// 404 page for the website build.
+// not-found.tsx
+// 404 page.
 
 import type { Metadata } from "next";
 import Link from "next/link";
