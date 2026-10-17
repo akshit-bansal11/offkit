@@ -9,6 +9,7 @@ import { Palette } from "std-widgets.slint";
 import { Backdrop, Theme } from "theme.slint";
 import { Sidebar, SidebarRow } from "components/sidebar.slint";
 import { AboutSheet } from "components/about-sheet.slint";
+import { WebOnlyView } from "tools/web-only.slint";
 import { AudioConverter, AudioConverterView } from "tools/audio-converter.slint";
 import { AudioExtractor, AudioExtractorView } from "tools/audio-extractor.slint";
 import { AudioEditor, AudioEditorView } from "tools/audio-editor.slint";
@@ -67,10 +68,12 @@ export component AppWindow inherits Window {
     in-out property <string> current-slug;
     in property <string> current-name;
     in property <string> current-description;
+    in property <bool> current-web-only;
     in property <string> app-version;
     callback search-changed(string);
     callback select-tool(string);
     callback select-adjacent(int);
+    callback open-web(string);
 
     in-out property <bool> about-open;
 
@@ -148,6 +151,10 @@ export component AppWindow inherits Window {
                     VerticalLayout {
                         vertical-stretch: 1;
 
+                        if root.current-web-only: WebOnlyView {
+                            tool-name: root.current-name;
+                            open-browser => { root.open-web(root.current-slug); }
+                        }
                         if root.current-slug == "audio-converter": AudioConverterView { }
                         if root.current-slug == "audio-extractor": AudioExtractorView { }
                         if root.current-slug == "audio-editor": AudioEditorView { }

@@ -1,0 +1,18 @@
+// Shown for a tool that runs on the website only (tools.json `platforms` lacks "desktop").
+// One shared view: the shell fills in the name and opens {siteUrl}/{slug} when asked.
+
+import { AppIcons } from "../icons/icons.slint";
+import { ButtonKind } from "../components/controls.slint";
+import { EmptyState } from "../components/empty-state.slint";
+
+export component WebOnlyView inherits EmptyState {
+    in property <string> tool-name;
+    callback open-browser();
+
+    icon: AppIcons.link;
+    title: root.tool-name;
+    message: "This tool runs in your browser.";
+    action-text: "Open in Browser";
+    action-kind: ButtonKind.primary;
+    action => { root.open-browser(); }
+}

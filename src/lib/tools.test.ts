@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { getToolMetadata, toolCategories, tools } from "../config/tools.ts";
+import { siteConfig } from "../config/site.ts";
+import {
+  getToolMetadata,
+  runsOnWeb,
+  toolCategories,
+  tools,
+} from "../config/tools.ts";
 import { quantizePixels } from "./design-tools/palette-extractor.ts";
 import {
   audioCodecArgs,
@@ -94,30 +100,30 @@ test("tools.json matches the registry in src/config/tools.ts", () => {
       accent: accentColor,
     })),
   );
-  assert.deepEqual(
-    json.tools.map(
-      ({
-        slug,
-        name,
-        shortName,
-        description,
-        category,
-      }: Record<string, string>) => ({
-        slug,
-        name,
-        shortName,
-        description,
-        category,
-      }),
-    ),
-    tools.map(({ slug, name, shortName, description, category }) => ({
-      slug,
-      name,
-      shortName,
-      description,
-      category,
-    })),
-  );
+  const pick = ({
+    slug,
+    platforms,
+    name,
+    shortName,
+    description,
+    category,
+  }: {
+    slug: string;
+    platforms: string[];
+    name: string;
+    shortName?: string;
+    description: string;
+    category: string;
+  }) => ({ slug, platforms, name, shortName, description, category });
+  assert.deepEqual(json.tools.map(pick), tools.map(pick));
+  assert.equal(json.siteUrl, siteConfig.url);
+});
+
+test("runsOnWeb is false for a tool that lists only the desktop", () => {
+  assert.equal(runsOnWeb({ platforms: ["web", "desktop"] }), true);
+  assert.equal(runsOnWeb({ platforms: ["web"] }), true);
+  assert.equal(runsOnWeb({ platforms: ["desktop"] }), false);
+  assert.ok(tools.every((tool) => tool.platforms.length > 0));
 });
 
 test("every registered tool has a page, and every tool page is registered", () => {

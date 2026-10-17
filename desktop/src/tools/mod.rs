@@ -124,7 +124,12 @@ mod tests {
 
         let modules: HashSet<_> = MODULES.iter().map(|(_, slug)| *slug).collect();
 
-        let slugs: HashSet<_> = registry.tools.iter().map(|t| t.slug.as_str()).collect();
+        let slugs: HashSet<_> = registry
+            .tools
+            .iter()
+            .filter(|t| t.on_desktop())
+            .map(|t| t.slug.as_str())
+            .collect();
         assert_eq!(modules, slugs);
         assert_eq!(MODULES.len(), slugs.len());
     }

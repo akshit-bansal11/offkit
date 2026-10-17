@@ -19,7 +19,7 @@ use slint::winit_030::winit::event::WindowEvent;
 use slint::winit_030::{EventResult, WinitWindowAccessor};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
-use crate::registry::Registry;
+use crate::registry::{Registry, web_url};
 use crate::tools::video_converter;
 
 slint::include_modules!();
@@ -62,6 +62,15 @@ fn main() -> anyhow::Result<()> {
             }
         }
     });
+    app.on_open_web({
+        let registry = registry.clone();
+        move |slug| {
+            let url = web_url(&registry.site_url, &slug);
+            if let Some(Err(e)) = url.as_deref().map(open::that) {
+                eprintln!("couldn't open {slug} in the browser: {e}");
+            }
+        }
+    });
     app.on_select_tool({
         let (registry, weak) = (registry.clone(), app.as_weak());
         move |slug| {
@@ -99,6 +108,7 @@ fn main() -> anyhow::Result<()> {
 fn select_tool(app: &AppWindow, registry: &Registry, slug: &str) {
     if let Some(tool) = registry.tool(slug) {
         app.set_current_slug(tool.slug.as_str().into());
+        app.set_current_web_only(!tool.on_desktop());
         app.set_current_name(tool.name.as_str().into());
         app.set_current_description(tool.description.as_str().into());
     }
@@ -121,6 +131,7 @@ fn sidebar_rows(registry: &Registry, query: &str) -> Vec<SidebarRow> {
                     label: t.name.as_str().into(),
                     slug: t.slug.as_str().into(),
                     icon: t.icon.as_str().into(),
+                    web_only: !t.on_desktop(),
                 })
                 .collect();
             let header = SidebarRow {

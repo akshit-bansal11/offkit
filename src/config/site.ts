@@ -21,6 +21,8 @@ export const siteConfig = {
   download: {
     installer: `${REPOSITORY_URL}/releases/latest/download/Open-Tools-Setup.exe`,
     portable: `${REPOSITORY_URL}/releases/latest/download/Open-Tools-Portable.exe`,
+    // The release page, for tools that are not in the website at all.
+    latest: `${REPOSITORY_URL}/releases/latest`,
   },
   author: {
     name: "Er. Akshit Bansal",

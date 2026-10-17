@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteShell } from "@/components/site/SiteShell";
 import { siteConfig } from "@/config/site";
-import { toolsByCategory } from "@/config/tools";
+import { runsOnWeb, toolsByCategory } from "@/config/tools";
 
 const TITLE = "Documentation";
 const DESCRIPTION =
@@ -130,7 +130,10 @@ export default function DocsPage() {
                   id={tool.slug}
                   className="tool-card mt-4 scroll-mt-6 p-5"
                 >
-                  <h4 className="font-medium">{tool.name}</h4>
+                  <h4 className="font-medium">
+                    {tool.name}
+                    {!runsOnWeb(tool) && " (desktop app only)"}
+                  </h4>
                   <p className={body}>{tool.description}</p>
                   <ul className={`${body} list-disc pl-5`}>
                     {tool.highlights.map((highlight) => (

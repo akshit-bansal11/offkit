@@ -11,19 +11,21 @@ export struct SidebarRow {
     label: string,
     slug: string,
     icon: string,
+    web-only: bool,
 }
 
 // Not focusable itself: the list is one Tab stop and arrow keys move the selection.
 component SidebarItem {
     in property <string> label;
     in property <string> icon;
+    in property <bool> web-only;
     in property <bool> selected;
     in property <bool> list-focused;
     callback activated;
 
     height: Theme.row-height;
     accessible-role: list-item;
-    accessible-label: root.label;
+    accessible-label: root.web-only ? root.label + ", web only" : root.label;
     accessible-item-selected: root.selected;
     accessible-item-selectable: true;
     accessible-action-default => { root.activated(); }
@@ -55,6 +57,13 @@ component SidebarItem {
                 vertical-alignment: center;
                 overflow: elide;
                 horizontal-stretch: 1;
+            }
+            if root.web-only: Text {
+                text: "Web";
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                vertical-alignment: center;
+                accessible-role: none;
             }
         }
 
@@ -151,6 +160,7 @@ export component Sidebar inherits Rectangle {
                     if !row.header: SidebarItem {
                         label: row.label;
                         icon: row.icon;
+                        web-only: row.web-only;
                         selected: row-layout.current;
                         list-focused: list-fs.has-focus;
                         activated => { root.select-tool(row.slug); }

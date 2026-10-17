@@ -1,4 +1,5 @@
 {
+  "siteUrl": "https://open-tools.akshitbansal.me",
   "categories": [
     {
       "name": "Audio",
@@ -40,6 +41,7 @@
   "tools": [
     {
       "slug": "audio-converter",
+      "platforms": ["web", "desktop"],
       "name": "Audio Converter",
       "shortName": "Convert",
       "description": "Convert audio files between formats and codecs entirely on your device using FFmpeg.",
@@ -48,6 +50,7 @@
     },
     {
       "slug": "audio-extractor",
+      "platforms": ["web", "desktop"],
       "name": "Audio Extractor",
       "shortName": "Extract",
       "description": "Extract the audio track from any video file and download it in your chosen format and codec.",
@@ -56,6 +59,7 @@
     },
     {
       "slug": "audio-editor",
+      "platforms": ["web", "desktop"],
       "name": "Audio Editor",
       "shortName": "Edit",
       "description": "Trim, adjust speed, shift pitch, and apply EQ to any audio file, all on your device.",
@@ -64,6 +68,7 @@
     },
     {
       "slug": "audio-joiner",
+      "platforms": ["web", "desktop"],
       "name": "Audio Joiner",
       "shortName": "Join",
       "description": "Drag-and-drop multiple audio files and join them into a single file in your chosen format.",
@@ -72,6 +77,7 @@
     },
     {
       "slug": "video-converter",
+      "platforms": ["web", "desktop"],
       "name": "Video Converter",
       "shortName": "Convert",
       "description": "Convert videos between formats and codecs directly on your device using FFmpeg.",
@@ -80,6 +86,7 @@
     },
     {
       "slug": "frames-extractor",
+      "platforms": ["web", "desktop"],
       "name": "Frames Extractor",
       "shortName": "Frames",
       "description": "Upload a GIF or video and extract every frame as individual PNG images, then download them as a ZIP.",
@@ -88,6 +95,7 @@
     },
     {
       "slug": "directory-scaffold",
+      "platforms": ["web", "desktop"],
       "name": "Directory Scaffold",
       "shortName": "Scaffold",
       "description": "Turn a folder or a public GitHub repo into an ASCII or Markdown tree.",
@@ -96,6 +104,7 @@
     },
     {
       "slug": "image-cropper",
+      "platforms": ["web", "desktop"],
       "name": "Image Cropper",
       "shortName": "Crop",
       "description": "Crop one or many images on your device - apply individual crops per image or a single crop to all at once.",
@@ -104,6 +113,7 @@
     },
     {
       "slug": "svg-animator",
+      "platforms": ["web", "desktop"],
       "name": "SVG Border Animator",
       "shortName": "Animate",
       "description": "Upload any SVG and animate each path border locally with stroke-dashoffset controls and export-ready output.",
@@ -112,6 +122,7 @@
     },
     {
       "slug": "svg-pattern",
+      "platforms": ["web", "desktop"],
       "name": "SVG Pattern Generator",
       "shortName": "Pattern",
       "description": "Create beautiful, scalable vector patterns directly on your device. Export native CSS backgrounds or raw SVG data URIs instantly.",
@@ -120,6 +131,7 @@
     },
     {
       "slug": "blob-generator",
+      "platforms": ["web", "desktop"],
       "name": "CSS Blob Generator",
       "shortName": "Blob",
       "description": "Create intricate, organic shapes natively by independently customizing the 8 anchor points of the border-radius property.",
@@ -128,6 +140,7 @@
     },
     {
       "slug": "glassmorphism",
+      "platforms": ["web", "desktop"],
       "name": "Glassmorphism Generator",
       "shortName": "Glass",
       "description": "Design stunning frosted-glass UI elements with real-time backdrop filtering and export the CSS directly.",
@@ -136,6 +149,7 @@
     },
     {
       "slug": "box-shadow",
+      "platforms": ["web", "desktop"],
       "name": "Box Shadow Generator",
       "shortName": "Shadow",
       "description": "Create layered CSS shadows natively through visual controls and export the exact styling string for your projects.",
@@ -144,6 +158,7 @@
     },
     {
       "slug": "pdf-toolkit",
+      "platforms": ["web", "desktop"],
       "name": "PDF Toolkit",
       "shortName": "Toolkit",
       "description": "Merge multiple files, break PDFs apart by page, reorder structure, or compress files directly on your device.",
@@ -152,6 +167,7 @@
     },
     {
       "slug": "lorem-generator",
+      "platforms": ["web", "desktop"],
       "name": "Lorem Generator",
       "shortName": "Lorem",
       "description": "Generate customized placeholder text instantly for your mockups, using either classic Latin or random English prose.",
@@ -160,6 +176,7 @@
     },
     {
       "slug": "diff-checker",
+      "platforms": ["web", "desktop"],
       "name": "Diff Checker",
       "shortName": "Diff",
       "description": "Find inline character-level or line-level text differences with robust ignoring whitespace and case sensitivity.",
@@ -168,6 +185,7 @@
     },
     {
       "slug": "svg-optimizer",
+      "platforms": ["web", "desktop"],
       "name": "SVG Optimizer",
       "shortName": "Optimize",
       "description": "Clean up messy SVGs, strip metadata, dial in decimal precision, and convert to JSX directly on your device.",
@@ -176,6 +194,7 @@
     },
     {
       "slug": "pdf-converter",
+      "platforms": ["web", "desktop"],
       "name": "PDF ↔ Image Converter",
       "shortName": "Convert",
       "description": "Merge images into a single PDF, batch convert them, or extract pages from existing PDFs as images.",
@@ -184,6 +203,7 @@
     },
     {
       "slug": "image-converter",
+      "platforms": ["web", "desktop"],
       "name": "Image Converter",
       "shortName": "Convert",
       "description": "Convert popular image formats locally with batch downloads, quality controls, and upload guardrails.",
@@ -192,6 +212,7 @@
     },
     {
       "slug": "json-formatter",
+      "platforms": ["web", "desktop"],
       "name": "JSON Formatter",
       "shortName": "Format",
       "description": "Pretty-print, minify, validate, and copy JSON on your device.",
@@ -200,6 +221,7 @@
     },
     {
       "slug": "gradient-maker",
+      "platforms": ["web", "desktop"],
       "name": "Gradient Maker",
       "shortName": "Gradients",
       "description": "Build multi-stop gradients with live previews, PNG exports, CSS output, and Tailwind arbitrary values.",
@@ -208,6 +230,7 @@
     },
     {
       "slug": "gradient-library",
+      "platforms": ["web", "desktop"],
       "name": "Gradient Library",
       "shortName": "Library",
       "description": "Browse curated named gradients and copy them as CSS or Tailwind-ready arbitrary values.",
@@ -216,6 +239,7 @@
     },
     {
       "slug": "palette-library",
+      "platforms": ["web", "desktop"],
       "name": "Palette Library",
       "shortName": "Library",
       "description": "Explore curated color palettes, copy individual swatches, or export full palettes as JSON.",
@@ -224,6 +248,7 @@
     },
     {
       "slug": "palette-extractor",
+      "platforms": ["web", "desktop"],
       "name": "Palette Extractor",
       "shortName": "Extract",
       "description": "Upload an image and extract its dominant colors into a copyable palette, computed locally on your device.",
@@ -232,6 +257,7 @@
     },
     {
       "slug": "gradient-converter",
+      "platforms": ["web", "desktop"],
       "name": "Gradient Converter",
       "shortName": "Convert",
       "description": "Convert CSS gradients into Tailwind arbitrary values or switch between linear, radial, and conic syntax.",
@@ -240,6 +266,7 @@
     },
     {
       "slug": "color-converter",
+      "platforms": ["web", "desktop"],
       "name": "Color Converter",
       "shortName": "Convert",
       "description": "Convert HEX, RGB, HSL, HSV, OKLCH, and named colors into every other format at once.",
@@ -248,6 +275,7 @@
     },
     {
       "slug": "base64",
+      "platforms": ["web", "desktop"],
       "name": "Base64",
       "shortName": "Base64",
       "description": "Encode and decode text with a clean local workflow that stays entirely on your device.",
@@ -256,6 +284,7 @@
     },
     {
       "slug": "video-editor",
+      "platforms": ["web", "desktop"],
       "name": "Video Editor",
       "shortName": "Edit",
       "description": "Trim, crop, rotate, resize, flip, adjust speed and volume for any video, entirely on your device.",
@@ -264,6 +293,7 @@
     },
     {
       "slug": "video-merger",
+      "platforms": ["web", "desktop"],
       "name": "Video Merger",
       "shortName": "Merge",
       "description": "Drag-and-drop multiple video files, reorder them, and merge into a single video.",
@@ -272,6 +302,7 @@
     },
     {
       "slug": "pdf-merger",
+      "platforms": ["web", "desktop"],
       "name": "PDF Merger",
       "shortName": "Merge",
       "description": "Combine multiple PDF documents into one file with drag-to-reorder.",
@@ -280,6 +311,7 @@
     },
     {
       "slug": "pdf-splitter",
+      "platforms": ["web", "desktop"],
       "name": "PDF Splitter",
       "shortName": "Split",
       "description": "Break a PDF into individual pages or extract specific page ranges.",
@@ -288,6 +320,7 @@
     },
     {
       "slug": "pdf-compressor",
+      "platforms": ["web", "desktop"],
       "name": "PDF Compressor",
       "shortName": "Compress",
       "description": "Reduce PDF file size by rasterizing pages at adjustable quality and resolution.",
@@ -296,6 +329,7 @@
     },
     {
       "slug": "convert-to-pdf",
+      "platforms": ["web", "desktop"],
       "name": "Convert to PDF",
       "shortName": "To PDF",
       "description": "Convert images to PDF. Drop multiple images and combine them into a single document.",
@@ -304,6 +338,7 @@
     },
     {
       "slug": "convert-from-pdf",
+      "platforms": ["web", "desktop"],
       "name": "Convert from PDF",
       "shortName": "From PDF",
       "description": "Extract PDF pages as PNG or JPEG images and download them as a ZIP.",
@@ -312,6 +347,7 @@
     },
     {
       "slug": "md-editor",
+      "platforms": ["web", "desktop"],
       "name": "Markdown Editor",
       "shortName": "Markdown",
       "description": "Write Markdown with a live split-pane preview, toolbar shortcuts, and export to .md or PDF.",
@@ -320,6 +356,7 @@
     },
     {
       "slug": "archive-extractor",
+      "platforms": ["web", "desktop"],
       "name": "Archive Extractor",
       "shortName": "Extract",
       "description": "Upload a ZIP archive, preview its file tree, and extract individual files or download everything.",
@@ -328,6 +365,7 @@
     },
     {
       "slug": "archiver",
+      "platforms": ["web", "desktop"],
       "name": "Archiver",
       "shortName": "Archive",
       "description": "Drop files to create a ZIP archive instantly on your device.",

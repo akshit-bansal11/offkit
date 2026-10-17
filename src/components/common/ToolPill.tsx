@@ -3,6 +3,7 @@
 
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { runsOnWeb } from "@/config/tools";
 import { cn } from "@/lib/utils";
 import type { ToolDefinition } from "@/types/tool";
 
@@ -42,6 +43,11 @@ export function ToolPill({
         />
       )}
       <span>{label}</span>
+      {!runsOnWeb(tool) && (
+        <span className="rounded-full border border-white/15 px-2 text-xs text-[#acabaa]">
+          Desktop
+        </span>
+      )}
     </>
   );
 

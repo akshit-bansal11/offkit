@@ -63,6 +63,7 @@ export const toolCategories: ToolCategoryDefinition[] = [
 export const tools: ToolDefinition[] = [
   {
     slug: "audio-converter",
+    platforms: ["web", "desktop"],
     href: "/audio-converter",
     name: "Audio Converter",
     shortName: "Convert",
@@ -77,6 +78,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "audio-extractor",
+    platforms: ["web", "desktop"],
     href: "/audio-extractor",
     name: "Audio Extractor",
     shortName: "Extract",
@@ -88,6 +90,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "audio-editor",
+    platforms: ["web", "desktop"],
     href: "/audio-editor",
     name: "Audio Editor",
     shortName: "Edit",
@@ -99,6 +102,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "audio-joiner",
+    platforms: ["web", "desktop"],
     href: "/audio-joiner",
     name: "Audio Joiner",
     shortName: "Join",
@@ -110,6 +114,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "video-converter",
+    platforms: ["web", "desktop"],
     href: "/video-converter",
     name: "Video Converter",
     shortName: "Convert",
@@ -124,6 +129,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "frames-extractor",
+    platforms: ["web", "desktop"],
     href: "/frames-extractor",
     name: "Frames Extractor",
     shortName: "Frames",
@@ -135,6 +141,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "directory-scaffold",
+    platforms: ["web", "desktop"],
     href: "/directory-scaffold",
     name: "Directory Scaffold",
     shortName: "Scaffold",
@@ -146,6 +153,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "image-cropper",
+    platforms: ["web", "desktop"],
     href: "/image-cropper",
     name: "Image Cropper",
     shortName: "Crop",
@@ -160,6 +168,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "svg-animator",
+    platforms: ["web", "desktop"],
     href: "/svg-animator",
     name: "SVG Border Animator",
     shortName: "Animate",
@@ -174,6 +183,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "svg-pattern",
+    platforms: ["web", "desktop"],
     href: "/svg-pattern",
     name: "SVG Pattern Generator",
     shortName: "Pattern",
@@ -188,6 +198,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "blob-generator",
+    platforms: ["web", "desktop"],
     href: "/blob-generator",
     name: "CSS Blob Generator",
     shortName: "Blob",
@@ -199,6 +210,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "glassmorphism",
+    platforms: ["web", "desktop"],
     href: "/glassmorphism",
     name: "Glassmorphism Generator",
     shortName: "Glass",
@@ -210,6 +222,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "box-shadow",
+    platforms: ["web", "desktop"],
     href: "/box-shadow",
     name: "Box Shadow Generator",
     shortName: "Shadow",
@@ -221,6 +234,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "pdf-toolkit",
+    platforms: ["web", "desktop"],
     href: "/pdf-toolkit",
     name: "PDF Toolkit",
     shortName: "Toolkit",
@@ -232,6 +246,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "lorem-generator",
+    platforms: ["web", "desktop"],
     href: "/lorem-generator",
     name: "Lorem Generator",
     shortName: "Lorem",
@@ -243,6 +258,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "diff-checker",
+    platforms: ["web", "desktop"],
     href: "/diff-checker",
     name: "Diff Checker",
     shortName: "Diff",
@@ -254,6 +270,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "svg-optimizer",
+    platforms: ["web", "desktop"],
     href: "/svg-optimizer",
     name: "SVG Optimizer",
     shortName: "Optimize",
@@ -265,6 +282,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "pdf-converter",
+    platforms: ["web", "desktop"],
     href: "/pdf-converter",
     name: "PDF ↔ Image Converter",
     shortName: "Convert",
@@ -276,6 +294,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "image-converter",
+    platforms: ["web", "desktop"],
     href: "/image-converter",
     name: "Image Converter",
     shortName: "Convert",
@@ -287,6 +306,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "json-formatter",
+    platforms: ["web", "desktop"],
     href: "/json-formatter",
     name: "JSON Formatter",
     shortName: "Format",
@@ -298,6 +318,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "gradient-maker",
+    platforms: ["web", "desktop"],
     href: "/gradient-maker",
     name: "Gradient Maker",
     shortName: "Gradients",
@@ -309,6 +330,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "gradient-library",
+    platforms: ["web", "desktop"],
     href: "/gradient-library",
     name: "Gradient Library",
     shortName: "Library",
@@ -320,6 +342,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "palette-library",
+    platforms: ["web", "desktop"],
     href: "/palette-library",
     name: "Palette Library",
     shortName: "Library",
@@ -331,6 +354,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "palette-extractor",
+    platforms: ["web", "desktop"],
     href: "/palette-extractor",
     name: "Palette Extractor",
     shortName: "Extract",
@@ -342,6 +366,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "gradient-converter",
+    platforms: ["web", "desktop"],
     href: "/gradient-converter",
     name: "Gradient Converter",
     shortName: "Convert",
@@ -353,6 +378,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "color-converter",
+    platforms: ["web", "desktop"],
     href: "/color-converter",
     name: "Color Converter",
     shortName: "Convert",
@@ -364,6 +390,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "base64",
+    platforms: ["web", "desktop"],
     href: "/base64",
     name: "Base64",
     shortName: "Base64",
@@ -376,6 +403,7 @@ export const tools: ToolDefinition[] = [
 
   {
     slug: "video-editor",
+    platforms: ["web", "desktop"],
     href: "/video-editor",
     name: "Video Editor",
     shortName: "Edit",
@@ -387,6 +415,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "video-merger",
+    platforms: ["web", "desktop"],
     href: "/video-merger",
     name: "Video Merger",
     shortName: "Merge",
@@ -399,6 +428,7 @@ export const tools: ToolDefinition[] = [
 
   {
     slug: "pdf-merger",
+    platforms: ["web", "desktop"],
     href: "/pdf-merger",
     name: "PDF Merger",
     shortName: "Merge",
@@ -410,6 +440,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "pdf-splitter",
+    platforms: ["web", "desktop"],
     href: "/pdf-splitter",
     name: "PDF Splitter",
     shortName: "Split",
@@ -421,6 +452,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "pdf-compressor",
+    platforms: ["web", "desktop"],
     href: "/pdf-compressor",
     name: "PDF Compressor",
     shortName: "Compress",
@@ -435,6 +467,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "convert-to-pdf",
+    platforms: ["web", "desktop"],
     href: "/convert-to-pdf",
     name: "Convert to PDF",
     shortName: "To PDF",
@@ -446,6 +479,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "convert-from-pdf",
+    platforms: ["web", "desktop"],
     href: "/convert-from-pdf",
     name: "Convert from PDF",
     shortName: "From PDF",
@@ -458,6 +492,7 @@ export const tools: ToolDefinition[] = [
 
   {
     slug: "md-editor",
+    platforms: ["web", "desktop"],
     href: "/md-editor",
     name: "Markdown Editor",
     shortName: "Markdown",
@@ -470,6 +505,7 @@ export const tools: ToolDefinition[] = [
 
   {
     slug: "archive-extractor",
+    platforms: ["web", "desktop"],
     href: "/archive-extractor",
     name: "Archive Extractor",
     shortName: "Extract",
@@ -481,6 +517,7 @@ export const tools: ToolDefinition[] = [
   },
   {
     slug: "archiver",
+    platforms: ["web", "desktop"],
     href: "/archiver",
     name: "Archiver",
     shortName: "Archive",
@@ -527,4 +564,9 @@ export function getToolAccentColor(slug: string): string {
   if (!tool) return "#60a5fa";
   const category = toolCategories.find((c) => c.name === tool.category);
   return category?.accentColor ?? "#60a5fa";
+}
+
+/** True when the tool runs in the browser. A desktop-only tool keeps its URL but shows a download panel. */
+export function runsOnWeb(tool: Pick<ToolDefinition, "platforms">): boolean {
+  return tool.platforms.includes("web");
 }
