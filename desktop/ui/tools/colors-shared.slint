@@ -1,0 +1,323 @@
+// Parts the Colors family's views share (color-converter, gradient-maker, gradient-library,
+// gradient-converter, palette-library): a swatch over a checkerboard, a colour well whose swatch
+// opens an HSV picker, and a copyable output block. Theme tokens only, like ui/components.
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { FocusRing } from "../components/controls.slint";
+import { ColorWell } from "../components/fields.slint";
+import { CopyButton, PaneHeader } from "../components/editor.slint";
+
+// A colour or gradient drawn over a checkerboard, so translucency shows. Decorative: the text
+// beside it names the colour.
+export component Swatch inherits Rectangle {
+    in property <brush> fill;
+
+    border-radius: Theme.radius-group;
+    clip: true;
+    background: Theme.checker-base;
+
+    Image {
+        width: 100%;
+        height: 100%;
+        source: AppIcons.checker;
+        colorize: Theme.checker-tile;
+        horizontal-tiling: repeat;
+        vertical-tiling: repeat;
+        accessible-role: none;
+    }
+    Rectangle {
+        background: root.fill;
+    }
+    Rectangle {
+        border-radius: root.border-radius;
+        border-width: 1px;
+        border-color: Theme.separator;
+    }
+}
+
+// The round handle on the picker's square and hue strip.
+component Knob inherits Rectangle {
+    width: Theme.picker-knob;
+    height: Theme.picker-knob;
+    border-radius: self.width / 2;
+    border-width: 2px;
+    border-color: Theme.bg-knob;
+    drop-shadow-blur: Theme.shadow-1-blur;
+    drop-shadow-offset-y: Theme.shadow-1-y;
+    drop-shadow-color: Theme.shadow-1-color;
+}
+
+// Saturation and brightness on a square, hue on a strip below it. Arrow keys move either by
+// 1% (hue by 2°); `changed` reports every move.
+component HsvPicker inherits VerticalLayout {
+    in-out property <float> hue;
+    in-out property <float> saturation;
+    in-out property <float> value;
+    in property <float> alpha: 1;
+    callback changed(color);
+
+    function report() {
+        root.changed(hsv(root.hue, root.saturation, root.value, root.alpha));
+    }
+    function set-sv(s: float, v: float) {
+        root.saturation = clamp(s, 0, 1);
+        root.value = clamp(v, 0, 1);
+        root.report();
+    }
+    function set-hue(h: float) {
+        root.hue = clamp(h, 0, 360);
+        root.report();
+    }
+    public function focus-square() {
+        square-fs.focus();
+    }
+
+    padding: Theme.space-3;
+    spacing: Theme.space-3;
+    width: Theme.picker-width;
+
+    square := Rectangle {
+        height: Theme.picker-square;
+        accessible-role: slider;
+        accessible-label: "Saturation and brightness";
+        accessible-value: "Saturation " + round(root.saturation * 100) + "%, brightness " + round(root.value * 100) + "%";
+
+        Rectangle {
+            border-radius: Theme.radius-control;
+            background: @linear-gradient(90deg, white 0%, hsv(root.hue, 1, 1, 1) 100%);
+        }
+        Rectangle {
+            border-radius: Theme.radius-control;
+            background: @linear-gradient(180deg, transparent 0%, black 100%);
+        }
+        Knob {
+            x: root.saturation * parent.width - self.width / 2;
+            y: (1 - root.value) * parent.height - self.height / 2;
+            background: hsv(root.hue, root.saturation, root.value, 1);
+        }
+        TouchArea {
+            mouse-cursor: crosshair;
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                    root.set-sv(self.mouse-x / self.width, 1 - self.mouse-y / self.height);
+                }
+            }
+            moved => {
+                if (self.pressed) {
+                    root.set-sv(self.mouse-x / self.width, 1 - self.mouse-y / self.height);
+                }
+            }
+        }
+        square-fs := FocusScope {
+            key-pressed(event) => {
+                if (event.text == Key.LeftArrow) {
+                    root.set-sv(root.saturation - 0.01, root.value);
+                    return accept;
+                }
+                if (event.text == Key.RightArrow) {
+                    root.set-sv(root.saturation + 0.01, root.value);
+                    return accept;
+                }
+                if (event.text == Key.UpArrow) {
+                    root.set-sv(root.saturation, root.value + 0.01);
+                    return accept;
+                }
+                if (event.text == Key.DownArrow) {
+                    root.set-sv(root.saturation, root.value - 0.01);
+                    return accept;
+                }
+                reject
+            }
+        }
+        FocusRing { has-focus: square-fs.has-focus; }
+    }
+
+    strip := Rectangle {
+        height: Theme.picker-strip;
+        accessible-role: slider;
+        accessible-label: "Hue";
+        accessible-value: round(root.hue) + "°";
+        accessible-value-minimum: 0;
+        accessible-value-maximum: 360;
+        accessible-action-increment => { root.set-hue(root.hue + 2); }
+        accessible-action-decrement => { root.set-hue(root.hue - 2); }
+
+        Rectangle {
+            border-radius: self.height / 2;
+            background: @linear-gradient(90deg, hsv(0, 1, 1, 1) 0%, hsv(60, 1, 1, 1) 16.667%, hsv(120, 1, 1, 1) 33.333%, hsv(180, 1, 1, 1) 50%, hsv(240, 1, 1, 1) 66.667%, hsv(300, 1, 1, 1) 83.333%, hsv(360, 1, 1, 1) 100%);
+        }
+        Knob {
+            x: root.hue / 360 * parent.width - self.width / 2;
+            y: (parent.height - self.height) / 2;
+            background: hsv(root.hue, 1, 1, 1);
+        }
+        TouchArea {
+            mouse-cursor: pointer;
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
+                    root.set-hue(self.mouse-x / self.width * 360);
+                }
+            }
+            moved => {
+                if (self.pressed) {
+                    root.set-hue(self.mouse-x / self.width * 360);
+                }
+            }
+        }
+        strip-fs := FocusScope {
+            key-pressed(event) => {
+                if (event.text == Key.LeftArrow || event.text == Key.DownArrow) {
+                    root.set-hue(root.hue - 2);
+                    return accept;
+                }
+                if (event.text == Key.RightArrow || event.text == Key.UpArrow) {
+                    root.set-hue(root.hue + 2);
+                    return accept;
+                }
+                reject
+            }
+        }
+        FocusRing { has-focus: strip-fs.has-focus; radius: parent.height / 2; }
+    }
+}
+
+// ColorWell (swatch and code) whose swatch is also a button: it opens an HSV picker in a
+// popover. Typing works as in ColorWell; Rust parses `hex` and sets `color` and `invalid`.
+// `picked` reports each move in the picker, keeping the colour's alpha.
+export component PickerWell {
+    in property <color> color;
+    in-out property <string> hex;
+    in property <string> label;
+    in property <bool> invalid;
+    callback edited(string);
+    callback picked(color);
+
+    // The picker's position, read from `color` each time it opens.
+    property <float> hue;
+    property <float> saturation;
+    property <float> value;
+    property <float> alpha: 1;
+
+    function open() {
+        let hsva = root.color.to-hsv();
+        root.hue = hsva.hue;
+        root.saturation = hsva.saturation;
+        root.value = hsva.value;
+        root.alpha = hsva.alpha;
+        popup.show();
+    }
+
+    height: Theme.control-height;
+    min-width: well.min-width;
+    horizontal-stretch: 1;
+
+    // Under the well, which draws the swatch; its ring sits outside the swatch, so it shows.
+    Rectangle {
+        x: 0;
+        width: Theme.control-height;
+        accessible-role: button;
+        accessible-label: "Pick " + root.label;
+        accessible-action-default => { root.open(); }
+
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.open(); }
+        }
+        fs := FocusScope {
+            focus-on-click: false;
+            key-pressed(event) => {
+                if (event.text == " " || event.text == "\n") {
+                    root.open();
+                    return accept;
+                }
+                reject
+            }
+        }
+        FocusRing { has-focus: fs.has-focus; }
+    }
+
+    well := ColorWell {
+        width: 100%;
+        height: 100%;
+        color: root.color;
+        hex <=> root.hex;
+        label: root.label;
+        invalid: root.invalid;
+        edited(text) => { root.edited(text); }
+        accepted(text) => { root.edited(text); }
+    }
+
+    popup := PopupWindow {
+        x: 0;
+        y: root.height + Theme.space-1;
+        close-policy: close-on-click-outside;
+
+        Rectangle {
+            border-radius: Theme.radius-group;
+            background: Theme.bg-surface-raised;
+            border-width: 1px;
+            border-color: Theme.separator;
+            drop-shadow-blur: Theme.shadow-3-blur;
+            drop-shadow-offset-y: Theme.shadow-3-y;
+            drop-shadow-color: Theme.shadow-3-color;
+        }
+        FocusScope {
+            init => { picker.focus-square(); }
+            key-pressed(event) => {
+                if (event.text == Key.Escape) {
+                    popup.close();
+                    fs.focus();
+                    return accept;
+                }
+                reject
+            }
+
+            picker := HsvPicker {
+                hue <=> root.hue;
+                saturation <=> root.saturation;
+                value <=> root.value;
+                alpha: root.alpha;
+                changed(c) => { root.picked(c); }
+            }
+        }
+    }
+}
+
+// A titled, copyable output: the title and Copy over the text, which wraps anywhere so long
+// unbroken values (Tailwind classes) stay inside the pane.
+export component OutputBlock inherits VerticalLayout {
+    in property <string> title;
+    in property <string> value;
+    callback copy() -> bool;
+
+    spacing: Theme.space-2;
+
+    PaneHeader {
+        title: root.title;
+
+        CopyButton {
+            enabled: root.value != "";
+            copy => { return root.copy(); }
+        }
+    }
+    Rectangle {
+        border-radius: Theme.radius-group;
+        background: Theme.bg-surface-raised;
+        border-width: 1px;
+        border-color: Theme.separator;
+
+        HorizontalLayout {
+            padding: Theme.space-3;
+
+            Text {
+                text: root.value;
+                color: Theme.text-primary;
+                font-family: Theme.font-family-mono;
+                font-size: Theme.size-callout;
+                wrap: char-wrap;
+                accessible-label: root.title;
+            }
+        }
+    }
+}

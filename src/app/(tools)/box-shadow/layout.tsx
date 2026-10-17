@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("box-shadow");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "Box Shadow Generator",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("box-shadow");
 
 export default function Layout({
   children,

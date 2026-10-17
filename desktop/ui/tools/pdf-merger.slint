@@ -1,0 +1,113 @@
+// PDF Merger view: PDFs in the order they'll be joined, merged into one through a save dialog.
+// State lives in the `PdfMerger` global, driven by src/tools/pdf_merger.rs.
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { DropZone } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { OrderedList, PdfiumMissing, PdfListItem, PdfTaskState, PdfTaskStatus, TaskLine } from "pdf-toolkit.slint";
+
+export global PdfMerger {
+    in property <bool> pdfium-found: true;
+    in property <bool> drop-hover;
+    in property <[PdfListItem]> files;
+    in property <string> summary; // "3 PDFs"
+    in property <string> pages; // "42 pages"
+    in property <bool> can-merge;
+    // Why Merge is unavailable; empty when it isn't.
+    in property <string> note;
+    in property <bool> running;
+    in property <PdfTaskStatus> status;
+
+    callback choose-files();
+    callback move(int, int);
+    callback remove(int);
+    callback merge();
+    callback cancel();
+    callback reveal();
+    callback get-pdfium();
+}
+
+component Settings inherits Inspector {
+    action-text: "Merge…";
+    stop-text: "Stop";
+    can-run: PdfMerger.can-merge;
+    running: PdfMerger.running;
+    note: PdfMerger.note;
+    run => { PdfMerger.merge(); }
+    stop => { PdfMerger.cancel(); }
+
+    InspectorSection {
+        title: "Merged PDF";
+        footnote: "Pages keep their size and orientation. Bookmarks aren't carried over.";
+
+        InspectorRow {
+            label: "Files";
+            first: true;
+
+            Text {
+                text: PdfMerger.summary;
+                color: Theme.text-secondary;
+                font-size: Theme.size-body;
+                vertical-alignment: center;
+            }
+        }
+        InspectorRow {
+            label: "Pages";
+
+            Text {
+                text: PdfMerger.pages;
+                color: Theme.text-secondary;
+                font-size: Theme.size-body;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+export component PdfMergerView inherits VerticalLayout {
+    if !PdfMerger.pdfium-found: PdfiumMissing {
+        action => { PdfMerger.get-pdfium(); }
+    }
+
+    if PdfMerger.pdfium-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-2;
+
+                if PdfMerger.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: PdfMerger.drop-hover;
+                    icon: AppIcons.tool("merge");
+                    title: "Drop PDFs here";
+                    hint: "Add two or more, put them in order, then merge them into one PDF.";
+                    choose => { PdfMerger.choose-files(); }
+                }
+                if PdfMerger.files.length > 0: OrderedList {
+                    vertical-stretch: 1;
+                    items: PdfMerger.files;
+                    summary: PdfMerger.summary;
+                    drop-hover: PdfMerger.drop-hover;
+                    icon: AppIcons.file;
+                    add-text: "Add PDFs…";
+                    enabled: !PdfMerger.running;
+                    add => { PdfMerger.choose-files(); }
+                    move(i, delta) => { PdfMerger.move(i, delta); }
+                    remove(i) => { PdfMerger.remove(i); }
+                }
+                if PdfMerger.status.state != PdfTaskState.idle: TaskLine {
+                    status: PdfMerger.status;
+                    reveal => { PdfMerger.reveal(); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

@@ -1,0 +1,347 @@
+// Video Merger view: the clips in the order they will play, and the output's settings in the
+// inspector. All state lives in the `VideoMerger` global, which Rust drives
+// (src/tools/video_merger.rs); this file only lays it out.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, DropOutline, FocusRing, IconButton, Select, Switch } from "../components/controls.slint";
+import { DropZone } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { EmptyState } from "../components/empty-state.slint";
+import { VideoEditorExportStatus } from "video-editor.slint";
+
+export struct VideoMergerClip {
+    name: string,
+    // The size, length and codecs, or why the file can't be merged.
+    detail: string,
+    thumbnail: image,
+    has-thumbnail: bool,
+    failed: bool,
+}
+
+export global VideoMerger {
+    in property <bool> ffmpeg-found: true;
+    in property <bool> drop-hover;
+    in property <[VideoMergerClip]> clips;
+    in property <string> list-summary;
+    // The row that takes keyboard focus next, set after a clip moves so focus follows it.
+    in property <int> focus-clip: -1;
+
+    in property <[string]> formats;
+    in-out property <int> format-index;
+    in property <string> hw-name;
+    in property <string> hw-detail;
+    in-out property <bool> hw-enabled;
+    // "Joins 3 clips into 1280×720 · 30 fps · 2:41"
+    in property <string> output-summary;
+
+    in property <bool> can-merge;
+    in property <string> blocked-reason;
+    in property <bool> merging;
+    in property <float> merge-progress;
+    in property <string> merge-message;
+    in property <bool> merge-failed;
+    in property <bool> can-reveal;
+
+    callback choose-files();
+    callback remove(int);
+    callback move-up(int);
+    callback move-down(int);
+    callback settings-changed();
+    callback merge();
+    callback cancel-merge();
+    callback reveal();
+    callback get-ffmpeg();
+}
+
+// One clip: its first frame, name and details, and the buttons that reorder or remove it.
+// Alt+Up and Alt+Down move the focused row; Delete removes it.
+component ClipRow {
+    in property <VideoMergerClip> item;
+    in property <int> index;
+    in property <bool> first;
+    in property <bool> last;
+    in property <bool> locked;
+    in property <bool> take-focus;
+    callback move-up();
+    callback move-down();
+    callback remove();
+
+    private property <length> text-inset: 2 * Theme.space-3 + Theme.video-thumbnail-width;
+
+    min-height: Theme.video-thumbnail-height + 2 * Theme.space-3;
+    forward-focus: fs;
+    accessible-role: list-item;
+    accessible-label: "Clip " + (root.index + 1) + ": " + root.item.name;
+
+    changed take-focus => {
+        if (root.take-focus) {
+            fs.focus();
+        }
+    }
+
+    if !root.first: Rectangle {
+        x: root.text-inset;
+        y: 0;
+        width: parent.width - root.text-inset;
+        height: 1px;
+        background: Theme.separator;
+    }
+
+    fs := FocusScope {
+        enabled: !root.locked;
+        key-pressed(event) => {
+            if (event.modifiers.alt && event.text == Key.UpArrow && !root.first) {
+                root.move-up();
+                return accept;
+            }
+            if (event.modifiers.alt && event.text == Key.DownArrow && !root.last) {
+                root.move-down();
+                return accept;
+            }
+            if (event.text == Key.Delete) {
+                root.remove();
+                return accept;
+            }
+            reject
+        }
+
+        HorizontalLayout {
+            padding-left: Theme.space-3;
+            padding-right: Theme.space-2;
+            spacing: Theme.space-3;
+
+            Rectangle {
+                width: Theme.video-thumbnail-width;
+                height: Theme.video-thumbnail-height;
+                y: (parent.height - self.height) / 2;
+                border-radius: Theme.radius-nested;
+                background: root.item.has-thumbnail ? Theme.video-canvas : Theme.bg-hover;
+                clip: true;
+
+                if root.item.has-thumbnail: Image {
+                    source: root.item.thumbnail;
+                    image-fit: contain;
+                    width: parent.width;
+                    height: parent.height;
+                }
+                if !root.item.has-thumbnail: Image {
+                    source: AppIcons.film;
+                    colorize: Theme.text-secondary;
+                    width: Theme.icon-size;
+                    height: Theme.icon-size;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                horizontal-stretch: 1;
+
+                Text {
+                    text: root.item.name;
+                    color: Theme.text-primary;
+                    font-size: Theme.size-body;
+                    font-weight: Theme.weight-medium;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.item.detail;
+                    color: root.item.failed ? Theme.danger : Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    overflow: elide;
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 2px;
+                alignment: end;
+
+                IconButton {
+                    y: (parent.height - self.height) / 2;
+                    icon: AppIcons.arrow-up;
+                    label: "Move " + root.item.name + " earlier";
+                    enabled: !root.first && !root.locked;
+                    clicked => { root.move-up(); }
+                }
+                IconButton {
+                    y: (parent.height - self.height) / 2;
+                    icon: AppIcons.arrow-down;
+                    label: "Move " + root.item.name + " later";
+                    enabled: !root.last && !root.locked;
+                    clicked => { root.move-down(); }
+                }
+                IconButton {
+                    y: (parent.height - self.height) / 2;
+                    icon: AppIcons.trash;
+                    label: "Remove " + root.item.name;
+                    enabled: !root.locked;
+                    clicked => { root.remove(); }
+                }
+            }
+        }
+
+        FocusRing { has-focus: fs.has-focus; }
+    }
+}
+
+component ClipList {
+    callback add();
+
+    VerticalLayout {
+        spacing: Theme.space-2;
+
+        HorizontalLayout {
+            spacing: Theme.space-2;
+
+            Text {
+                text: VideoMerger.list-summary;
+                color: Theme.text-secondary;
+                font-size: Theme.size-callout;
+                font-weight: Theme.weight-medium;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Button {
+                text: "Add Videos…";
+                icon: AppIcons.plus;
+                kind: ButtonKind.plain;
+                enabled: !VideoMerger.merging;
+                clicked => { root.add(); }
+            }
+        }
+
+        DropOutline {
+            vertical-stretch: 1;
+            border-radius: Theme.radius-group;
+            background: Theme.bg-surface-raised;
+            drop-hover: VideoMerger.drop-hover;
+            resting: Theme.separator;
+            clip: true;
+
+            ScrollView {
+                VerticalLayout {
+                    alignment: start;
+
+                    for c[i] in VideoMerger.clips: ClipRow {
+                        item: c;
+                        index: i;
+                        first: i == 0;
+                        last: i == VideoMerger.clips.length - 1;
+                        locked: VideoMerger.merging;
+                        take-focus: i == VideoMerger.focus-clip;
+                        move-up => { VideoMerger.move-up(i); }
+                        move-down => { VideoMerger.move-down(i); }
+                        remove => { VideoMerger.remove(i); }
+                    }
+                }
+            }
+        }
+
+        Text {
+            text: "Clips play in this order. Alt+Up and Alt+Down move the selected clip; Delete removes it.";
+            color: Theme.text-secondary;
+            font-size: Theme.size-footnote;
+            wrap: word-wrap;
+        }
+    }
+}
+
+component Settings inherits Inspector {
+    action-text: "Merge…";
+    stop-text: "Cancel Merge";
+    can-run: VideoMerger.can-merge;
+    running: VideoMerger.merging;
+    note: VideoMerger.blocked-reason;
+    run => { VideoMerger.merge(); }
+    stop => { VideoMerger.cancel-merge(); }
+
+    InspectorSection {
+        title: "Output";
+        footnote: VideoMerger.output-summary;
+
+        InspectorRow {
+            label: "Format";
+            first: true;
+
+            Select {
+                label: "Format";
+                options: VideoMerger.formats;
+                current-index <=> VideoMerger.format-index;
+                enabled: !VideoMerger.merging;
+                selected => { VideoMerger.settings-changed(); }
+            }
+        }
+    }
+
+    if VideoMerger.hw-name != "": InspectorSection {
+        footnote: VideoMerger.hw-detail;
+
+        InspectorRow {
+            label: "Hardware encoding";
+            detail: VideoMerger.hw-name;
+            first: true;
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Hardware encoding";
+                    checked <=> VideoMerger.hw-enabled;
+                    enabled: !VideoMerger.merging;
+                    toggled => { VideoMerger.settings-changed(); }
+                }
+            }
+        }
+    }
+}
+
+export component VideoMergerView inherits VerticalLayout {
+    if !VideoMerger.ffmpeg-found: EmptyState {
+        icon: AppIcons.alert;
+        title: "FFmpeg wasn't found";
+        message: "Video Merger runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Offkit, then restart the app.";
+        action-text: "Get FFmpeg";
+        action => { VideoMerger.get-ffmpeg(); }
+    }
+
+    if VideoMerger.ffmpeg-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-3;
+
+                if VideoMerger.clips.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: VideoMerger.drop-hover;
+                    icon: AppIcons.film;
+                    title: "Drop videos here";
+                    hint: "Add two or more videos to join them in order";
+                    button-text: "Choose Videos…";
+                    choose => { VideoMerger.choose-files(); }
+                }
+                if VideoMerger.clips.length > 0: ClipList {
+                    vertical-stretch: 1;
+                    add => { VideoMerger.choose-files(); }
+                }
+                if VideoMerger.merging || VideoMerger.merge-message != "": VideoEditorExportStatus {
+                    running: VideoMerger.merging;
+                    progress: VideoMerger.merge-progress;
+                    activity: "Merging";
+                    message: VideoMerger.merge-message;
+                    failed: VideoMerger.merge-failed;
+                    can-reveal: VideoMerger.can-reveal;
+                    reveal => { VideoMerger.reveal(); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

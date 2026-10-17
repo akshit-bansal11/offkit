@@ -1,0 +1,687 @@
+// PDF Toolkit view: pages from one or more PDFs in a grid, to select, turn, reorder and delete,
+// then save, extract or split, optionally compressed. State lives in the `PdfToolkit` global,
+// driven by src/tools/pdf_toolkit.rs.
+//
+// It also holds the pieces every PDF tool shares, which the others import from here: the
+// missing-PDFium screen, an ordered file list, the page grid and the one-job status line.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, DropOutline, FocusRing, IconButton, ProgressBar, Select, Slider, Switch } from "../components/controls.slint";
+import { DropZone } from "../components/file-list.slint";
+import { EmptyState } from "../components/empty-state.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+
+// ---- Shared by the PDF tools ---------------------------------------------------------------
+
+export component PdfiumMissing inherits EmptyState {
+    icon: AppIcons.alert;
+    title: "PDFium wasn't found";
+    message: "The PDF tools read, render and write PDFs with PDFium, which ships next to Offkit. Put the PDFium library next to the app (in a development build, run desktop/scripts/fetch-pdfium.sh), then restart.";
+    action-text: "Get PDFium";
+}
+
+export enum PdfTaskState { idle, running, done, failed }
+
+// A tool's one job: "Merging" while it runs, then what it saved, or why it couldn't.
+export struct PdfTaskStatus {
+    state: PdfTaskState,
+    text: string,
+    progress: float, // 0..1 while running
+}
+
+// The status line under a tool's content. Show it with `if`, while the state isn't idle.
+export component TaskLine inherits HorizontalLayout {
+    in property <PdfTaskStatus> status;
+    callback reveal();
+
+    private property <bool> done: root.status.state == PdfTaskState.done;
+    private property <bool> failed: root.status.state == PdfTaskState.failed;
+    private property <bool> running: root.status.state == PdfTaskState.running;
+
+    spacing: Theme.space-2;
+    min-height: Theme.control-height;
+
+    if root.done || root.failed: Image {
+        source: root.done ? AppIcons.done : AppIcons.alert;
+        colorize: root.done ? Theme.success : Theme.danger;
+        width: Theme.icon-size-small;
+        height: Theme.icon-size-small;
+        y: (parent.height - self.height) / 2;
+    }
+    Text {
+        text: root.running ? root.status.text + " · " + round(root.status.progress * 100) + "%" : root.status.text;
+        color: root.failed ? Theme.danger : root.done ? Theme.text-primary : Theme.text-secondary;
+        font-size: Theme.size-callout;
+        vertical-alignment: center;
+        wrap: word-wrap;
+        horizontal-stretch: 1;
+    }
+    if root.running: VerticalLayout {
+        alignment: center;
+        width: Theme.inspector-width / 2;
+
+        ProgressBar { progress: root.status.progress; }
+    }
+    if root.done: Button {
+        text: "Show in Folder";
+        kind: ButtonKind.plain;
+        clicked => { root.reveal(); }
+    }
+}
+
+// One file of an ordered list: what it is, then Move Up / Move Down / Remove.
+export struct PdfListItem {
+    name: string,
+    detail: string, // "12 pages · 1.2 MB", or why the file can't be used
+    thumb: image, // empty: the list's icon stands in
+    failed: bool,
+}
+
+component OrderedRow {
+    in property <PdfListItem> item;
+    in property <int> index;
+    in property <int> count;
+    in property <image> icon;
+    in property <bool> enabled;
+    callback move(int);
+    callback remove();
+
+    private property <length> number-width: Theme.space-5;
+    private property <length> text-inset: Theme.space-3 + root.number-width + Theme.space-2 + Theme.pdf-row-thumb + Theme.space-3;
+
+    min-height: 56px;
+    accessible-role: list-item;
+    accessible-label: (root.index + 1) + ". " + root.item.name;
+
+    if root.index > 0: Rectangle {
+        x: root.text-inset;
+        y: 0;
+        width: parent.width - root.text-inset;
+        height: 1px;
+        background: Theme.separator;
+    }
+
+    HorizontalLayout {
+        padding-left: Theme.space-3;
+        padding-right: Theme.space-2;
+        spacing: Theme.space-2;
+
+        Text {
+            width: root.number-width;
+            text: root.index + 1;
+            color: Theme.text-secondary;
+            font-size: Theme.size-footnote;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+            accessible-role: none;
+        }
+        Rectangle {
+            width: Theme.pdf-row-thumb;
+            height: Theme.pdf-row-thumb;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.radius-control;
+            background: Theme.bg-hover;
+            clip: true;
+
+            if root.item.thumb.width > 0: Image {
+                width: 100%;
+                height: 100%;
+                source: root.item.thumb;
+                image-fit: cover;
+                accessible-role: none;
+            }
+            if root.item.thumb.width == 0: Image {
+                source: root.icon;
+                colorize: Theme.text-secondary;
+                width: Theme.icon-size;
+                height: Theme.icon-size;
+                accessible-role: none;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            horizontal-stretch: 1;
+            padding-left: Theme.space-1;
+
+            Text {
+                text: root.item.name;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                font-weight: Theme.weight-medium;
+                overflow: elide;
+            }
+            HorizontalLayout {
+                spacing: Theme.space-1;
+
+                if root.item.failed: Image {
+                    source: AppIcons.alert;
+                    colorize: Theme.danger;
+                    width: Theme.icon-size-small;
+                    height: Theme.icon-size-small;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: root.item.detail;
+                    color: root.item.failed ? Theme.danger : Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 2px;
+            alignment: end;
+
+            IconButton {
+                y: (parent.height - self.height) / 2;
+                icon: AppIcons.move-up;
+                label: "Move " + root.item.name + " up";
+                enabled: root.enabled && root.index > 0;
+                clicked => { root.move(-1); }
+            }
+            IconButton {
+                y: (parent.height - self.height) / 2;
+                icon: AppIcons.move-down;
+                label: "Move " + root.item.name + " down";
+                enabled: root.enabled && root.index < root.count - 1;
+                clicked => { root.move(1); }
+            }
+            IconButton {
+                y: (parent.height - self.height) / 2;
+                icon: AppIcons.trash;
+                label: "Remove " + root.item.name;
+                enabled: root.enabled;
+                clicked => { root.remove(); }
+            }
+        }
+    }
+}
+
+// Files in the order they'll be used, each with Move Up / Move Down / Remove: the merger's
+// PDFs, the images of a combined PDF. Matches FileList's card.
+export component OrderedList {
+    in property <[PdfListItem]> items;
+    in property <string> summary; // "3 PDFs · 42 pages"
+    in property <bool> drop-hover;
+    in property <image> icon;
+    in property <string> add-text: "Add Files…";
+    // False while a job uses the list, so its order can't change under it.
+    in property <bool> enabled: true;
+    callback add();
+    callback move(int, int); // index, -1 or 1
+    callback remove(int);
+
+    VerticalLayout {
+        spacing: Theme.space-2;
+
+        HorizontalLayout {
+            spacing: Theme.space-2;
+
+            Text {
+                text: root.summary;
+                color: Theme.text-secondary;
+                font-size: Theme.size-callout;
+                font-weight: Theme.weight-medium;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Button {
+                text: root.add-text;
+                icon: AppIcons.plus;
+                kind: ButtonKind.plain;
+                enabled: root.enabled;
+                clicked => { root.add(); }
+            }
+        }
+
+        DropOutline {
+            vertical-stretch: 1;
+            border-radius: Theme.radius-group;
+            background: Theme.bg-surface-raised;
+            drop-hover: root.drop-hover;
+            resting: Theme.separator;
+            clip: true;
+
+            ScrollView {
+                VerticalLayout {
+                    alignment: start;
+
+                    for item[i] in root.items: OrderedRow {
+                        item: item;
+                        index: i;
+                        count: root.items.length;
+                        icon: root.icon;
+                        enabled: root.enabled;
+                        move(delta) => { root.move(i, delta); }
+                        remove => { root.remove(i); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// One page in a PageGrid.
+export struct PdfPageTile {
+    image: image, // empty until its thumbnail is rendered
+    label: string, // "3", or "report.pdf · 3" when pages come from several files
+    selected: bool,
+    turns: int, // quarter turns clockwise, shown by turning the thumbnail
+}
+
+// Pages as thumbnails in rows that fill the width. One Tab stop: the arrow keys move the
+// current page, Space selects it, Ctrl+A selects all and Escape clears. With `editable`,
+// Delete removes the selected pages and Ctrl+Left/Right moves them.
+export component PageGrid {
+    in property <[PdfPageTile]> tiles;
+    in property <bool> drop-hover;
+    in property <bool> selectable: true;
+    in property <bool> editable;
+    in property <string> label: "Pages";
+    in-out property <int> cursor;
+    callback toggle(int);
+    callback select-all(bool);
+    callback move-selected(int);
+    callback delete-selected();
+
+    private property <length> pad: Theme.space-4;
+    private property <length> caption: Theme.space-5;
+    private property <length> cell-width: Theme.pdf-tile-size + Theme.pdf-tile-gap;
+    private property <length> cell-height: Theme.pdf-tile-size + root.caption + Theme.pdf-tile-gap;
+    private property <int> columns: max(1, floor((scroll.visible-width - 2 * root.pad + Theme.pdf-tile-gap) / root.cell-width));
+
+    forward-focus: fs;
+    accessible-role: list;
+    accessible-label: root.label;
+
+    function move-cursor(delta: int) {
+        if (root.tiles.length == 0) {
+            return;
+        }
+        root.cursor = clamp(root.cursor + delta, 0, root.tiles.length - 1);
+        let top = root.pad + floor(root.cursor / root.columns) * root.cell-height;
+        if (top + scroll.content-y < 0) {
+            scroll.content-y = -top;
+        } else if (top + root.cell-height + scroll.content-y > scroll.visible-height) {
+            scroll.content-y = min(0, scroll.visible-height - top - root.cell-height);
+        }
+    }
+
+    DropOutline {
+        border-radius: Theme.radius-group;
+        background: Theme.bg-surface-raised;
+        drop-hover: root.drop-hover;
+        resting: Theme.separator;
+    }
+
+    fs := FocusScope {
+        key-pressed(event) => {
+            if (event.modifiers.control && root.editable && (event.text == Key.LeftArrow || event.text == Key.UpArrow)) {
+                root.move-selected(-1);
+                return accept;
+            }
+            if (event.modifiers.control && root.editable && (event.text == Key.RightArrow || event.text == Key.DownArrow)) {
+                root.move-selected(1);
+                return accept;
+            }
+            if (event.modifiers.control && event.text == "a" && root.selectable) {
+                root.select-all(true);
+                return accept;
+            }
+            if (event.text == Key.LeftArrow) {
+                root.move-cursor(-1);
+                return accept;
+            }
+            if (event.text == Key.RightArrow) {
+                root.move-cursor(1);
+                return accept;
+            }
+            if (event.text == Key.UpArrow) {
+                root.move-cursor(-root.columns);
+                return accept;
+            }
+            if (event.text == Key.DownArrow) {
+                root.move-cursor(root.columns);
+                return accept;
+            }
+            if (event.text == " " && root.selectable && root.tiles.length > 0) {
+                root.toggle(root.cursor);
+                return accept;
+            }
+            if (event.text == Key.Escape && root.selectable) {
+                root.select-all(false);
+                return accept;
+            }
+            if ((event.text == Key.Delete || event.text == Key.Backspace) && root.editable) {
+                root.delete-selected();
+                return accept;
+            }
+            reject
+        }
+
+        scroll := ScrollView {
+            width: 100%;
+            height: 100%;
+            content-width: self.visible-width;
+            content-height: max(self.visible-height, 2 * root.pad + ceil(root.tiles.length / root.columns) * root.cell-height - Theme.pdf-tile-gap);
+
+            for tile[i] in root.tiles: Rectangle {
+                x: root.pad + mod(i, root.columns) * root.cell-width;
+                y: root.pad + floor(i / root.columns) * root.cell-height;
+                width: Theme.pdf-tile-size;
+                height: Theme.pdf-tile-size + root.caption;
+                accessible-role: list-item;
+                accessible-label: "Page " + tile.label;
+                accessible-checkable: root.selectable;
+                accessible-checked: tile.selected;
+                accessible-action-default => { root.toggle(i); }
+
+                square := Rectangle {
+                    y: 0;
+                    width: Theme.pdf-tile-size;
+                    height: Theme.pdf-tile-size;
+                    border-radius: Theme.radius-control;
+                    background: tile-ta.has-hover && root.selectable ? Theme.bg-pressed : Theme.bg-hover;
+
+                    if tile.image.width == 0: Text {
+                        text: "…";
+                        color: Theme.text-secondary;
+                        font-size: Theme.size-headline;
+                        accessible-role: none;
+                    }
+                    Image {
+                        width: parent.width - 2 * Theme.space-2;
+                        height: parent.height - 2 * Theme.space-2;
+                        source: tile.image;
+                        image-fit: contain;
+                        transform-rotation: tile.turns * 90deg;
+                        accessible-role: none;
+                        animate transform-rotation { duration: Theme.dur-base; easing: Theme.ease; }
+                    }
+                    if tile.selected: Rectangle {
+                        border-radius: parent.border-radius;
+                        border-width: Theme.pdf-selected-width;
+                        border-color: Theme.accent;
+                    }
+                    if tile.selected: Rectangle {
+                        x: parent.width - self.width - Theme.space-1;
+                        y: Theme.space-1;
+                        width: Theme.icon-size + Theme.space-1;
+                        height: self.width;
+                        border-radius: self.width / 2;
+                        background: Theme.accent;
+
+                        Image {
+                            source: AppIcons.check;
+                            colorize: Theme.on-accent;
+                            width: Theme.icon-size-small;
+                            height: Theme.icon-size-small;
+                            accessible-role: none;
+                        }
+                    }
+                    FocusRing { has-focus: fs.has-focus && i == root.cursor; }
+                }
+                Text {
+                    y: Theme.pdf-tile-size;
+                    width: parent.width;
+                    height: root.caption;
+                    text: tile.label;
+                    color: tile.selected ? Theme.accent-text : Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    font-weight: Theme.weight-medium;
+                    horizontal-alignment: center;
+                    vertical-alignment: bottom;
+                    overflow: elide;
+                    accessible-role: none;
+                }
+
+                tile-ta := TouchArea {
+                    mouse-cursor: root.selectable ? pointer : default;
+                    clicked => {
+                        root.cursor = i;
+                        fs.focus();
+                        if (root.selectable) {
+                            root.toggle(i);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---- PDF Toolkit ---------------------------------------------------------------------------
+
+export global PdfToolkit {
+    in property <bool> pdfium-found: true;
+    in property <bool> drop-hover;
+    in property <[PdfPageTile]> pages;
+    in-out property <int> cursor;
+    in property <int> selected-count;
+    in property <string> summary; // "24 pages from 2 PDFs"
+    in property <string> selection-summary; // "3 selected"
+    in property <PdfTaskStatus> status;
+    in property <bool> running;
+    in-out property <bool> compress;
+    in-out property <float> quality: 70;
+    in property <[string]> resolutions;
+    in-out property <int> resolution-index;
+
+    callback choose-files();
+    callback toggle(int);
+    callback select-all(bool);
+    callback rotate-selected(int); // quarter turns: -1 or 1
+    callback move-selected(int); // -1 or 1
+    callback delete-selected();
+    callback clear();
+    callback save();
+    callback extract-selected();
+    callback split();
+    callback cancel();
+    callback reveal();
+    callback get-pdfium();
+}
+
+component ToolkitSettings inherits Inspector {
+    action-text: "Save PDF…";
+    stop-text: "Stop";
+    can-run: PdfToolkit.pages.length > 0 && !PdfToolkit.running;
+    running: PdfToolkit.running;
+    run => { PdfToolkit.save(); }
+    stop => { PdfToolkit.cancel(); }
+
+    InspectorSection {
+        title: "Export";
+
+        InspectorRow {
+            label: "Selected pages";
+            detail: PdfToolkit.selection-summary;
+            first: true;
+
+            Button {
+                text: "Extract…";
+                kind: ButtonKind.plain;
+                enabled: PdfToolkit.selected-count > 0 && !PdfToolkit.running;
+                clicked => { PdfToolkit.extract-selected(); }
+            }
+        }
+        InspectorRow {
+            label: "Every page";
+            detail: "One PDF per page";
+
+            Button {
+                text: "Split…";
+                kind: ButtonKind.plain;
+                enabled: PdfToolkit.pages.length > 0 && !PdfToolkit.running;
+                clicked => { PdfToolkit.split(); }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Compression";
+        footnote: PdfToolkit.compress ? "Photos are re-encoded as JPEG; text and drawings stay sharp. A file that wouldn't get smaller is saved as it is." : "Applies to Save and Extract.";
+
+        InspectorRow {
+            label: "Compress images";
+            first: true;
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Compress images";
+                    checked <=> PdfToolkit.compress;
+                }
+            }
+        }
+        if PdfToolkit.compress: InspectorRow {
+            label: "Resolution";
+
+            Select {
+                label: "Resolution";
+                options: PdfToolkit.resolutions;
+                current-index <=> PdfToolkit.resolution-index;
+            }
+        }
+        if PdfToolkit.compress: VerticalLayout {
+            padding: Theme.space-3;
+            spacing: Theme.space-2;
+
+            HorizontalLayout {
+                Text {
+                    text: "Quality";
+                    color: Theme.text-primary;
+                    font-size: Theme.size-body;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: round(PdfToolkit.quality);
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-body;
+                }
+            }
+            Slider {
+                label: "Quality";
+                minimum: 10;
+                value <=> PdfToolkit.quality;
+            }
+        }
+    }
+}
+
+export component PdfToolkitView inherits VerticalLayout {
+    if !PdfToolkit.pdfium-found: PdfiumMissing {
+        action => { PdfToolkit.get-pdfium(); }
+    }
+
+    if PdfToolkit.pdfium-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+                spacing: Theme.space-2;
+
+                if PdfToolkit.pages.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: PdfToolkit.drop-hover;
+                    icon: AppIcons.tool("file-text");
+                    title: "Drop PDFs here";
+                    hint: "Their pages appear here to select, turn, reorder and delete, then save as one PDF.";
+                    choose => { PdfToolkit.choose-files(); }
+                }
+
+                if PdfToolkit.pages.length > 0: HorizontalLayout {
+                    spacing: Theme.space-1;
+
+                    Text {
+                        text: PdfToolkit.summary;
+                        color: Theme.text-secondary;
+                        font-size: Theme.size-callout;
+                        font-weight: Theme.weight-medium;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    Button {
+                        text: PdfToolkit.selected-count == PdfToolkit.pages.length ? "Select None" : "Select All";
+                        kind: ButtonKind.plain;
+                        enabled: !PdfToolkit.running;
+                        clicked => { PdfToolkit.select-all(PdfToolkit.selected-count != PdfToolkit.pages.length); }
+                    }
+                    IconButton {
+                        icon: AppIcons.rotate-left;
+                        label: "Turn selected pages left";
+                        enabled: PdfToolkit.selected-count > 0 && !PdfToolkit.running;
+                        clicked => { PdfToolkit.rotate-selected(-1); }
+                    }
+                    IconButton {
+                        icon: AppIcons.rotate-right;
+                        label: "Turn selected pages right";
+                        enabled: PdfToolkit.selected-count > 0 && !PdfToolkit.running;
+                        clicked => { PdfToolkit.rotate-selected(1); }
+                    }
+                    IconButton {
+                        icon: AppIcons.move-earlier;
+                        label: "Move selected pages earlier";
+                        enabled: PdfToolkit.selected-count > 0 && !PdfToolkit.running;
+                        clicked => { PdfToolkit.move-selected(-1); }
+                    }
+                    IconButton {
+                        icon: AppIcons.move-later;
+                        label: "Move selected pages later";
+                        enabled: PdfToolkit.selected-count > 0 && !PdfToolkit.running;
+                        clicked => { PdfToolkit.move-selected(1); }
+                    }
+                    IconButton {
+                        icon: AppIcons.trash;
+                        label: "Delete selected pages";
+                        enabled: PdfToolkit.selected-count > 0 && !PdfToolkit.running;
+                        clicked => { PdfToolkit.delete-selected(); }
+                    }
+                    Button {
+                        text: "Add PDFs…";
+                        icon: AppIcons.plus;
+                        kind: ButtonKind.plain;
+                        enabled: !PdfToolkit.running;
+                        clicked => { PdfToolkit.choose-files(); }
+                    }
+                    Button {
+                        text: "Clear";
+                        kind: ButtonKind.plain;
+                        enabled: !PdfToolkit.running;
+                        clicked => { PdfToolkit.clear(); }
+                    }
+                }
+                if PdfToolkit.pages.length > 0: PageGrid {
+                    vertical-stretch: 1;
+                    tiles: PdfToolkit.pages;
+                    drop-hover: PdfToolkit.drop-hover;
+                    editable: !PdfToolkit.running;
+                    selectable: !PdfToolkit.running;
+                    label: "Pages";
+                    cursor <=> PdfToolkit.cursor;
+                    toggle(i) => { PdfToolkit.toggle(i); }
+                    select-all(on) => { PdfToolkit.select-all(on); }
+                    move-selected(delta) => { PdfToolkit.move-selected(delta); }
+                    delete-selected => { PdfToolkit.delete-selected(); }
+                }
+                if PdfToolkit.status.state != PdfTaskState.idle: TaskLine {
+                    status: PdfToolkit.status;
+                    reveal => { PdfToolkit.reveal(); }
+                }
+            }
+        }
+
+        ToolkitSettings {
+            width: Theme.inspector-width;
+        }
+    }
+}

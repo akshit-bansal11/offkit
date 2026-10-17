@@ -1,12 +1,6 @@
-import type { Metadata } from "next";
-import { getToolBySlug } from "@/config/tools";
+import { getToolMetadata } from "@/config/tools";
 
-const tool = getToolBySlug("diff-checker");
-
-export const metadata: Metadata = {
-  title: tool?.name ?? "Diff Checker",
-  description: tool?.description,
-};
+export const metadata = getToolMetadata("diff-checker");
 
 export default function Layout({
   children,

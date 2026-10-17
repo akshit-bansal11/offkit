@@ -1,0 +1,165 @@
+// PDF Compressor view: a batch of PDFs, each saved as a smaller copy. All state lives in the
+// `PdfCompressor` global, which Rust drives (src/tools/pdf_compressor.rs).
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Select, Slider } from "../components/controls.slint";
+import { SegmentedControl } from "../components/fields.slint";
+import { DropZone, FileItem, FileList } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
+import { PdfiumMissing } from "pdf-toolkit.slint";
+
+export enum PdfCompressMode { images, rasterise }
+
+export global PdfCompressor {
+    in property <bool> pdfium-found: true;
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    in property <bool> running;
+    in property <bool> can-compress;
+    in property <string> list-summary;
+    in-out property <PdfCompressMode> mode;
+    in property <[string]> resolutions;
+    in-out property <int> resolution-index;
+    in-out property <float> quality: 70;
+    in property <string> output-folder;
+    in property <bool> custom-output;
+
+    callback choose-files();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback compress-all();
+    callback cancel-all();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback get-pdfium();
+}
+
+component Settings inherits Inspector {
+    action-text: "Compress All";
+    can-run: PdfCompressor.can-compress;
+    running: PdfCompressor.running;
+    run => { PdfCompressor.compress-all(); }
+    stop => { PdfCompressor.cancel-all(); }
+
+    InspectorSection {
+        title: "Method";
+        footnote: PdfCompressor.mode == PdfCompressMode.images
+            ? "Photos inside the PDF are re-encoded as JPEG. Text and drawings stay sharp and selectable."
+            : "Text becomes part of a picture: it can't be selected, searched or copied afterwards. Use this for scans the first method can't shrink.";
+
+        VerticalLayout {
+            padding: Theme.space-2;
+
+            SegmentedControl {
+                label: "Method";
+                options: ["Recompress images", "Rasterise pages"];
+                current-index: PdfCompressor.mode == PdfCompressMode.images ? 0 : 1;
+                selected(i) => { PdfCompressor.mode = i == 0 ? PdfCompressMode.images : PdfCompressMode.rasterise; }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Quality";
+
+        InspectorRow {
+            label: "Resolution";
+            first: true;
+
+            Select {
+                label: "Resolution";
+                options: PdfCompressor.resolutions;
+                current-index <=> PdfCompressor.resolution-index;
+            }
+        }
+        VerticalLayout {
+            padding: Theme.space-3;
+            spacing: Theme.space-2;
+
+            HorizontalLayout {
+                Text {
+                    text: "JPEG quality";
+                    color: Theme.text-primary;
+                    font-size: Theme.size-body;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: round(PdfCompressor.quality);
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-body;
+                }
+            }
+            Slider {
+                label: "JPEG quality";
+                minimum: 10;
+                value <=> PdfCompressor.quality;
+            }
+            HorizontalLayout {
+                Text {
+                    text: "Smaller file";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    horizontal-stretch: 1;
+                }
+                Text {
+                    text: "Better quality";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                }
+            }
+        }
+    }
+
+    OutputFolderSection {
+        folder: PdfCompressor.output-folder;
+        custom: PdfCompressor.custom-output;
+        choose => { PdfCompressor.choose-output-folder(); }
+        reset => { PdfCompressor.reset-output-folder(); }
+    }
+}
+
+export component PdfCompressorView inherits VerticalLayout {
+    if !PdfCompressor.pdfium-found: PdfiumMissing {
+        action => { PdfCompressor.get-pdfium(); }
+    }
+
+    if PdfCompressor.pdfium-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+
+                if PdfCompressor.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: PdfCompressor.drop-hover;
+                    icon: AppIcons.tool("minimize-2");
+                    title: "Drop PDFs here";
+                    hint: "Each is saved as a smaller copy, “name compressed.pdf”. A file that can't get smaller is left alone.";
+                    choose => { PdfCompressor.choose-files(); }
+                }
+                if PdfCompressor.files.length > 0: FileList {
+                    vertical-stretch: 1;
+                    files: PdfCompressor.files;
+                    summary: PdfCompressor.list-summary;
+                    drop-hover: PdfCompressor.drop-hover;
+                    icon: AppIcons.file;
+                    activity: "Compressing";
+                    cancel-label: "Cancel compression";
+                    add-text: "Add PDFs…";
+                    add => { PdfCompressor.choose-files(); }
+                    remove(i) => { PdfCompressor.remove(i); }
+                    cancel(i) => { PdfCompressor.cancel(i); }
+                    reveal(i) => { PdfCompressor.reveal(i); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

@@ -1,0 +1,237 @@
+// Frames Extractor view. All state lives in the `FramesExtractor` global, which Rust drives
+// (src/tools/frames_extractor.rs); this file only lays it out. The file list and inspector
+// follow the Video Converter.
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Select } from "../components/controls.slint";
+import { NumberField, SegmentedControl, TextField } from "../components/fields.slint";
+import { DropZone, FileItem, FileList } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
+import { EmptyState } from "../components/empty-state.slint";
+
+export enum FramesExtractorPick { every, rate, nth, times }
+export enum FramesExtractorImage { png, jpeg, webp }
+
+export global FramesExtractor {
+    in property <bool> ffmpeg-found: true;
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    in property <bool> running;
+    in property <bool> can-extract;
+    // Why Extract All is disabled for the current settings; empty when it isn't.
+    in property <string> blocked-reason;
+    in property <string> list-summary;
+    // "About 1,250 frames.", for the listed videos; empty until it's known.
+    in property <string> estimate;
+
+    // The Extract menu's choice, in the order of its options below.
+    in-out property <int> pick-index;
+    out property <FramesExtractorPick> pick: pick-index == 1 ? FramesExtractorPick.rate
+        : pick-index == 2 ? FramesExtractorPick.nth
+        : pick-index == 3 ? FramesExtractorPick.times
+        : FramesExtractorPick.every;
+    in property <[string]> rates;
+    in-out property <int> rate-index: 3;
+    in-out property <float> nth: 10;
+    in-out property <string> times;
+    in property <bool> times-invalid;
+    // Seconds or m:ss; empty for the start or end of the video.
+    in-out property <string> start;
+    in property <bool> start-invalid;
+    in-out property <string> end;
+    in property <bool> end-invalid;
+    in-out property <FramesExtractorImage> image;
+    in-out property <bool> zip;
+    in property <string> output-folder;
+    in property <bool> custom-output;
+
+    callback choose-files();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback settings-changed();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback extract-all();
+    callback cancel-all();
+    callback get-ffmpeg();
+}
+
+component Settings inherits Inspector {
+    action-text: "Extract All";
+    can-run: FramesExtractor.can-extract;
+    running: FramesExtractor.running;
+    note: FramesExtractor.blocked-reason;
+    run => { FramesExtractor.extract-all(); }
+    stop => { FramesExtractor.cancel-all(); }
+
+    InspectorSection {
+        title: "Frames";
+        footnote: FramesExtractor.pick == FramesExtractorPick.times
+            ? "Seconds or m:ss, separated by commas. Each takes the first frame at or after it."
+            : FramesExtractor.estimate;
+
+        InspectorRow {
+            label: "Extract";
+            first: true;
+
+            Select {
+                label: "Extract";
+                options: ["Every frame", "At a frame rate", "Every Nth frame", "At chosen times"];
+                current-index <=> FramesExtractor.pick-index;
+                selected => { FramesExtractor.settings-changed(); }
+            }
+        }
+        if FramesExtractor.pick == FramesExtractorPick.rate: InspectorRow {
+            label: "Rate";
+
+            Select {
+                label: "Frame rate";
+                options: FramesExtractor.rates;
+                current-index <=> FramesExtractor.rate-index;
+                selected => { FramesExtractor.settings-changed(); }
+            }
+        }
+        if FramesExtractor.pick == FramesExtractorPick.nth: InspectorRow {
+            label: "Every";
+
+            NumberField {
+                label: "Every Nth frame";
+                unit: "frames";
+                minimum: 2;
+                maximum: 10000;
+                value <=> FramesExtractor.nth;
+                changed => { FramesExtractor.settings-changed(); }
+            }
+        }
+        if FramesExtractor.pick == FramesExtractorPick.times: InspectorRow {
+            label: "Times";
+
+            TextField {
+                label: "Times";
+                placeholder: "0:01.5, 0:05, 12";
+                text <=> FramesExtractor.times;
+                invalid: FramesExtractor.times-invalid;
+                edited => { FramesExtractor.settings-changed(); }
+            }
+        }
+    }
+
+    if FramesExtractor.pick != FramesExtractorPick.times: InspectorSection {
+        title: "Range";
+        footnote: "Seconds or m:ss. Leave empty for the whole video.";
+
+        InspectorRow {
+            label: "Start";
+            first: true;
+
+            TextField {
+                label: "Start time";
+                placeholder: "Beginning";
+                width: Theme.video-time-field-width;
+                text <=> FramesExtractor.start;
+                invalid: FramesExtractor.start-invalid;
+                edited => { FramesExtractor.settings-changed(); }
+            }
+        }
+        InspectorRow {
+            label: "End";
+
+            TextField {
+                label: "End time";
+                placeholder: "End";
+                width: Theme.video-time-field-width;
+                text <=> FramesExtractor.end;
+                invalid: FramesExtractor.end-invalid;
+                edited => { FramesExtractor.settings-changed(); }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Output";
+
+        InspectorRow {
+            label: "Image";
+            first: true;
+
+            SegmentedControl {
+                label: "Image format";
+                options: ["PNG", "JPEG", "WebP"];
+                current-index: FramesExtractor.image == FramesExtractorImage.jpeg ? 1 : FramesExtractor.image == FramesExtractorImage.webp ? 2 : 0;
+                selected(i) => {
+                    FramesExtractor.image = i == 1 ? FramesExtractorImage.jpeg : i == 2 ? FramesExtractorImage.webp : FramesExtractorImage.png;
+                    FramesExtractor.settings-changed();
+                }
+            }
+        }
+        InspectorRow {
+            label: "Save as";
+
+            SegmentedControl {
+                label: "Save as";
+                options: ["Folder", "ZIP"];
+                current-index: FramesExtractor.zip ? 1 : 0;
+                selected(i) => {
+                    FramesExtractor.zip = i == 1;
+                    FramesExtractor.settings-changed();
+                }
+            }
+        }
+    }
+
+    OutputFolderSection {
+        folder: FramesExtractor.output-folder;
+        custom: FramesExtractor.custom-output;
+        choose => { FramesExtractor.choose-output-folder(); }
+        reset => { FramesExtractor.reset-output-folder(); }
+    }
+}
+
+export component FramesExtractorView inherits VerticalLayout {
+    if !FramesExtractor.ffmpeg-found: EmptyState {
+        icon: AppIcons.alert;
+        title: "FFmpeg wasn't found";
+        message: "Frames Extractor runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Offkit, then restart the app.";
+        action-text: "Get FFmpeg";
+        action => { FramesExtractor.get-ffmpeg(); }
+    }
+
+    if FramesExtractor.ffmpeg-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+
+                if FramesExtractor.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: FramesExtractor.drop-hover;
+                    icon: AppIcons.film;
+                    title: "Drop videos here";
+                    hint: "MP4, MOV, MKV, WebM, AVI, GIF and most other formats. Frames are saved as images in a new folder, or a ZIP.";
+                    choose => { FramesExtractor.choose-files(); }
+                }
+                if FramesExtractor.files.length > 0: FileList {
+                    vertical-stretch: 1;
+                    files: FramesExtractor.files;
+                    summary: FramesExtractor.list-summary;
+                    drop-hover: FramesExtractor.drop-hover;
+                    icon: AppIcons.film;
+                    activity: "Extracting";
+                    cancel-label: "Cancel extraction";
+                    add => { FramesExtractor.choose-files(); }
+                    remove(i) => { FramesExtractor.remove(i); }
+                    cancel(i) => { FramesExtractor.cancel(i); }
+                    reveal(i) => { FramesExtractor.reveal(i); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

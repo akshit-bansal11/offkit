@@ -3,6 +3,7 @@
 
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { runsOnWeb } from "@/config/tools";
 import { cn } from "@/lib/utils";
 import type { ToolDefinition } from "@/types/tool";
 
@@ -10,14 +11,12 @@ interface ToolPillProps {
   tool: ToolDefinition;
   isInDevelopment?: boolean;
   accentColor?: string;
-  href?: string;
 }
 
 export function ToolPill({
   tool,
   isInDevelopment = false,
   accentColor,
-  href,
 }: ToolPillProps) {
   const Icon = tool.icon;
   const label = tool.shortName ?? tool.name;
@@ -44,6 +43,11 @@ export function ToolPill({
         />
       )}
       <span>{label}</span>
+      {!runsOnWeb(tool) && (
+        <span className="rounded-full border border-white/15 px-2 text-xs text-[#acabaa]">
+          Desktop
+        </span>
+      )}
     </>
   );
 
@@ -61,7 +65,7 @@ export function ToolPill({
 
   return (
     <Link
-      href={href ?? tool.href}
+      href={tool.href}
       className={pillClass}
       style={
         accentColor

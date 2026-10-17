@@ -1,0 +1,129 @@
+// Audio Converter view. All state lives in the `AudioConverter` global, which Rust drives
+// (src/tools/audio_converter.rs); this file only lays it out.
+
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Select } from "../components/controls.slint";
+import { DropZone, FileItem, FileList } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection, OutputFolderSection } from "../components/inspector.slint";
+import { EmptyState } from "../components/empty-state.slint";
+
+export global AudioConverter {
+    in property <bool> ffmpeg-found: true;
+    in property <bool> drop-hover;
+    in property <[FileItem]> files;
+    in property <bool> running;
+    in property <bool> can-convert;
+    // Why Convert All is disabled for the current settings; empty when it isn't.
+    in property <string> blocked-reason;
+    in property <string> list-summary;
+
+    in property <[string]> formats;
+    in-out property <int> format-index;
+    in property <[string]> bitrates;
+    in-out property <int> bitrate-index;
+    in property <bool> bitrate-applies: true;
+    in property <string> output-folder;
+    in property <bool> custom-output;
+
+    callback choose-files();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+    callback settings-changed();
+    callback choose-output-folder();
+    callback reset-output-folder();
+    callback convert-all();
+    callback cancel-all();
+    callback get-ffmpeg();
+}
+
+component Settings inherits Inspector {
+    action-text: "Convert All";
+    can-run: AudioConverter.can-convert;
+    running: AudioConverter.running;
+    note: AudioConverter.blocked-reason;
+    run => { AudioConverter.convert-all(); }
+    stop => { AudioConverter.cancel-all(); }
+
+    InspectorSection {
+        title: "Format";
+        footnote: AudioConverter.bitrate-applies ? "" : "Lossless: the file keeps every detail of the source.";
+
+        InspectorRow {
+            label: "Convert to";
+            first: true;
+
+            Select {
+                label: "Output format";
+                options: AudioConverter.formats;
+                current-index <=> AudioConverter.format-index;
+                selected => { AudioConverter.settings-changed(); }
+            }
+        }
+        if AudioConverter.bitrate-applies: InspectorRow {
+            label: "Bitrate";
+
+            Select {
+                label: "Bitrate";
+                options: AudioConverter.bitrates;
+                current-index <=> AudioConverter.bitrate-index;
+                selected => { AudioConverter.settings-changed(); }
+            }
+        }
+    }
+
+    OutputFolderSection {
+        folder: AudioConverter.output-folder;
+        custom: AudioConverter.custom-output;
+        choose => { AudioConverter.choose-output-folder(); }
+        reset => { AudioConverter.reset-output-folder(); }
+    }
+}
+
+export component AudioConverterView inherits VerticalLayout {
+    if !AudioConverter.ffmpeg-found: EmptyState {
+        icon: AppIcons.alert;
+        title: "FFmpeg wasn't found";
+        message: "Audio Converter runs FFmpeg on your computer. Install it so that ffmpeg and ffprobe are on your PATH, or place both next to Offkit, then restart the app.";
+        action-text: "Get FFmpeg";
+        action => { AudioConverter.get-ffmpeg(); }
+    }
+
+    if AudioConverter.ffmpeg-found: HorizontalLayout {
+        Rectangle {
+            horizontal-stretch: 1;
+
+            VerticalLayout {
+                padding: Theme.space-6;
+                padding-top: 0;
+
+                if AudioConverter.files.length == 0: DropZone {
+                    vertical-stretch: 1;
+                    drop-hover: AudioConverter.drop-hover;
+                    icon: AppIcons.music;
+                    title: "Drop audio files here";
+                    hint: "MP3, WAV, FLAC, M4A, OGG, Opus and most other formats. Videos work too.";
+                    choose => { AudioConverter.choose-files(); }
+                }
+                if AudioConverter.files.length > 0: FileList {
+                    vertical-stretch: 1;
+                    files: AudioConverter.files;
+                    summary: AudioConverter.list-summary;
+                    drop-hover: AudioConverter.drop-hover;
+                    icon: AppIcons.music;
+                    activity: "Converting";
+                    cancel-label: "Cancel conversion";
+                    add => { AudioConverter.choose-files(); }
+                    remove(i) => { AudioConverter.remove(i); }
+                    cancel(i) => { AudioConverter.cancel(i); }
+                    reveal(i) => { AudioConverter.reveal(i); }
+                }
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}

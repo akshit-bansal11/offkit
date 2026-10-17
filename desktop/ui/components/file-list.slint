@@ -1,0 +1,300 @@
+// File-list pieces shared by every file-in/file-out tool: the drop zone, the file row and the
+// list around the rows. A tool keeps its rows as `[FileItem]` (Rust: `FileQueue::rows`) and
+// handles the row callbacks by index. `icon` and the activity words default to empty, so a
+// tool that forgets to pass its own (an icon, "Converting", "Cancel conversion") shows it.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, DropOutline, IconButton, ProgressBar } from "controls.slint";
+
+export enum FileStatus { reading, ready, queued, running, done, failed, cancelled }
+
+export struct FileItem {
+    name: string,
+    detail: string, // e.g. "12.4 MB · 0:42 · 1920×1080 · H.264 / AAC"
+    status: FileStatus,
+    progress: float, // 0..1 while running
+    message: string, // replaces `detail` when set: the error for `failed`, the output name for `done`
+}
+
+export component DropZone {
+    in property <bool> drop-hover;
+    in property <image> icon;
+    in property <string> title: "Drop files here";
+    in property <string> hint;
+    in property <string> button-text: "Choose Files…";
+    callback choose();
+
+    DropOutline {
+        border-radius: Theme.radius-surface;
+        background: root.drop-hover ? Theme.drop-fill : transparent;
+        drop-hover: root.drop-hover;
+        animate background { duration: Theme.dur-base; easing: Theme.ease; }
+    }
+
+    VerticalLayout {
+        width: 100%;
+        height: 100%;
+        alignment: center;
+        spacing: Theme.space-3;
+        padding: Theme.space-6;
+
+        HorizontalLayout {
+            alignment: center;
+
+            Rectangle {
+            width: 56px;
+            height: 56px;
+            border-radius: self.height / 2;
+            background: root.drop-hover ? Theme.selection-fill : Theme.bg-hover;
+            animate background { duration: Theme.dur-base; easing: Theme.ease; }
+
+            Image {
+                source: root.icon;
+                colorize: root.drop-hover ? Theme.accent-text : Theme.text-secondary;
+                width: 26px;
+                height: 26px;
+            }
+            }
+        }
+
+        VerticalLayout {
+            spacing: Theme.space-1;
+
+            Text {
+                text: root.drop-hover ? "Release to add" : root.title;
+                color: Theme.text-primary;
+                font-size: Theme.size-headline;
+                font-weight: Theme.weight-semibold;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: root.hint;
+                color: Theme.text-secondary;
+                font-size: Theme.size-callout;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            padding-top: Theme.space-1;
+
+            Button {
+                text: root.button-text;
+                kind: ButtonKind.secondary;
+                clicked => { root.choose(); }
+            }
+        }
+    }
+}
+
+export component FileRow {
+    in property <FileItem> item;
+    in property <bool> first;
+    in property <image> icon;
+    // Shown while running, before the percentage: "Converting · 42%".
+    in property <string> activity;
+    // The Cancel button's accessible name: "Cancel conversion".
+    in property <string> cancel-label;
+    callback remove();
+    callback cancel();
+    callback reveal();
+
+    // The file icon tile; the separator is inset to line up with the text after it.
+    private property <length> tile: 32px;
+    private property <length> text-inset: 2 * Theme.space-3 + root.tile;
+
+    min-height: 60px;
+    accessible-role: list-item;
+    accessible-label: root.item.name;
+
+    if !root.first: Rectangle {
+        x: root.text-inset;
+        y: 0;
+        width: parent.width - root.text-inset;
+        height: 1px;
+        background: Theme.separator;
+    }
+
+    HorizontalLayout {
+        padding-left: Theme.space-3;
+        padding-right: Theme.space-2;
+        spacing: Theme.space-3;
+
+        Rectangle {
+            width: root.tile;
+            height: root.tile;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.radius-control + 2px;
+            background: Theme.bg-hover;
+
+            Image {
+                source: root.icon;
+                colorize: Theme.text-secondary;
+                width: Theme.icon-size;
+                height: Theme.icon-size;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            horizontal-stretch: 1;
+
+            Text {
+                text: root.item.name;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                font-weight: Theme.weight-medium;
+                overflow: elide;
+            }
+            Text {
+                text: root.item.status == FileStatus.reading ? "Reading…" : root.item.message != "" ? root.item.message : root.item.detail;
+                color: root.item.status == FileStatus.failed ? Theme.danger : Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                overflow: elide;
+            }
+        }
+
+        // Status column: fixed width so rows line up whatever their state.
+        Rectangle {
+            width: 168px;
+
+            if root.item.status == FileStatus.running: VerticalLayout {
+                alignment: center;
+                spacing: Theme.space-2;
+
+                Text {
+                    text: root.activity + " · " + round(root.item.progress * 100) + "%";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    horizontal-alignment: right;
+                }
+                ProgressBar { progress: root.item.progress; }
+            }
+
+            if root.item.status != FileStatus.running: HorizontalLayout {
+                alignment: end;
+                spacing: Theme.space-1;
+
+                if root.item.status == FileStatus.done || root.item.status == FileStatus.failed: Image {
+                    source: root.item.status == FileStatus.done ? AppIcons.done : AppIcons.alert;
+                    colorize: root.item.status == FileStatus.done ? Theme.success : Theme.danger;
+                    width: Theme.icon-size-small;
+                    height: Theme.icon-size-small;
+                    y: (parent.height - self.height) / 2;
+                }
+                Text {
+                    text: root.item.status == FileStatus.ready ? "Ready"
+                        : root.item.status == FileStatus.reading ? ""
+                        : root.item.status == FileStatus.done ? "Done"
+                        : root.item.status == FileStatus.queued ? "Waiting"
+                        : root.item.status == FileStatus.cancelled ? "Cancelled"
+                        : "Failed";
+                    color: root.item.status == FileStatus.done ? Theme.success
+                        : root.item.status == FileStatus.failed ? Theme.danger
+                        : Theme.text-secondary;
+                    font-size: Theme.size-footnote;
+                    font-weight: Theme.weight-medium;
+                    vertical-alignment: center;
+                    horizontal-alignment: right;
+                    overflow: elide;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 2px;
+            alignment: end;
+            width: 2 * Theme.control-height + 2px;
+
+            if root.item.status == FileStatus.done: IconButton {
+                y: (parent.height - self.height) / 2;
+                icon: AppIcons.folder;
+                label: "Show in folder";
+                clicked => { root.reveal(); }
+            }
+            if root.item.status == FileStatus.running || root.item.status == FileStatus.queued: IconButton {
+                y: (parent.height - self.height) / 2;
+                icon: AppIcons.close;
+                label: root.cancel-label;
+                clicked => { root.cancel(); }
+            }
+            // Removing is unavailable while a file is converting; Cancel takes its place.
+            if root.item.status != FileStatus.running && root.item.status != FileStatus.queued: IconButton {
+                y: (parent.height - self.height) / 2;
+                icon: AppIcons.trash;
+                label: "Remove from list";
+                clicked => { root.remove(); }
+            }
+        }
+    }
+}
+
+// The rows under a count and an Add Files button, in a rounded card that highlights while
+// files are dragged over the window.
+export component FileList {
+    in property <[FileItem]> files;
+    in property <string> summary; // "3 videos"
+    in property <bool> drop-hover;
+    in property <image> icon;
+    in property <string> activity;
+    in property <string> cancel-label;
+    in property <string> add-text: "Add Files…";
+    callback add();
+    callback remove(int);
+    callback cancel(int);
+    callback reveal(int);
+
+    VerticalLayout {
+        spacing: Theme.space-2;
+
+        HorizontalLayout {
+            spacing: Theme.space-2;
+
+            Text {
+                text: root.summary;
+                color: Theme.text-secondary;
+                font-size: Theme.size-callout;
+                font-weight: Theme.weight-medium;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            Button {
+                text: root.add-text;
+                icon: AppIcons.plus;
+                kind: ButtonKind.plain;
+                clicked => { root.add(); }
+            }
+        }
+
+        DropOutline {
+            vertical-stretch: 1;
+            border-radius: Theme.radius-group;
+            background: Theme.bg-surface-raised;
+            drop-hover: root.drop-hover;
+            resting: Theme.separator;
+            clip: true;
+
+            ScrollView {
+                VerticalLayout {
+                    alignment: start;
+
+                    for file[i] in root.files: FileRow {
+                        item: file;
+                        first: i == 0;
+                        icon: root.icon;
+                        activity: root.activity;
+                        cancel-label: root.cancel-label;
+                        remove => { root.remove(i); }
+                        cancel => { root.cancel(i); }
+                        reveal => { root.reveal(i); }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,328 @@
+// Diff Checker view: a toolbar (layout, options, Swap, Copy Patch), the two texts side by side,
+// and the differences below them in a virtualised list. All state lives in the `DiffChecker`
+// global, which Rust drives (src/tools/diff_checker.rs).
+
+import { ListView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind } from "../components/controls.slint";
+import { Checkbox, SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
+import { TextFileCard } from "json-formatter.slint";
+
+export enum DiffMode { side-by-side, unified }
+export enum DiffKind { empty, context, added, removed }
+
+// A run of text in a line; `hot` marks the words that changed.
+export struct DiffSeg { text: string, hot: bool }
+// One line of a result. Side by side, `number` is the line's own number; unified, `number` is
+// the old line's and `number-b` the new line's. `text` is the whole line, for screen readers.
+export struct DiffCell { kind: DiffKind, number: string, number-b: string, text: string, segs: [DiffSeg] }
+// A gap ("12 unchanged lines") when `gap` is set, otherwise `left` and `right`; unified uses `left`.
+export struct DiffRow { gap: string, left: DiffCell, right: DiffCell }
+
+export global DiffChecker {
+    in-out property <string> original;
+    in-out property <string> modified;
+    in-out property <DiffMode> mode;
+    in-out property <bool> ignore-whitespace;
+    in-out property <bool> ignore-case;
+    // "1,204 characters · 38 lines".
+    in property <string> original-stats;
+    in property <string> modified-stats;
+    // "old.txt · 4.2 MB" while a file too long for the pane is the text.
+    in property <string> original-file;
+    in property <string> modified-file;
+    in property <[DiffRow]> rows;
+    // The longest line in the rows, in characters; sizes the list's width.
+    in property <int> max-chars;
+    // "+3 −2 lines".
+    in property <string> summary;
+    // Shown instead of rows: "The two texts are identical."
+    in property <string> message;
+    in property <string> error;
+    in property <bool> can-copy;
+    in property <bool> drop-hover;
+
+    // Typed into a pane; Rust waits for a pause before comparing.
+    callback edited();
+    // The layout or a comparison option changed.
+    callback options-changed();
+    // 0 is the original, 1 the modified text.
+    callback open-file(int);
+    callback remove-file(int);
+    callback swap();
+    callback clear();
+    callback copy-patch() -> bool;
+}
+
+// One line of the result. A changed line is tinted, its changed words more strongly, and it
+// carries a +/- sign, so colour is never the only cue.
+component DiffCellView inherits Rectangle {
+    in property <DiffCell> cell;
+    in property <length> gutter;
+    // Unified draws a second gutter, for the new line's number.
+    in property <bool> two-gutters;
+    property <bool> added: root.cell.kind == DiffKind.added;
+    property <bool> removed: root.cell.kind == DiffKind.removed;
+
+    background: root.added ? Theme.diff-added : root.removed ? Theme.diff-removed : root.cell.kind == DiffKind.empty ? Theme.bg-grouped : transparent;
+
+    HorizontalLayout {
+        padding-left: Theme.space-2;
+        padding-right: Theme.space-2;
+        spacing: 0;
+
+        Text {
+            width: root.gutter;
+            text: root.cell.number;
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            font-family: Theme.font-family-mono;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+        if root.two-gutters: Text {
+            width: root.gutter;
+            text: root.cell.number-b;
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            font-family: Theme.font-family-mono;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+        Text {
+            width: root.gutter / 3;
+            text: root.added ? "+" : root.removed ? "−" : "";
+            color: Theme.text-primary;
+            font-size: Theme.size-body;
+            font-family: Theme.font-family-mono;
+            font-weight: Theme.weight-semibold;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        for seg in root.cell.segs: Rectangle {
+            width: word.preferred-width;
+            background: !seg.hot ? transparent : root.added ? Theme.diff-added-word : Theme.diff-removed-word;
+
+            word := Text {
+                text: seg.text;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                font-family: Theme.font-family-mono;
+                wrap: no-wrap;
+                vertical-alignment: center;
+            }
+        }
+        Rectangle { horizontal-stretch: 1; }
+    }
+}
+
+export component DiffCheckerView inherits VerticalLayout {
+    // JetBrains Mono's advance is 600 of 1000 units of its size.
+    property <length> glyph: Theme.size-body * 0.6;
+    property <length> gutter: 6 * root.glyph;
+    property <bool> unified: DiffChecker.mode == DiffMode.unified;
+    // A cell: its gutters, the sign, the longest line and the row's padding.
+    property <length> cell-width: (root.unified ? 2 : 1) * root.gutter + root.gutter / 3 + DiffChecker.max-chars * root.glyph + 2 * Theme.space-2;
+    property <length> row-height: Theme.size-body * 1.6;
+
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    HorizontalLayout {
+        spacing: Theme.space-3;
+
+        SegmentedControl {
+            label: "Layout";
+            options: ["Side by Side", "Unified"];
+            current-index: root.unified ? 1 : 0;
+            selected(i) => {
+                DiffChecker.mode = i == 0 ? DiffMode.side-by-side : DiffMode.unified;
+                DiffChecker.options-changed();
+            }
+        }
+        Checkbox {
+            text: "Ignore whitespace";
+            checked <=> DiffChecker.ignore-whitespace;
+            toggled => { DiffChecker.options-changed(); }
+        }
+        Checkbox {
+            text: "Ignore case";
+            checked <=> DiffChecker.ignore-case;
+            toggled => { DiffChecker.options-changed(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        Button {
+            text: "Swap";
+            kind: ButtonKind.secondary;
+            clicked => { DiffChecker.swap(); }
+        }
+        Button {
+            text: "Clear";
+            icon: AppIcons.reset;
+            kind: ButtonKind.secondary;
+            enabled: DiffChecker.original != "" || DiffChecker.modified != "" || DiffChecker.original-file != "" || DiffChecker.modified-file != "";
+            clicked => { DiffChecker.clear(); }
+        }
+        CopyButton {
+            text: "Copy Patch";
+            enabled: DiffChecker.can-copy;
+            copy => { return DiffChecker.copy-patch(); }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Theme.space-4;
+        vertical-stretch: 1;
+
+        Pane {
+            PaneHeader {
+                title: "Original";
+
+                Text {
+                    text: DiffChecker.original-stats;
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-callout;
+                    vertical-alignment: center;
+                }
+                Button {
+                    text: "Open…";
+                    kind: ButtonKind.plain;
+                    clicked => { DiffChecker.open-file(0); }
+                }
+            }
+            if DiffChecker.original-file == "": TextPane {
+                label: "Original";
+                text <=> DiffChecker.original;
+                placeholder: "Paste the original text, or drop a file.";
+                drop-hover: DiffChecker.drop-hover;
+                edited => { DiffChecker.edited(); }
+            }
+            if DiffChecker.original-file != "": TextFileCard {
+                label: DiffChecker.original-file;
+                drop-hover: DiffChecker.drop-hover;
+                remove => { DiffChecker.remove-file(0); }
+            }
+        }
+
+        Pane {
+            PaneHeader {
+                title: "Modified";
+
+                Text {
+                    text: DiffChecker.modified-stats;
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-callout;
+                    vertical-alignment: center;
+                }
+                Button {
+                    text: "Open…";
+                    kind: ButtonKind.plain;
+                    clicked => { DiffChecker.open-file(1); }
+                }
+            }
+            if DiffChecker.modified-file == "": TextPane {
+                label: "Modified";
+                text <=> DiffChecker.modified;
+                placeholder: "Paste the modified text, or drop a file.";
+                drop-hover: DiffChecker.drop-hover;
+                edited => { DiffChecker.edited(); }
+            }
+            if DiffChecker.modified-file != "": TextFileCard {
+                label: DiffChecker.modified-file;
+                drop-hover: DiffChecker.drop-hover;
+                remove => { DiffChecker.remove-file(1); }
+            }
+        }
+    }
+
+    Pane {
+        vertical-stretch: 2;
+
+        PaneHeader {
+            title: "Differences";
+
+            Text {
+                text: DiffChecker.summary;
+                color: Theme.text-secondary;
+                font-size: Theme.size-callout;
+                vertical-alignment: center;
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+            border-radius: Theme.radius-group;
+            background: Theme.bg-surface-raised;
+            clip: true;
+            accessible-role: list;
+            accessible-label: "Differences";
+
+            lines := ListView {
+                content-width: max(self.visible-width, root.unified ? root.cell-width : 2 * root.cell-width + 1px);
+
+                for row in DiffChecker.rows: Rectangle {
+                    width: lines.content-width;
+                    height: root.row-height;
+                    accessible-role: list-item;
+                    accessible-label: row.gap != "" ? row.gap : root.describe(row.left) + root.describe(row.right);
+
+                    if row.gap != "": Rectangle {
+                        background: Theme.bg-grouped;
+
+                        Text {
+                            x: Theme.space-3;
+                            text: "··· " + row.gap;
+                            color: Theme.text-secondary;
+                            font-size: Theme.size-callout;
+                            vertical-alignment: center;
+                        }
+                    }
+                    if row.gap == "" && root.unified: DiffCellView {
+                        cell: row.left;
+                        gutter: root.gutter;
+                        two-gutters: true;
+                    }
+                    if row.gap == "" && !root.unified: HorizontalLayout {
+                        spacing: 1px;
+
+                        DiffCellView {
+                            cell: row.left;
+                            gutter: root.gutter;
+                        }
+                        DiffCellView {
+                            cell: row.right;
+                            gutter: root.gutter;
+                        }
+                    }
+                }
+            }
+
+            if DiffChecker.message != "": Text {
+                text: DiffChecker.message;
+                color: Theme.text-secondary;
+                font-size: Theme.size-body;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+    if DiffChecker.error != "": Notice {
+        text: DiffChecker.error;
+        tone: NoticeTone.error;
+    }
+
+    // What a screen reader says for a cell.
+    pure function describe(cell: DiffCell) -> string {
+        if (cell.kind == DiffKind.added) {
+            return "Added: " + cell.text + ". ";
+        }
+        if (cell.kind == DiffKind.removed) {
+            return "Removed: " + cell.text + ". ";
+        }
+        return cell.kind == DiffKind.context ? cell.text + ". " : "";
+    }
+}

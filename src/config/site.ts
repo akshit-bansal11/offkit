@@ -1,18 +1,25 @@
 // site.ts
 // Global site metadata, author info, download and social links.
 
-const REPOSITORY_URL = "https://github.com/akshit-bansal11/open-tools";
+const REPOSITORY_URL = "https://github.com/akshit-bansal11/offkit";
 
 export const siteConfig = {
-  name: "open-tools",
-  url: "https://open-tools.akshitbansal.me",
+  name: "offkit",
+  url: "https://offkit.akshitbansal.me",
   description:
-    "Desktop utilities for images, video, audio, PDFs, SVG, colors and text. Files are processed on your PC and never uploaded.",
+    "Free tools for images, video, audio, PDFs, SVG, colors and text, in your browser or as a Windows app. Files are processed on your device and never uploaded.",
   repositoryUrl: REPOSITORY_URL,
-  // File names are fixed by electron-builder.yml so these links always point at the newest release.
+  // Served by src/app/opengraph-image.tsx. A route that sets its own openGraph
+  // object replaces the inherited one, so each such route lists this image.
+  socialImage: {
+    url: "/opengraph-image",
+    width: 1200,
+    height: 630,
+    alt: "Offkit: file tools that run on your device",
+  },
   download: {
-    installer: `${REPOSITORY_URL}/releases/latest/download/Open-Tools-Setup.exe`,
-    portable: `${REPOSITORY_URL}/releases/latest/download/Open-Tools-Portable.exe`,
+    // The releases page; native file names carry the version, so no link points at one file.
+    latest: `${REPOSITORY_URL}/releases/latest`,
   },
   author: {
     name: "Er. Akshit Bansal",

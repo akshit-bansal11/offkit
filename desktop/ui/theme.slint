@@ -1,0 +1,322 @@
+// Design tokens. Two tiers: `Palette*` raw steps, then `Theme` semantic roles.
+// Components read `Theme` only. Every role is defined for light and dark together.
+//
+// Contrast ratios are WCAG 2.2 relative-luminance ratios, computed (alpha composited over
+// the surface named) with a script, not estimated. Targets: text >= 4.5:1, control
+// boundaries / focus ring / meaningful icons >= 3:1. `separator` is a decorative hairline
+// and `text-tertiary` is reserved for disabled text, both exempt under WCAG 1.4.3 / 1.4.11.
+//
+// Category accent colours from tools.json are deliberately unused: one accent (blue) drives
+// every interactive state, so a category colour would compete with selection and focus.
+// tools.json keeps them because it mirrors the website's src/config/tools.ts.
+
+import { Palette } from "std-widgets.slint";
+
+global LightSteps {
+    out property <color> gray-0: #ffffff;
+    out property <color> gray-50: #f5f5f7;
+    out property <color> gray-100: #ececee;
+    out property <color> gray-200: #e3e3e6;
+    out property <color> gray-300: #d1d1d6;
+    out property <color> gray-500: #8a8a8f;
+    out property <color> gray-600: #636366;
+    out property <color> gray-900: #1d1d1f;
+    out property <color> blue-600: #0066cc;
+    out property <color> blue-700: #0058b0;
+    out property <color> blue-800: #004c99;
+    out property <color> green-700: #1a7f37;
+    out property <color> red-700: #c4281c;
+}
+
+global DarkSteps {
+    out property <color> gray-950: #19191b;
+    out property <color> gray-900: #1e1e1e;
+    out property <color> gray-850: #2a2a2c;
+    out property <color> gray-800: #2c2c2e;
+    out property <color> gray-750: #323234;
+    out property <color> gray-700: #3a3a3c;
+    out property <color> gray-500: #7c7c80;
+    out property <color> gray-400: #a1a1a6;
+    out property <color> gray-50: #f5f5f7;
+    out property <color> blue-400: #5eaaff;
+    out property <color> blue-600: #1d6fd6;
+    out property <color> blue-700: #1766c8;
+    out property <color> blue-800: #125ab4;
+    out property <color> green-400: #30d158;
+    out property <color> red-400: #ff6961;
+}
+
+// Set from Rust once Mica (Windows 11) or NSVisualEffectView (macOS) is applied. Kept out of
+// Theme so Theme needn't be exported to Rust (its easing token can't cross that boundary).
+export global Backdrop {
+    in property <bool> vibrancy: false;
+}
+
+export global Theme {
+    // Follows the OS through the style's palette; `Palette.color-scheme` can be forced from Rust.
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+    out property <bool> vibrancy: Backdrop.vibrancy;
+
+    // ---- Surfaces -------------------------------------------------------------------------
+    out property <color> bg-window: dark ? DarkSteps.gray-900 : LightSteps.gray-0;
+    // Opaque sidebar; when vibrancy is on the system backdrop shows through a tint instead.
+    out property <color> bg-sidebar: vibrancy ? (dark ? #1e1e1e73 : #f5f5f773) : (dark ? DarkSteps.gray-850 : LightSteps.gray-100);
+    out property <color> bg-surface: dark ? DarkSteps.gray-900 : LightSteps.gray-0;
+    out property <color> bg-surface-raised: dark ? DarkSteps.gray-800 : LightSteps.gray-0;
+    out property <color> bg-grouped: dark ? DarkSteps.gray-950 : LightSteps.gray-50;
+    out property <color> bg-control: dark ? DarkSteps.gray-750 : LightSteps.gray-0;
+    out property <color> bg-control-track: dark ? DarkSteps.gray-700 : LightSteps.gray-200;
+    out property <color> bg-hover: dark ? #ffffff14 : #0000000d;
+    out property <color> bg-pressed: dark ? #ffffff1f : #00000017;
+    out property <color> scrim: dark ? #00000099 : #00000047;
+
+    // ---- Lines ----------------------------------------------------------------------------
+    out property <color> separator: dark ? #ffffff1a : #0000001a; // decorative hairline
+    // Control boundary. L: #8a8a8f on #ffffff 3.44, on #f5f5f7 3.16. D: #7c7c80 on #2c2c2e 3.35, on #19191b 4.22.
+    out property <color> border-control: dark ? DarkSteps.gray-500 : LightSteps.gray-500;
+
+    // ---- Text -----------------------------------------------------------------------------
+    // L: #1d1d1f on #ffffff 16.83, #f5f5f7 15.46, #ececee 14.26. D: #f5f5f7 on #1e1e1e 15.31, #19191b 16.12, #3a3a3c 10.42.
+    out property <color> text-primary: dark ? DarkSteps.gray-50 : LightSteps.gray-900;
+    // L: #636366 on #ffffff 5.99, #f5f5f7 5.50, #ececee 5.08. D: #a1a1a6 on #1e1e1e 6.48, #2c2c2e 5.42, #2a2a2c 5.57, #19191b 6.82.
+    out property <color> text-secondary: dark ? DarkSteps.gray-400 : LightSteps.gray-600;
+    out property <color> text-tertiary: dark ? DarkSteps.gray-500 : LightSteps.gray-500; // disabled only
+
+    // ---- Accent ---------------------------------------------------------------------------
+    // Filled control. L: #ffffff on #0066cc 5.57; fill on #f5f5f7 5.11. D: #ffffff on #1d6fd6 4.89; fill on #19191b 3.59, on #1e1e1e 3.41.
+    out property <color> accent: dark ? DarkSteps.blue-600 : LightSteps.blue-600;
+    // Hover/pressed go darker in both schemes so the label contrast only rises.
+    // L: #ffffff on #0058b0 6.95, on #004c99 8.42. D: #ffffff on #1766c8 5.57, on #125ab4 6.67.
+    out property <color> accent-hover: dark ? DarkSteps.blue-700 : LightSteps.blue-700;
+    out property <color> accent-pressed: dark ? DarkSteps.blue-800 : LightSteps.blue-800;
+    out property <color> on-accent: #ffffff;
+    // Accent used as a foreground (links, selected icons, focus ring, progress fill).
+    // L: #0066cc on #ffffff 5.57, #ececee 4.72, on selection-fill 3.76. D: #5eaaff on #1e1e1e 6.88, #2c2c2e 5.75, on selection-fill 4.18.
+    out property <color> accent-text: dark ? DarkSteps.blue-400 : LightSteps.blue-600;
+    // Selected sidebar row. text-primary on it: L 11.38, D 9.30.
+    out property <color> selection-fill: dark ? #3d8bff40 : #0066cc29;
+    out property <color> focus-ring: accent-text;
+    // L: #0066cc on track #e3e3e6 4.35. D: #5eaaff on track #3a3a3c 4.69.
+    out property <color> progress-fill: accent-text;
+    out property <color> drop-fill: dark ? #3d8bff1f : #0066cc12;
+
+    // ---- Status ---------------------------------------------------------------------------
+    // L on #ffffff: success 5.08, danger 5.73. D on #2c2c2e: success 6.89, danger 4.94.
+    out property <color> success: dark ? DarkSteps.green-400 : LightSteps.green-700;
+    out property <color> danger: dark ? DarkSteps.red-400 : LightSteps.red-700;
+
+    // ---- Control parts --------------------------------------------------------------------
+    // Switch and slider knobs: a light thumb in both schemes, bounded by border-control/track.
+    out property <color> bg-knob: dark ? DarkSteps.gray-50 : LightSteps.gray-0;
+    out property <float> opacity-disabled: 0.45;
+
+    // ---- Radius ---------------------------------------------------------------------------
+    out property <length> radius-control: 6px;
+    // A shape inside a control's padding: a checkbox box, a segment, a menu item.
+    out property <length> radius-nested: 4px;
+    out property <length> radius-group: 10px;
+    out property <length> radius-surface: 14px;
+
+    // ---- Spacing (one scale) --------------------------------------------------------------
+    out property <length> space-1: 4px;
+    out property <length> space-2: 8px;
+    out property <length> space-3: 12px;
+    out property <length> space-4: 16px;
+    out property <length> space-5: 20px;
+    out property <length> space-6: 24px;
+    out property <length> space-8: 32px;
+
+    // ---- Layout ---------------------------------------------------------------------------
+    out property <length> sidebar-width: 240px;
+    out property <length> inspector-width: 280px;
+    // Narrowest editor pane; also the size side-by-side panes start from, so they split evenly.
+    out property <length> pane-min-width: 240px;
+    out property <length> control-height: 28px;
+    out property <length> control-height-large: 32px; // the inspector's primary action
+    out property <length> row-height: 28px;
+    out property <length> icon-size: 16px;
+    out property <length> icon-size-small: 14px; // icons inside controls
+
+    // ---- Type -----------------------------------------------------------------------------
+    out property <string> font-family: "Inter Variable";
+    // Code, Base64, JSON and other text where columns and look-alike characters matter.
+    // Vendored (ui/fonts, OFL) so every platform renders the same. The NL ("no ligatures")
+    // build, so == != -> show as typed in a data tool. Regular weight only.
+    out property <string> font-family-mono: "JetBrains Mono NL";
+    out property <length> size-large-title: 26px;
+    out property <length> size-title: 20px;
+    out property <length> size-headline: 15px;
+    out property <length> size-body: 13px;
+    out property <length> size-callout: 12px;
+    out property <length> size-footnote: 11px;
+    out property <int> weight-regular: 400;
+    out property <int> weight-medium: 500;
+    out property <int> weight-semibold: 600;
+
+    // ---- Elevation (2 steps: controls, floating surfaces) ---------------------------------
+    out property <length> shadow-1-blur: 2px;
+    out property <length> shadow-1-y: 1px;
+    out property <color> shadow-1-color: dark ? #00000066 : #0000001f;
+    out property <length> shadow-3-blur: 32px;
+    out property <length> shadow-3-y: 12px;
+    out property <color> shadow-3-color: dark ? #000000a6 : #00000038;
+
+    // ---- Motion ---------------------------------------------------------------------------
+    // One easing everywhere (ease-out cubic); no bounce or elastic curves.
+    out property <duration> dur-fast: 120ms;
+    out property <duration> dur-base: 200ms;
+    out property <duration> dur-slow: 320ms;
+    out property <easing> ease: cubic-bezier(0.215, 0.61, 0.355, 1); // ease-out cubic
+
+    // ---- Drop targets ---------------------------------------------------------------------
+    // The accent outline while files are dragged over the window (see DropOutline).
+    out property <length> drop-outline-width: 2px;
+
+    // ---- Family tokens --------------------------------------------------------------------
+    // A family adds its tokens inside its own block only, so parallel families never edit the
+    // same lines. Define light and dark together; reference the steps above, or for a colour
+    // they lack write `dark ? #… : #…` with its measured contrast beside it (as bg-sidebar).
+
+    // --- audio ---
+    // Waveform bars inside the kept stretch: the accent as a foreground (contrast at accent-text).
+    out property <color> audio-wave: accent-text;
+    // Bars outside it, still readable as a shape: the control boundary's 3.44 (L) / 3.35 (D).
+    out property <color> audio-wave-outside: border-control;
+    out property <length> audio-waveform-height: 148px;
+    out property <length> audio-bar-min-height: 2px;
+    // The playhead over the waveform: the primary text colour, which reads against both the
+    // accent bars and the grey ones in either theme.
+    out property <color> audio-playhead: text-primary;
+    out property <length> audio-playhead-width: 2px;
+    // A trim handle's knob, and the pointer target around it (the website's 16px slop).
+    out property <length> audio-handle-width: 14px;
+    out property <length> audio-handle-height: 36px;
+    out property <length> audio-handle-hit: 30px;
+    // Effect rows: the label column, the value column, and the row itself.
+    out property <length> audio-label-width: 72px;
+    out property <length> audio-readout-width: 64px;
+    out property <length> audio-row-height: 44px;
+    // Audio Joiner: a track row, and the width of its index.
+    out property <length> audio-track-height: 56px;
+    out property <length> audio-index-width: 24px;
+    // --- end audio ---
+
+    // --- video ---
+    // Fits a time such as 1:02:03.5 with room to spare.
+    out property <length> video-time-field-width: 112px;
+    // The Video Editor's trim timeline, and the width of its handles.
+    out property <length> video-timeline-height: 44px;
+    out property <length> video-trim-handle-width: 12px;
+    // The playhead, the handles' grips and the kept span's border.
+    out property <length> video-line-width: 2px;
+    // Crop handles are drawn this size and grabbed within this distance.
+    out property <length> video-crop-handle-size: 10px;
+    // The Video Merger's clip thumbnails, 16:9.
+    out property <length> video-thumbnail-width: 64px;
+    out property <length> video-thumbnail-height: 36px;
+    // Video sits on black in both schemes, as in QuickTime and Photos. Only the crop draws on
+    // it, in colours meant for any picture: a white edge (21.0 on black) with a dark outline
+    // that keeps it visible on white video, over a scrim that dims what is cut away.
+    out property <color> video-canvas: #000000;
+    out property <color> video-crop-scrim: #00000099;
+    out property <color> video-crop-line: #ffffff;
+    out property <color> video-crop-outline: #00000099;
+    out property <color> video-crop-guide: #ffffff59;
+    // --- end video ---
+
+    // --- images ---
+    // Palette Extractor: a swatch row (chip, hex, rgb · hsl, copy buttons); the export pane.
+    out property <length> palette-row-height: 48px;
+    out property <length> palette-export-height: 132px;
+    // Image Cropper. The crop frame is drawn over the photo, not over app chrome, so these are
+    // the same in both schemes: white lines and handles with a dark shadow read on any image,
+    // and the dimmed outside is the website's 48% black.
+    out property <color> crop-scrim: #0000007a;
+    out property <color> crop-line: #ffffff;
+    out property <color> crop-grid: #ffffff8c;
+    out property <color> crop-shadow: #000000a6;
+    out property <length> crop-handle-size: 10px;
+    // The handle's hit area, larger than what's drawn.
+    out property <length> crop-hit-size: 24px;
+    // Thumbnails in the cropper's image strip.
+    out property <length> thumb-size: 64px;
+    // --- end images ---
+
+    // --- pdf ---
+    // A page thumbnail's square in the page grids (it fits any rotation), the gap between
+    // tiles, and a thumbnail's square in an image list row.
+    out property <length> pdf-tile-size: 128px;
+    out property <length> pdf-tile-gap: 16px;
+    out property <length> pdf-row-thumb: 36px;
+    // The selected tile's outline, drawn inside its square so selecting moves nothing.
+    out property <length> pdf-selected-width: 3px;
+    // --- end pdf ---
+
+    // --- svg ---
+    // Sizes only; the SVG tools use the shared colour roles. The transparency checkerboard
+    // behind previews is painted by Rust (engine/svg.rs) and is content, not chrome.
+    out property <length> svg-preview-min-height: 120px;
+    out property <length> svg-picker-cell-height: 60px; // a Pattern picker cell: thumbnail over label
+    out property <length> svg-thumb-size: 24px; // the website's thumbnail tile
+    out property <length> svg-color-well-width: 128px; // swatch plus room for "#rrggbb"
+    // --- end svg ---
+
+    // --- colors ---
+    // The checkerboard behind translucent colours: two greys, decorative (no contrast target).
+    out property <color> checker-base: dark ? DarkSteps.gray-750 : LightSteps.gray-0;
+    out property <color> checker-tile: dark ? DarkSteps.gray-850 : LightSteps.gray-200;
+    // Labels drawn on a user's colour, the same in both schemes: Rust picks whichever has the
+    // higher WCAG ratio against that colour. Pure black on purpose (DES-18 rationale): with white
+    // it keeps the worst case, a swatch of luminance 0.179, at 4.58:1; gray-900 would drop it to
+    // 4.10:1, under the 4.5:1 text bar.
+    out property <color> swatch-ink-light: LightSteps.gray-0;
+    out property <color> swatch-ink-dark: #000000;
+    // HSV picker popover: the square, the hue strip and their handles.
+    out property <length> picker-width: 232px;
+    out property <length> picker-square: 148px;
+    out property <length> picker-strip: 12px;
+    out property <length> picker-knob: 14px;
+    // The large swatch or gradient preview beside a tool's controls.
+    out property <length> colors-preview-width: 280px;
+    // Library cards (palettes, gradients): a fixed size so the grid reflows without measuring.
+    out property <length> colors-card-min-width: 300px;
+    out property <length> colors-card-art: 112px;
+    out property <length> colors-card-height: 160px;
+    out property <length> gradient-card-height: 184px; // a second row for its actions
+    // Gradient Maker and Converter: the preview and output column, a stop's colour field, and
+    // the "50%" / "135°" readouts beside sliders.
+    out property <length> maker-side-width: 400px;
+    out property <length> maker-color-width: 168px;
+    out property <length> maker-value-width: 40px;
+    // --- end colors ---
+
+    // --- css ---
+    // The generated-code pane under each CSS tool's preview: a few lines; longer output scrolls.
+    out property <length> css-code-height: 132px;
+    // Glassmorphism's card, as the website draws it: a 1rem radius (the one its CSS output
+    // names) and white ink. The ink is the same in both schemes because it sits on the
+    // preview's scene (the user's design), never on an app surface, so it has no app contrast pair.
+    out property <length> css-glass-radius: 16px;
+    out property <color> css-glass-ink: #ffffff;
+    out property <color> css-glass-ink-secondary: #ffffffcc; // text-white/80
+    out property <color> css-glass-tile: #ffffff33; // bg-white/20 and border-white/20
+    out property <length> css-glass-tile-size: 64px;
+    out property <length> css-glass-icon-size: 32px;
+    // --- end css ---
+
+    // --- text ---
+    // Diff Checker: a changed line takes a tint and its changed words a stronger one. Every
+    // row also carries a +/- sign, so colour is never the only cue. text-primary on each:
+    // L: added #e3f5e8 14.82, added words #b4e3c3 11.79, removed #fde8e6 14.31, removed words
+    // #f6bcb7 10.25. D: added #1c3a27 11.45, added words #2c6b44 5.86, removed #4a2220 12.52,
+    // removed words #80302c 8.11. text-secondary (line numbers) on added/removed: L 5.27/5.09,
+    // D 4.85/5.30.
+    out property <color> diff-added: dark ? #1c3a27 : #e3f5e8;
+    out property <color> diff-added-word: dark ? #2c6b44 : #b4e3c3;
+    out property <color> diff-removed: dark ? #4a2220 : #fde8e6;
+    out property <color> diff-removed-word: dark ? #80302c : #f6bcb7;
+    // --- end text ---
+
+    // --- dev ---
+    // --- end dev ---
+}

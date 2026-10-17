@@ -1,0 +1,237 @@
+// Source-list sidebar: search, category groups of tools, About at the bottom.
+// Rows arrive pre-filtered from Rust (registry order, empty categories dropped).
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { SearchField, FocusRing } from "controls.slint";
+
+export struct SidebarRow {
+    header: bool,
+    label: string,
+    slug: string,
+    icon: string,
+    web-only: bool,
+}
+
+// Not focusable itself: the list is one Tab stop and arrow keys move the selection.
+component SidebarItem {
+    in property <string> label;
+    in property <string> icon;
+    in property <bool> web-only;
+    in property <bool> selected;
+    in property <bool> list-focused;
+    callback activated;
+
+    height: Theme.row-height;
+    accessible-role: list-item;
+    accessible-label: root.web-only ? root.label + ", web only" : root.label;
+    accessible-item-selected: root.selected;
+    accessible-item-selectable: true;
+    accessible-action-default => { root.activated(); }
+
+    pill := Rectangle {
+        x: Theme.space-2;
+        width: parent.width - 2 * Theme.space-2;
+        border-radius: Theme.radius-control;
+        background: root.selected ? Theme.selection-fill : ta.has-hover ? Theme.bg-hover : transparent;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+
+        HorizontalLayout {
+            padding-left: Theme.space-2;
+            padding-right: Theme.space-2;
+            spacing: Theme.space-2;
+
+            Image {
+                source: AppIcons.tool(root.icon);
+                colorize: root.selected ? Theme.accent-text : Theme.text-secondary;
+                width: Theme.icon-size;
+                height: Theme.icon-size;
+                y: (parent.height - self.height) / 2;
+            }
+            Text {
+                text: root.label;
+                color: Theme.text-primary;
+                font-size: Theme.size-body;
+                font-weight: root.selected ? Theme.weight-medium : Theme.weight-regular;
+                vertical-alignment: center;
+                overflow: elide;
+                horizontal-stretch: 1;
+            }
+            if root.web-only: Text {
+                text: "Web";
+                color: Theme.text-secondary;
+                font-size: Theme.size-footnote;
+                vertical-alignment: center;
+                accessible-role: none;
+            }
+        }
+
+        FocusRing { has-focus: root.selected && root.list-focused; }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.activated(); }
+    }
+}
+
+export component Sidebar inherits Rectangle {
+    in property <[SidebarRow]> rows;
+    in property <string> current-slug;
+    callback search-changed(string);
+    callback select-tool(string);
+    // Moves the selection to the previous (-1) or next (+1) tool.
+    callback select-adjacent(int);
+    callback about();
+
+    public function focus-search() {
+        search.focus-input();
+    }
+
+    background: Theme.bg-sidebar;
+
+    VerticalLayout {
+        padding-top: Theme.space-3;
+
+        HorizontalLayout {
+            padding-left: Theme.space-3;
+            padding-right: Theme.space-3;
+            padding-bottom: Theme.space-2;
+
+            search := SearchField {
+                placeholder: "Search tools";
+                edited(text) => { root.search-changed(text); }
+            }
+        }
+
+        list-fs := FocusScope {
+            vertical-stretch: 1;
+            focus-on-click: false;
+            accessible-role: AccessibleRole.list;
+            accessible-label: "Tools";
+            key-pressed(event) => {
+                if (event.text == Key.UpArrow) {
+                    root.select-adjacent(-1);
+                    return accept;
+                }
+                if (event.text == Key.DownArrow) {
+                    root.select-adjacent(1);
+                    return accept;
+                }
+                reject
+            }
+
+        list := ScrollView {
+            // Scrolls just enough to show a row (y, height in content coordinates).
+            function reveal(y: length, h: length) {
+                if (y + self.content-y < 0) {
+                    self.content-y = -y;
+                } else if (y + h + self.content-y > self.visible-height) {
+                    self.content-y = self.visible-height - y - h;
+                }
+            }
+
+            VerticalLayout {
+                padding-bottom: Theme.space-3;
+                alignment: start;
+
+                for row in root.rows: row-layout := VerticalLayout {
+                    property <bool> current: !row.header && row.slug == root.current-slug;
+                    changed current => {
+                        if (self.current) {
+                            list.reveal(self.y, self.height);
+                        }
+                    }
+
+                    if row.header: Rectangle {
+                        height: 30px;
+
+                        Text {
+                            x: Theme.space-4;
+                            y: parent.height - self.height - Theme.space-2;
+                            text: row.label;
+                            color: Theme.text-secondary;
+                            font-size: Theme.size-footnote;
+                            font-weight: Theme.weight-semibold;
+                            accessible-role: none;
+                        }
+                    }
+                    if !row.header: SidebarItem {
+                        label: row.label;
+                        icon: row.icon;
+                        web-only: row.web-only;
+                        selected: row-layout.current;
+                        list-focused: list-fs.has-focus;
+                        activated => { root.select-tool(row.slug); }
+                    }
+                }
+
+                if root.rows.length == 0: Text {
+                    text: "No matching tools";
+                    color: Theme.text-secondary;
+                    font-size: Theme.size-callout;
+                    horizontal-alignment: center;
+                    height: 48px;
+                    vertical-alignment: center;
+                }
+            }
+        }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: Theme.separator;
+        }
+
+        HorizontalLayout {
+            padding: Theme.space-2;
+
+            about-item := Rectangle {
+                height: Theme.row-height;
+                border-radius: Theme.radius-control;
+                background: about-ta.has-hover ? Theme.bg-hover : transparent;
+                accessible-role: button;
+                accessible-label: "About Offkit";
+                accessible-action-default => { root.about(); }
+                forward-focus: about-fs;
+
+                HorizontalLayout {
+                    padding-left: Theme.space-2;
+                    spacing: Theme.space-2;
+
+                    Image {
+                        source: AppIcons.info;
+                        colorize: Theme.text-secondary;
+                        width: Theme.icon-size;
+                        height: Theme.icon-size;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    Text {
+                        text: "About";
+                        color: Theme.text-secondary;
+                        font-size: Theme.size-body;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                }
+
+                about-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.about(); }
+                }
+                about-fs := FocusScope {
+                    focus-on-click: false;
+                    key-pressed(event) => {
+                        if (event.text == " " || event.text == "\n") {
+                            root.about();
+                            return accept;
+                        }
+                        reject
+                    }
+                }
+                FocusRing { has-focus: about-fs.has-focus; }
+            }
+        }
+    }
+}

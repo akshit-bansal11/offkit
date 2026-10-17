@@ -1,0 +1,90 @@
+[package]
+name = "offkit"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "offkit"
+path = "src/main.rs"
+
+# One section per family, so a family adding a crate edits only its own hunk. Every version is
+# pinned with `=` and checked against crates.io; no GPL/AGPL crates (the app is MIT).
+[dependencies]
+# --- shared ---
+slint = { version = "=1.18.1", features = ["unstable-winit-030"] }
+rfd = "=0.17.2"
+window-vibrancy = "=0.8.1"
+serde = { version = "=1.0.229", features = ["derive"] }
+# `preserve_order` (text family): JSON Formatter keeps key order unless asked to sort.
+serde_json = { version = "=1.0.154", features = ["preserve_order"] }
+anyhow = "=1.0.104"
+# Already in the tree via Slint's image loader; used only by the snapshot hook.
+png = "=0.18.1"
+open = "=5.4.4"
+arboard = "=3.7.0"
+
+# --- audio ---
+# Plays the Audio Editor's preview. Without the default features only the WAV demuxer and PCM
+# decoder (Symphonia) and the cpal output stay: no MP3/FLAC/Vorbis/AAC decoders, recording or
+# dither. cpal uses WASAPI on Windows, CoreAudio on macOS and ALSA on Linux (libasound2-dev).
+rodio = { version = "=0.23.0", default-features = false, features = ["playback", "wav"] }
+
+# --- video ---
+
+# --- images ---
+# Codecs listed explicitly, without the default `rayon` feature (the AVIF encoder, rav1e, still
+# pulls rayon in). AVIF is encode-only here: decoding needs the dav1d C library, so AVIF and
+# HEIC input goes through FFmpeg instead.
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff", "ico", "avif"] }
+# Lossy WebP (image-webp encodes lossless only). Builds libwebp's vendored C sources with cc;
+# the default `img` feature would add a second `image` dependency, so it stays off.
+webp = { version = "=0.3.1", default-features = false }
+
+# --- pdf ---
+# Binds the pdfium library at run time; the binary itself is not part of this build
+# (scripts/fetch-pdfium.sh fetches it).
+pdfium-render = "=0.9.4"
+# The compressor rewrites image streams in place, which pdfium can't (it re-stores images as
+# Flate). Without the default rayon and chrono features: nothing here parses in parallel or
+# stamps dates.
+lopdf = { version = "=0.45.0", default-features = false }
+
+# --- svg ---
+# Re-exports usvg and tiny-skia.
+resvg = "=0.48.1"
+# SVGO-compatible optimiser (MIT); 0.0.x has no semver promise, so both are pinned exactly.
+# oxvg_ast is the document type the optimiser runs on (same project, licence and version);
+# its roxmltree parser is the roxmltree 0.21 usvg already uses.
+oxvg_optimiser = "=0.0.9"
+oxvg_ast = { version = "=0.0.9", features = ["roxmltree"] }
+
+# --- colors ---
+
+# --- css ---
+
+# --- text ---
+base64 = "=0.23.1"
+similar = "=3.2.0"
+pulldown-cmark = "=0.13.4"
+
+# --- dev ---
+zip = "=9.0.3"
+tar = "=0.4.46"
+flate2 = "=1.1.10"
+sevenz-rust2 = "=0.24.0"
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+# Debug builds stay fast to compile; release trades build time for size and speed.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
+
+# The AVIF encoder (rav1e) is far too slow unoptimised, so it is optimised even in debug builds
+# and tests.
+[profile.dev.package.rav1e]
+opt-level = 3

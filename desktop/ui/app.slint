@@ -1,0 +1,211 @@
+// App shell: sidebar + content (title, description, tool body) + About sheet.
+//
+// Every tool is pre-wired here, so a family never edits this file: `tools/<slug>.slint` exports
+// a `<Tool>` global (state and callbacks, driven by `src/tools/<snake_slug>.rs`) and a
+// `<Tool>View`. Each is imported below, the global is re-exported (Rust can only reach globals
+// exported from this file) and the view has its line in the content area.
+
+import { Palette } from "std-widgets.slint";
+import { Backdrop, Theme } from "theme.slint";
+import { Sidebar, SidebarRow } from "components/sidebar.slint";
+import { AboutSheet } from "components/about-sheet.slint";
+import { WebOnlyView } from "tools/web-only.slint";
+import { AudioConverter, AudioConverterView } from "tools/audio-converter.slint";
+import { AudioExtractor, AudioExtractorView } from "tools/audio-extractor.slint";
+import { AudioEditor, AudioEditorView } from "tools/audio-editor.slint";
+import { AudioJoiner, AudioJoinerView } from "tools/audio-joiner.slint";
+import { VideoConverter, VideoConverterView } from "tools/video-converter.slint";
+import { FramesExtractor, FramesExtractorView } from "tools/frames-extractor.slint";
+import { VideoEditor, VideoEditorView } from "tools/video-editor.slint";
+import { VideoMerger, VideoMergerView } from "tools/video-merger.slint";
+import { ImageConverter, ImageConverterView } from "tools/image-converter.slint";
+import { ImageCropper, ImageCropperView } from "tools/image-cropper.slint";
+import { PaletteExtractor, PaletteExtractorView } from "tools/palette-extractor.slint";
+import { PdfToolkit, PdfToolkitView } from "tools/pdf-toolkit.slint";
+import { PdfConverter, PdfConverterView } from "tools/pdf-converter.slint";
+import { PdfMerger, PdfMergerView } from "tools/pdf-merger.slint";
+import { PdfSplitter, PdfSplitterView } from "tools/pdf-splitter.slint";
+import { PdfCompressor, PdfCompressorView } from "tools/pdf-compressor.slint";
+import { ConvertToPdf, ConvertToPdfView } from "tools/convert-to-pdf.slint";
+import { ConvertFromPdf, ConvertFromPdfView } from "tools/convert-from-pdf.slint";
+import { SvgOptimizer, SvgOptimizerView } from "tools/svg-optimizer.slint";
+import { SvgPattern, SvgPatternView } from "tools/svg-pattern.slint";
+import { SvgAnimator, SvgAnimatorView } from "tools/svg-animator.slint";
+import { ColorConverter, ColorConverterView } from "tools/color-converter.slint";
+import { GradientMaker, GradientMakerView } from "tools/gradient-maker.slint";
+import { GradientLibrary, GradientLibraryView } from "tools/gradient-library.slint";
+import { GradientConverter, GradientConverterView } from "tools/gradient-converter.slint";
+import { PaletteLibrary, PaletteLibraryView } from "tools/palette-library.slint";
+import { BlobGenerator, BlobGeneratorView } from "tools/blob-generator.slint";
+import { Glassmorphism, GlassmorphismView } from "tools/glassmorphism.slint";
+import { BoxShadow, BoxShadowView } from "tools/box-shadow.slint";
+import { Base64, Base64View } from "tools/base64.slint";
+import { LoremGenerator, LoremGeneratorView } from "tools/lorem-generator.slint";
+import { DiffChecker, DiffCheckerView } from "tools/diff-checker.slint";
+import { JsonFormatter, JsonFormatterView } from "tools/json-formatter.slint";
+import { MdEditor, MdEditorView } from "tools/md-editor.slint";
+import { DirectoryScaffold, DirectoryScaffoldView } from "tools/directory-scaffold.slint";
+import { ArchiveExtractor, ArchiveExtractorView } from "tools/archive-extractor.slint";
+import { Archiver, ArchiverView } from "tools/archiver.slint";
+import "fonts/InterVariable.ttf";
+import "fonts/JetBrainsMonoNL-Regular.ttf";
+
+export { Backdrop, Palette, SidebarRow }
+export {
+    AudioConverter, AudioExtractor, AudioEditor, AudioJoiner,
+    VideoConverter, FramesExtractor, VideoEditor, VideoMerger,
+    ImageConverter, ImageCropper, PaletteExtractor,
+    PdfToolkit, PdfConverter, PdfMerger, PdfSplitter, PdfCompressor, ConvertToPdf, ConvertFromPdf,
+    SvgOptimizer, SvgPattern, SvgAnimator,
+    ColorConverter, GradientMaker, GradientLibrary, GradientConverter, PaletteLibrary,
+    BlobGenerator, Glassmorphism, BoxShadow,
+    Base64, LoremGenerator, DiffChecker, JsonFormatter, MdEditor,
+    DirectoryScaffold, ArchiveExtractor, Archiver
+}
+
+export component AppWindow inherits Window {
+    in property <[SidebarRow]> sidebar-rows;
+    in-out property <string> current-slug;
+    in property <string> current-name;
+    in property <string> current-description;
+    in property <bool> current-web-only;
+    in property <string> app-version;
+    callback search-changed(string);
+    callback select-tool(string);
+    callback select-adjacent(int);
+    callback open-web(string);
+
+    in-out property <bool> about-open;
+
+    title: "Offkit";
+    // Initial size (1180×760) is set from Rust; the layout alone would size to its content.
+    min-width: 900px;
+    min-height: 600px;
+    default-font-family: Theme.font-family;
+    default-font-size: Theme.size-body;
+    // With Mica/vibrancy the window is cleared so the system backdrop shows through the
+    // sidebar; the content area paints its own opaque background either way.
+    background: Theme.vibrancy ? transparent : Theme.bg-window;
+    forward-focus: shortcuts;
+
+    shortcuts := FocusScope {
+        focus-on-click: false;
+        focus-on-tab-navigation: false;
+
+        KeyBinding {
+            keys: @keys(Control + K);
+            activated => { sidebar.focus-search(); }
+        }
+
+        HorizontalLayout {
+            sidebar := Sidebar {
+                width: Theme.sidebar-width;
+                rows: root.sidebar-rows;
+                current-slug: root.current-slug;
+                search-changed(text) => { root.search-changed(text); }
+                select-tool(slug) => { root.select-tool(slug); }
+                select-adjacent(delta) => { root.select-adjacent(delta); }
+                about => {
+                    root.about-open = true;
+                    about.focus-sheet();
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: Theme.bg-window;
+
+                // Hairline between sidebar and content.
+                Rectangle {
+                    x: 0;
+                    width: 1px;
+                    background: Theme.separator;
+                }
+
+                VerticalLayout {
+                    HorizontalLayout {
+                        padding-left: Theme.space-6;
+                        padding-right: Theme.space-6;
+                        padding-top: Theme.space-6;
+                        padding-bottom: Theme.space-5;
+
+                        VerticalLayout {
+                            spacing: Theme.space-1;
+
+                            Text {
+                                text: root.current-name;
+                                color: Theme.text-primary;
+                                font-size: Theme.size-large-title;
+                                font-weight: Theme.weight-semibold;
+                                accessible-role: none;
+                            }
+                            Text {
+                                text: root.current-description;
+                                color: Theme.text-secondary;
+                                font-size: Theme.size-body;
+                                overflow: elide;
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        vertical-stretch: 1;
+
+                        if root.current-web-only: WebOnlyView {
+                            tool-name: root.current-name;
+                            open-browser => { root.open-web(root.current-slug); }
+                        }
+                        if root.current-slug == "audio-converter": AudioConverterView { }
+                        if root.current-slug == "audio-extractor": AudioExtractorView { }
+                        if root.current-slug == "audio-editor": AudioEditorView { }
+                        if root.current-slug == "audio-joiner": AudioJoinerView { }
+                        if root.current-slug == "video-converter": VideoConverterView { }
+                        if root.current-slug == "frames-extractor": FramesExtractorView { }
+                        if root.current-slug == "video-editor": VideoEditorView { }
+                        if root.current-slug == "video-merger": VideoMergerView { }
+                        if root.current-slug == "image-converter": ImageConverterView { }
+                        if root.current-slug == "image-cropper": ImageCropperView { }
+                        if root.current-slug == "palette-extractor": PaletteExtractorView { }
+                        if root.current-slug == "pdf-toolkit": PdfToolkitView { }
+                        if root.current-slug == "pdf-converter": PdfConverterView { }
+                        if root.current-slug == "pdf-merger": PdfMergerView { }
+                        if root.current-slug == "pdf-splitter": PdfSplitterView { }
+                        if root.current-slug == "pdf-compressor": PdfCompressorView { }
+                        if root.current-slug == "convert-to-pdf": ConvertToPdfView { }
+                        if root.current-slug == "convert-from-pdf": ConvertFromPdfView { }
+                        if root.current-slug == "svg-optimizer": SvgOptimizerView { }
+                        if root.current-slug == "svg-pattern": SvgPatternView { }
+                        if root.current-slug == "svg-animator": SvgAnimatorView { }
+                        if root.current-slug == "color-converter": ColorConverterView { }
+                        if root.current-slug == "gradient-maker": GradientMakerView { }
+                        if root.current-slug == "gradient-library": GradientLibraryView { }
+                        if root.current-slug == "gradient-converter": GradientConverterView { }
+                        if root.current-slug == "palette-library": PaletteLibraryView { }
+                        if root.current-slug == "blob-generator": BlobGeneratorView { }
+                        if root.current-slug == "glassmorphism": GlassmorphismView { }
+                        if root.current-slug == "box-shadow": BoxShadowView { }
+                        if root.current-slug == "base64": Base64View { }
+                        if root.current-slug == "lorem-generator": LoremGeneratorView { }
+                        if root.current-slug == "diff-checker": DiffCheckerView { }
+                        if root.current-slug == "json-formatter": JsonFormatterView { }
+                        if root.current-slug == "md-editor": MdEditorView { }
+                        if root.current-slug == "directory-scaffold": DirectoryScaffoldView { }
+                        if root.current-slug == "archive-extractor": ArchiveExtractorView { }
+                        if root.current-slug == "archiver": ArchiverView { }
+                    }
+                }
+            }
+        }
+
+        about := AboutSheet {
+            width: 100%;
+            height: 100%;
+            open: root.about-open;
+            version: root.app-version;
+            close => {
+                root.about-open = false;
+                shortcuts.focus();
+            }
+        }
+    }
+}

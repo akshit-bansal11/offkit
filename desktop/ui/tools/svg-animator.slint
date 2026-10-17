@@ -1,0 +1,266 @@
+// SVG Border Animator view: the live preview with its Pause and Replay controls over the
+// animated markup, with mode, speed, stroke, zoom and fill in the inspector. All state lives in
+// the `SvgAnimator` global, which Rust drives (src/tools/svg_animator.rs); Rust renders every
+// preview frame.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, ButtonKind, Switch } from "../components/controls.slint";
+import { ColorWell, SegmentedControl } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone, Pane, PaneHeader, TextPane } from "../components/editor.slint";
+import { DropZone } from "../components/file-list.slint";
+import { Inspector, InspectorRow, InspectorSection } from "../components/inspector.slint";
+import { SvgPreviewCanvas, SvgSliderRow } from "svg-parts.slint";
+
+export enum SvgAnimatorMode { sequential, simultaneous }
+
+export global SvgAnimator {
+    in property <bool> loaded;
+    in property <bool> drop-hover;
+    // "logo.svg · 12 paths · Sequential · 0.50× · 24.00 s in all"
+    in property <string> summary;
+    in-out property <SvgAnimatorMode> mode;
+    in-out property <float> speed: 50; // ×100: 0.01–5, the website's 0.5 by default
+    in-out property <string> stroke-hex;
+    in property <color> stroke;
+    in property <bool> stroke-invalid;
+    in-out property <float> stroke-width: 15; // ×10: 0.5–10
+    in-out property <float> zoom: 100; // %, preview only
+    in-out property <bool> fill: true;
+    in property <image> frame;
+    // The frame's size in logical pixels, which zoom can make larger than the preview.
+    in property <length> frame-width;
+    in property <length> frame-height;
+    in property <bool> playing;
+    in property <string> markup;
+    in property <string> markup-note;
+    in property <string> error;
+    in property <string> note;
+
+    callback choose-file();
+    callback remove-file();
+    // Mode, speed, stroke width or fill changed: rebuilds the markup and replays.
+    callback changed();
+    callback stroke-edited(string);
+    callback zoom-changed();
+    callback toggle-play();
+    callback replay();
+    callback preview-resized(length, length);
+    // The view was created: the tool is showing again.
+    callback shown();
+    callback copy-markup() -> bool;
+    callback save();
+}
+
+component Settings inherits Inspector {
+    action-text: "Save Animated SVG…";
+    can-run: SvgAnimator.loaded;
+    run => { SvgAnimator.save(); }
+
+    InspectorSection {
+        title: "Animation";
+
+        InspectorRow {
+            label: "Order";
+            first: true;
+
+            SegmentedControl {
+                label: "Order";
+                options: ["Sequential", "Simultaneous"];
+                current-index: SvgAnimator.mode == SvgAnimatorMode.simultaneous ? 1 : 0;
+                selected(i) => {
+                    SvgAnimator.mode = i == 1 ? SvgAnimatorMode.simultaneous : SvgAnimatorMode.sequential;
+                    SvgAnimator.changed();
+                }
+            }
+        }
+        SvgSliderRow {
+            label: "Speed";
+            value-text: (SvgAnimator.speed / 100).to-fixed(2) + "×";
+            value <=> SvgAnimator.speed;
+            minimum: 1;
+            maximum: 500;
+            changed => { SvgAnimator.changed(); }
+        }
+    }
+
+    InspectorSection {
+        title: "Stroke";
+
+        InspectorRow {
+            label: "Color";
+            first: true;
+
+            ColorWell {
+                width: Theme.svg-color-well-width;
+                label: "Stroke color";
+                color: SvgAnimator.stroke;
+                hex <=> SvgAnimator.stroke-hex;
+                invalid: SvgAnimator.stroke-invalid;
+                edited(text) => { SvgAnimator.stroke-edited(text); }
+                accepted(text) => { SvgAnimator.stroke-edited(text); }
+            }
+        }
+        SvgSliderRow {
+            label: "Width";
+            value-text: (SvgAnimator.stroke-width / 10).to-fixed(1);
+            value <=> SvgAnimator.stroke-width;
+            minimum: 5;
+            maximum: 100;
+            changed => { SvgAnimator.changed(); }
+        }
+        InspectorRow {
+            label: "Keep fills";
+            detail: "Off draws outlines only";
+
+            VerticalLayout {
+                alignment: center;
+
+                Switch {
+                    label: "Keep fills";
+                    checked <=> SvgAnimator.fill;
+                    toggled => { SvgAnimator.changed(); }
+                }
+            }
+        }
+    }
+
+    InspectorSection {
+        title: "Preview";
+        footnote: "Zoom changes the preview only, not the saved file.";
+
+        SvgSliderRow {
+            label: "Zoom";
+            value-text: SvgAnimator.zoom + "%";
+            first: true;
+            value <=> SvgAnimator.zoom;
+            minimum: 25;
+            maximum: 300;
+            changed => { SvgAnimator.zoom-changed(); }
+        }
+    }
+}
+
+export component SvgAnimatorView inherits VerticalLayout {
+    init => { SvgAnimator.shown(); }
+
+    if !SvgAnimator.loaded: VerticalLayout {
+        padding: Theme.space-6;
+        padding-top: 0;
+        spacing: Theme.space-4;
+
+        DropZone {
+            vertical-stretch: 1;
+            drop-hover: SvgAnimator.drop-hover;
+            icon: AppIcons.tool("wand-sparkles");
+            title: "Drop an SVG file here";
+            hint: "Each path’s outline is drawn in, one after another or all at once";
+            button-text: "Choose File…";
+            choose => { SvgAnimator.choose-file(); }
+        }
+        if SvgAnimator.error != "": Notice {
+            text: SvgAnimator.error;
+            tone: NoticeTone.error;
+        }
+        if SvgAnimator.error == "" && SvgAnimator.note != "": Notice {
+            text: SvgAnimator.note;
+        }
+    }
+
+    if SvgAnimator.loaded: HorizontalLayout {
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding: Theme.space-6;
+            padding-top: 0;
+            spacing: Theme.space-4;
+
+            Pane {
+                vertical-stretch: 3;
+
+                PaneHeader {
+                    title: SvgAnimator.summary;
+
+                    Button {
+                        text: SvgAnimator.playing ? "Pause" : "Play";
+                        kind: ButtonKind.plain;
+                        clicked => { SvgAnimator.toggle-play(); }
+                    }
+                    Button {
+                        text: "Replay";
+                        kind: ButtonKind.plain;
+                        clicked => { SvgAnimator.replay(); }
+                    }
+                    Button {
+                        text: "Choose File…";
+                        kind: ButtonKind.plain;
+                        clicked => { SvgAnimator.choose-file(); }
+                    }
+                    Button {
+                        text: "Remove";
+                        kind: ButtonKind.plain;
+                        clicked => { SvgAnimator.remove-file(); }
+                    }
+                }
+                SvgPreviewCanvas {
+                    vertical-stretch: 1;
+                    label: "Animation preview";
+                    resized(width, height) => { SvgAnimator.preview-resized(width, height); }
+
+                    scroll := ScrollView {
+                        width: 100%;
+                        height: 100%;
+                        content-width: max(self.visible-width, SvgAnimator.frame-width);
+                        content-height: max(self.visible-height, SvgAnimator.frame-height);
+
+                        Image {
+                            x: (scroll.content-width - self.width) / 2;
+                            y: (scroll.content-height - self.height) / 2;
+                            width: SvgAnimator.frame-width;
+                            height: SvgAnimator.frame-height;
+                            source: SvgAnimator.frame;
+                            image-fit: fill;
+                            accessible-role: none;
+                        }
+                    }
+                }
+            }
+
+            Pane {
+                vertical-stretch: 2;
+
+                PaneHeader {
+                    title: "Animated SVG";
+
+                    CopyButton {
+                        copy => { return SvgAnimator.copy-markup(); }
+                    }
+                }
+                TextPane {
+                    label: "Animated SVG";
+                    text: SvgAnimator.markup;
+                    read-only: true;
+                }
+            }
+
+            if SvgAnimator.error != "": Notice {
+                text: SvgAnimator.error;
+                tone: NoticeTone.error;
+            }
+            if SvgAnimator.error == "" && SvgAnimator.stroke-invalid: Notice {
+                text: "Enter a hex color such as #000000. The animation keeps the last valid one.";
+                tone: NoticeTone.error;
+            }
+            if SvgAnimator.error == "" && !SvgAnimator.stroke-invalid && SvgAnimator.note != "": Notice {
+                text: SvgAnimator.note;
+            }
+            if SvgAnimator.error == "" && !SvgAnimator.stroke-invalid && SvgAnimator.note == "" && SvgAnimator.markup-note != "": Notice {
+                text: SvgAnimator.markup-note;
+            }
+        }
+
+        Settings {
+            width: Theme.inspector-width;
+        }
+    }
+}
