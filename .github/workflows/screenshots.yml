@@ -1,0 +1,59 @@
+name: Screenshots
+
+# Renders the real app through its verification hook (OFFKIT_SNAPSHOT in desktop/src/main.rs) so the
+# site and README can use true screenshots. Run by hand; the PNGs come back as the `screenshots` artifact.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable (branch head)
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: desktop -> target
+      - run: sh desktop/scripts/fetch-pdfium.sh win-x64
+      - run: cargo build --release --locked
+        working-directory: desktop
+      # PDFium beside the exe, where a release build looks for it, so the PDF Toolkit shows real content.
+      - name: Take the screenshots
+        run: |
+          cp desktop/vendor/windows/pdfium/pdfium.dll desktop/target/release/
+          exe="$PWD/desktop/target/release/offkit.exe"
+          mkdir shots
+          for theme in light dark; do
+            for tool in video-converter md-editor json-formatter pdf-toolkit color-converter; do
+              OFFKIT_SNAPSHOT="$PWD/shots/$tool-$theme.png" OFFKIT_TOOL=$tool OFFKIT_THEME=$theme timeout 60 "$exe"
+            done
+            OFFKIT_SNAPSHOT="$PWD/shots/about-$theme.png" OFFKIT_THEME=$theme OFFKIT_ABOUT=1 timeout 60 "$exe"
+          done
+      - name: Every screenshot exists
+        run: |
+          status=0
+          for theme in light dark; do
+            for name in video-converter md-editor json-formatter pdf-toolkit color-converter about; do
+              if [ ! -s "shots/$name-$theme.png" ]; then
+                echo "::error::shots/$name-$theme.png is missing"
+                status=1
+              fi
+            done
+          done
+          exit $status
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: screenshots
+          path: shots/*.png
+          if-no-files-found: error

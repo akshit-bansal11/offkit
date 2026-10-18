@@ -1,0 +1,293 @@
+name: Release
+
+# Push a tag such as v0.2.0 to publish. Five installers are built, each on its own platform, and attached
+# to a GitHub Release named for the version: offkit-0.2.0.exe (Windows), offkit-0.2.0-arm64.dmg and
+# offkit-0.2.0-x64.dmg (macOS), offkit-0.2.0-x86_64.AppImage and offkit-0.2.0-amd64.deb (Linux), so several
+# downloads on one machine can be told apart.
+#
+# Running this by hand instead builds the same files from whatever the branch currently holds and
+# attaches them to a DRAFT release. A draft is visible only to accounts with push access to the repo, and
+# GitHub does not create its git tag until it is published, so nothing about it reaches the public: no tag,
+# no entry on the releases page, and releases/latest keeps pointing at the last real release.
+# The installers report the version in desktop/Cargo.toml; only the file names carry the draft version.
+#
+# Every `uses:` is pinned to a commit SHA with its tag in a trailing comment, and Dependabot moves the
+# SHA the same way it would move a tag. A tag is a moving pointer: whoever controls an action's repository
+# can repoint it, and the code it then runs is inside this job. dtolnay/rust-toolchain has no version tags
+# worth pinning (the branch name is the toolchain), so it is pinned to the head of its `stable` branch and
+# the toolchain is named in `with:`, because a SHA carries no branch name.
+#
+# Nothing here is signed with a secret. The macOS app is ad hoc signed, not notarised, and the Windows
+# installer is unsigned: there is no Apple Developer ID or code-signing certificate behind this project, so
+# no key reaches any job and there is nothing for an approval gate to guard.
+#
+# Each release also carries SHA256SUMS.txt and a build provenance attestation, which `gh attestation verify`
+# checks: proof that the files were built by this workflow from this repository at that tag.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      label:
+        description: 'Name for the draft build (a run number is appended, so it never collides)'
+        default: 'test-build'
+        required: false
+      version:
+        description: 'Version the draft files are named for'
+        default: '0.2.0'
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  # A tagged run is versioned by its tag. A hand-run draft has no tag, and GITHUB_REF_NAME would be the
+  # branch, so a draft names itself from the input plus the run number, which also makes two drafts of the
+  # same version distinguishable once they are downloaded.
+  VERSION: ${{ github.event_name == 'workflow_dispatch' && format('{0}-draft.{1}', inputs.version, github.run_number) || '' }}
+
+jobs:
+  # A tag that disagrees with the manifests would publish installers whose own version says something else.
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Tag matches desktop/Cargo.toml and package.json
+        if: github.event_name == 'push'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          cargo=$(sed -n 's/^version *= *"\(.*\)"/\1/p' desktop/Cargo.toml | head -1)
+          npm=$(sed -n 's/^ *"version": *"\(.*\)",*/\1/p' package.json | head -1)
+          echo "tag=$tag desktop/Cargo.toml=$cargo package.json=$npm"
+          if [ "$tag" != "$cargo" ] || [ "$tag" != "$npm" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match desktop/Cargo.toml ($cargo) and package.json ($npm). Bump both, or retag."
+            exit 1
+          fi
+
+  build:
+    needs: verify
+    name: build (${{ matrix.artifact }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact: windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            pdfium: win-x64
+            vendor: windows
+            library: pdfium.dll
+            formats: nsis
+            files: desktop/target/x86_64-pc-windows-msvc/release/*-setup.exe
+          - artifact: mac-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            pdfium: mac-arm64
+            vendor: macos
+            library: libpdfium.dylib
+            formats: dmg
+            files: desktop/target/aarch64-apple-darwin/release/*.dmg
+          # Cross-compiled on the arm64 runner: the target is added with rustup below.
+          - artifact: mac-x64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            pdfium: mac-x64
+            vendor: macos
+            library: libpdfium.dylib
+            formats: dmg
+            files: desktop/target/x86_64-apple-darwin/release/*.dmg
+          - artifact: linux
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            pdfium: linux-x64
+            vendor: linux
+            library: libpdfium.so
+            formats: appimage,deb
+            files: |
+              desktop/target/x86_64-unknown-linux-gnu/release/*.AppImage
+              desktop/target/x86_64-unknown-linux-gnu/release/*.deb
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable (branch head)
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: desktop -> target
+          key: ${{ matrix.target }}
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends
+          libasound2-dev libfontconfig1-dev libfreetype-dev libxkbcommon-dev libxkbcommon-x11-dev
+          libwayland-dev libx11-xcb-dev libxcursor-dev libxi-dev libxrandr-dev libgl1-mesa-dev
+          pkg-config libfuse2
+      # PDFium is bound at run time, so it ships beside the app as a resource. Its licence files come
+      # along under pdfium- names so they cannot collide with anything else in the resources folder.
+      - name: Fetch pdfium
+        run: sh desktop/scripts/fetch-pdfium.sh ${{ matrix.pdfium }}
+      - name: Stage the resources
+        run: |
+          res=desktop/packaging/resources
+          src=desktop/vendor/${{ matrix.vendor }}/pdfium
+          mkdir -p "$res"
+          cp "$src/${{ matrix.library }}" "$res/"
+          cp "$src/LICENSE" "$res/pdfium-LICENSE"
+          cp -R "$src/licenses" "$res/pdfium-licenses"
+          # Apple Silicon loads no unsigned code, and the packager signs the app, not its resources.
+          if [ "$RUNNER_OS" = macOS ]; then codesign --force -s - "$res/${{ matrix.library }}"; fi
+      # Pinned versions: cargo-about 0.9.2 was published on 2026-08-18; cargo-packager 0.11.8 is the one
+      # the packager config in desktop/Cargo.toml was written against.
+      - name: Install cargo-about and cargo-packager
+        run: |
+          cargo install cargo-about --version 0.9.2 --locked
+          cargo install cargo-packager --version 0.11.8 --locked
+      - name: Third-party notices
+        working-directory: desktop
+        run: >
+          cargo about generate --locked -c packaging/about.toml packaging/about.hbs
+          -o packaging/resources/THIRD-PARTY-NOTICES.html
+      - name: Build the app
+        working-directory: desktop
+        run: cargo build --release --locked --target ${{ matrix.target }}
+      # Ad hoc signed (identity "-" in the packager config), not notarised: cargo-packager skips
+      # notarisation with a warning when no credentials exist. AppImage tools run extracted, since a
+      # hosted runner has no guaranteed FUSE mount.
+      - name: Package
+        working-directory: desktop
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: cargo packager --release --target ${{ matrix.target }} --formats ${{ matrix.formats }}
+      # An unsigned app inside the dmg is the failure to catch here; Gatekeeper's warning is expected.
+      - name: Check the app inside the dmg is ad hoc signed
+        if: runner.os == 'macOS'
+        run: |
+          dmg=$(ls desktop/target/${{ matrix.target }}/release/*.dmg | head -1)
+          mnt=$(mktemp -d)
+          hdiutil attach "$dmg" -mountpoint "$mnt" -nobrowse -readonly
+          trap 'hdiutil detach "$mnt" -force' EXIT
+          app=$(ls -d "$mnt"/*.app | head -1)
+          codesign --verify --deep --strict "$app"
+          codesign -dv "$app" 2>&1 | tee "$RUNNER_TEMP/sig.txt"
+          grep -q 'Signature=adhoc' "$RUNNER_TEMP/sig.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      # Both for the provenance attestation: a token to prove which workflow ran, and the right to store it.
+      id-token: write
+      attestations: write
+    steps:
+      # Checkout first: it cleans the workspace, and would delete artifacts downloaded before it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # By name, each into its own folder: the two dmgs are told apart by folder.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: windows
+          path: parts/windows
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: mac-arm64
+          path: parts/mac-arm64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: mac-x64
+          path: parts/mac-x64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: linux
+          path: parts/linux
+      # The build jobs keep the packager's names; the version goes on here, once, for both release paths.
+      # The sums are taken after the rename, so SHA256SUMS.txt names the files exactly as they are
+      # downloaded.
+      - name: Name the files for the version
+        run: |
+          version="${VERSION:-${GITHUB_REF_NAME#v}}"
+          mkdir dist
+          mv parts/windows/*-setup.exe "dist/offkit-$version.exe"
+          mv parts/mac-arm64/*.dmg "dist/offkit-$version-arm64.dmg"
+          mv parts/mac-x64/*.dmg "dist/offkit-$version-x64.dmg"
+          mv parts/linux/*.AppImage "dist/offkit-$version-x86_64.AppImage"
+          mv parts/linux/*.deb "dist/offkit-$version-amd64.deb"
+          (cd dist && sha256sum offkit-* > SHA256SUMS.txt)
+          cat dist/SHA256SUMS.txt
+      # Tagged releases only. An attestation of a public repository is written to Sigstore's public
+      # transparency log, which would announce a draft build that is meant to stay private.
+      - name: Attest where the files were built
+        if: github.event_name == 'push'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: 'dist/offkit-*'
+      # A tagged run takes that version's section of CHANGELOG.md; a hand-run draft takes Unreleased,
+      # because a draft is a build of work in progress and has no section of its own yet. The footer is
+      # the same for every release: what a user hits on first launch of an unsigned build.
+      - name: Take the notes from the changelog
+        env:
+          SECTION: ${{ github.event_name == 'workflow_dispatch' && 'Unreleased' || '' }}
+        run: |
+          section="${SECTION:-${GITHUB_REF_NAME#v}}"
+          awk -v v="$section" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && index($0, "## [") == 1 { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for $section"
+            exit 1
+          fi
+          {
+            echo
+            echo '---'
+            echo
+            echo '**Before you install**'
+            echo
+            echo '- macOS: the app is ad hoc signed but not notarised (there is no Apple Developer ID behind this project). Gatekeeper warns on first launch: right-click the app and choose Open.'
+            echo '- Windows: the installer is unsigned. SmartScreen warns: choose More info, then Run anyway.'
+            echo '- FFmpeg is not bundled. Install it to use the audio and video tools.'
+            echo '- Check a download against SHA256SUMS.txt, or with `gh attestation verify <file> --repo akshit-bansal11/offkit`.'
+          } >> notes.md
+      - name: Publish the release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" dist/offkit-* dist/SHA256SUMS.txt
+          --repo "$GITHUB_REPOSITORY" --title "Offkit $GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+      # --draft is what keeps this private, and the run number is what keeps two test builds from
+      # colliding on a name: deleting a release is an owner action, so a job must never need one deleted
+      # to succeed. --target pins the draft to this commit; the tag is only cut if it is ever published.
+      - name: Attach the draft build
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ inputs.label }}-${{ github.run_number }}
+        run: |
+          gh release create "$NAME" dist/offkit-* dist/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --title "Offkit $NAME" --notes-file notes.md --draft --target "$GITHUB_SHA"
+          {
+            echo "Draft build **$NAME**, visible only to accounts with push access to this repo."
+            echo
+            echo 'Download the files, with their SHA256SUMS.txt:'
+            echo '```'
+            echo "gh release download $NAME --repo $GITHUB_REPOSITORY --dir ."
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,11 +1,11 @@
 name: Lockfile
 
-# Nobody can run npm locally, so CI is where package-lock.json gets regenerated.
+# Nobody can run npm or cargo locally, so CI is where package-lock.json and Cargo.lock get regenerated.
 on:
   workflow_dispatch:
   push:
     branches: ["feat/**"]
-    paths: [package.json]
+    paths: [package.json, desktop/Cargo.toml]
 
 permissions:
   contents: read
@@ -24,3 +24,16 @@ jobs:
         with:
           name: package-lock
           path: package-lock.json
+
+  cargo-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      # Resolves new dependencies into Cargo.lock without bumping the ones already locked.
+      - run: cargo metadata --format-version 1 --manifest-path desktop/Cargo.toml > /dev/null
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cargo-lock
+          path: desktop/Cargo.lock

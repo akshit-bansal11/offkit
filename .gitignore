@@ -51,6 +51,8 @@ next-env.d.ts
 # native app (desktop/) build output and locally vendored ffmpeg binaries
 /desktop/target/
 /desktop/vendor/
+# release.yml fills this with pdfium and the notices for cargo-packager
+/desktop/packaging/resources/
 
 # Claude Code agent worktrees (temporary, each a full checkout)
 /.claude/worktrees/
