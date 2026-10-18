@@ -13,7 +13,7 @@ test("landing page offers the download and leads to the docs", async ({
     page.getByRole("heading", { level: 1, name: "Offkit" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Download for Windows" }),
+    page.getByRole("link", { name: "Download the desktop app" }),
   ).toHaveAttribute("href", /\/releases\/latest$/);
   await page.getByRole("link", { name: "Read the docs" }).click();
   await expect(
