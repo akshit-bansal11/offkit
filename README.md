@@ -1,21 +1,62 @@
 # Offkit
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)](https://www.typescriptlang.org)
-[![React](https://img.shields.io/badge/React-19-149eca)](https://react.dev)
-[![Platform: Windows](https://img.shields.io/badge/Platform-Windows-22c55e)](https://github.com/akshit-bansal11/offkit/releases/latest)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+Offkit is 37 everyday file and developer tools for audio, video, images, PDFs, SVG, colours, CSS, text and dev work, and every one runs on your own machine. It is a native desktop app for Windows, macOS and Linux, and a web app that does the same work in the browser.
 
-Offkit is a Windows desktop app with 37 file tools for images, video, audio, PDFs, SVG, colors and text. Everything runs on your PC. Nothing is uploaded. There is no account and no telemetry.
+[Website](https://offkit.akshitbansal.me) · [Documentation](https://offkit.akshitbansal.me/docs) · [Releases](https://github.com/akshit-bansal11/offkit/releases/latest)
+
+[![CI](https://github.com/akshit-bansal11/offkit/actions/workflows/ci.yml/badge.svg)](https://github.com/akshit-bansal11/offkit/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/akshit-bansal11/offkit)](https://github.com/akshit-bansal11/offkit/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Documentation](https://img.shields.io/badge/docs-offkit.akshitbansal.me-black.svg)](https://offkit.akshitbansal.me/docs)
+
+Offkit was called Open Tools before v0.2.0.
+
+## What it does
+
+- **Converts, edits and joins media.** Audio and video convert between formats and codecs, extract audio or frames, trim, change speed and pitch, apply EQ, and merge files.
+- **Works on documents and images.** PDFs merge, split, compress and convert to and from images and other formats. Images convert and crop; palettes come out of a picture.
+- **Makes design assets.** Gradients, palettes, CSS blobs, glass effects, box shadows and animated or patterned SVGs, with SVG optimisation.
+- **Handles text and dev chores.** JSON, Base64, diffs, Markdown, lorem ipsum, archives (ZIP, TAR, TAR.GZ, GZ, 7z) and directory trees.
+- **Stays on your device.** Files are processed locally. There is no upload and no account.
+- **Runs in two places.** The desktop app and the website offer the same tools. A tool can be limited to one side; `tools.json` lists each tool's `platforms`, and today all 37 list both.
 
 ## Install
 
-Download the app from the [latest release](https://github.com/akshit-bansal11/offkit/releases/latest).
+Download from the [latest release](https://github.com/akshit-bansal11/offkit/releases/latest), under **Assets**. Each file is named for its release, so `offkit-0.2.0.exe` belongs to 0.2.0. The release also carries `SHA256SUMS.txt`, and `gh attestation verify <file> --repo akshit-bansal11/offkit` checks that a file was built by this repository's release workflow. A `THIRD-PARTY-NOTICES.html` ships in each package.
 
-- The installer is not code-signed, so Windows SmartScreen may warn. Choose More info, then Run anyway.
-- The app does not update itself.
+### Windows
 
-Documentation: [offkit.akshitbansal.me/docs](https://offkit.akshitbansal.me/docs)
+1. Download `offkit-<version>.exe`, a per-user installer.
+2. Run it. It is not code-signed, so SmartScreen asks first: choose **More info**, then **Run anyway**.
+
+### macOS
+
+1. Download `offkit-<version>-arm64.dmg` for Apple Silicon or `offkit-<version>-x64.dmg` for Intel, and open it.
+2. Move Offkit to Applications. It is ad hoc signed and not notarised, so macOS refuses it at first. Right-click the app and choose **Open**, or choose **Open Anyway** in **System Settings > Privacy & Security**.
+
+### Linux
+
+Download `offkit-<version>-x86_64.AppImage` (make it executable and run it) or `offkit-<version>-amd64.deb` (install it with your package manager, for example `sudo apt install ./offkit-<version>-amd64.deb`).
+
+### FFmpeg for audio and video
+
+FFmpeg is not bundled. The audio and video tools need `ffmpeg` and `ffprobe` installed, both in the same folder, either on your `PATH` or next to the Offkit executable:
+
+- Windows: `winget install Gyan.FFmpeg`
+- macOS: `brew install ffmpeg`
+- Linux: `apt install ffmpeg`
+
+Without them, those tools show an "FFmpeg wasn't found" screen with a **Get FFmpeg** button. Restart Offkit after installing. The other tools do not need FFmpeg. PDFium, which the PDF tools use, is bundled. The web app needs no install at all.
+
+The desktop app does not update itself; install a newer release to upgrade.
+
+## Use
+
+1. Pick a tool in the sidebar, or search for it by name.
+2. Drop files on the window, or use the tool's open button.
+3. Set the options and run. Results are written as new files beside the source or in a folder you choose; an existing file is never overwritten without you picking it in a save dialog.
+
+A tool that runs on the web only shows an **Open in Browser** button in the desktop app.
 
 ## Tools
 
@@ -29,7 +70,7 @@ Documentation: [offkit.akshitbansal.me/docs](https://offkit.akshitbansal.me/docs
 - **PDF:** PDF Toolkit, PDF ↔ Image Converter, PDF Merger, PDF Splitter, PDF Compressor, Convert to PDF, Convert from PDF.
 - **Text:** Lorem Generator, Diff Checker, JSON Formatter, Base64, Markdown Editor.
 
-The full reference is on the docs page, which is generated from `src/config/tools.ts`.
+The full reference is on the [docs page](https://offkit.akshitbansal.me/docs), which is generated from `src/config/tools.ts`.
 
 ### Planned
 
@@ -41,94 +82,96 @@ The full reference is on the docs page, which is generated from `src/config/tool
 
 ## Privacy
 
-- Files are processed on the device.
-- The app cancels requests a page makes to the network. The one exception is a read of a repository's file tree from `api.github.com`, which Directory Scaffold makes when you use it.
-- Permissions are refused, except clipboard write, and clipboard read on the Diff Checker.
-- Links open in your default browser only when they point at this project's GitHub repository.
-- The app has no analytics or error reporting. Those exist only on the website.
+- Files are processed on the device, in both apps.
+- The desktop app has no analytics, no error reporting, no account and no upload code. It opens links in your default browser only on request: "Open in Browser" for a web-only tool, and the FFmpeg and PDFium download pages.
+- On the website, Directory Scaffold reads a repository's file tree from `api.github.com` when you use it. The website also runs Vercel Web Analytics and Better Stack error reporting; the Directory Scaffold page loads no foreign script.
+- The web app is served with a strict Content Security Policy; see [SECURITY.md](SECURITY.md).
 
-## How it is built
+## How it works
 
-The website is one Next.js build. The native Windows app lives in `desktop/` (Rust + Slint) and ships on GitHub Releases.
+`tools.json` lists the tools once. The desktop app (`desktop/`, Rust and Slint) compiles it in and runs each tool on shared engines: FFmpeg for audio and video, PDFium and lopdf for PDFs, resvg for SVG, and pure-Rust crates for images, text and archives. The web app (`src/`, Next.js) runs FFmpeg and ImageMagick as WebAssembly in the browser. Untrusted input fails closed in both. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) has the layout, the engines and the security gates.
 
-The wasm engines and the pdf.js worker are copied from `node_modules` into `public/vendor/` by `scripts/copy-vendor.mjs`, so the app never fetches them from a CDN.
+## Develop
 
-- **Framework:** Next.js 16, React 19
-- **Language:** TypeScript
-- **Styling/UI:** Tailwind CSS, shadcn/ui (Radix UI primitives + `class-variance-authority` + `tailwind-merge`)
-- **Media processing:** FFmpeg (WebAssembly build, `@ffmpeg/ffmpeg` + `@ffmpeg/core`), ImageMagick (`@imagemagick/magick-wasm`)
-- **Document/Image tooling:** `pdf-lib`, `pdfjs-dist`, `jszip`, `svgo`
-- **Text/utility tooling:** `diff`, `marked`, `dompurify`
+The code is MIT-licensed, so you can build it, change it and run your own copy. To send a change back, fork the repository, clone your fork, and see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Directory structure
+| Path | What |
+| --- | --- |
+| `desktop/` | The native app. Rust and Slint. |
+| `src/` | The web app. Next.js 16, React 19, TypeScript, Tailwind. |
+| `tools.json` | The shared tool registry. |
+| `e2e/` | Playwright specs for the web app. |
+| `docs/` | Architecture. |
 
-```
-src/
-├── app/
-│   ├── (tools)/<slug>/        one folder per tool: layout.tsx + page.tsx
-│   ├── docs/page.tsx          docs page (website)
-│   ├── layout.tsx             root layout
-│   ├── page.tsx               landing page
-│   ├── not-found.tsx
-│   ├── opengraph-image.tsx
-│   ├── robots.ts
-│   └── sitemap.ts
-├── components/
-│   ├── common/                page shell, category cards, tool cards
-│   ├── site/                  website shell and observability
-│   ├── tools/<slug>/          components specific to one tool
-│   └── ui/                    shared primitives
-├── config/
-│   ├── site.ts                website constants
-│   ├── target.ts              build target
-│   └── tools.ts               the tool registry: every tool and category
-├── data/inDevelopmentSlugs.ts slugs hidden from the launcher
-├── lib/
-│   ├── ffmpeg/client.ts       FFmpeg loader, checked runner, codec tables
-│   ├── converters/            ImageMagick conversion engine
-│   ├── design-tools/          colour, gradient and palette logic
-│   ├── pdf/pdfjs.ts           pdf.js loader
-│   └── tools/<slug>/          logic specific to one tool
-└── types/tool.ts
-scripts/                       copy-vendor
-e2e/                           Playwright specs
-```
+### Prerequisites
 
-## Development
+Either app can be worked on alone. The web app needs Node 24 (what CI uses). The desktop app needs a current stable Rust toolchain with `rustfmt` and `clippy`, plus `ffmpeg` and `ffprobe` on `PATH` to run or test the media tools; on Linux it also needs `libasound2-dev`.
+
+### Quality gate
+
+CI is the gate for both apps; the commands below are what it runs.
 
 ```bash
-npm install                 # install dependencies
-npm run dev                 # the website
-npm run check               # format, lint, typecheck (writes fixes)
-npm test                    # unit tests
-npm run test:e2e:web        # browser tests against the website
+# web app, from the repository root
+npm install
+npm run check            # biome, eslint, stylelint, tsc; writes fixes
+npm run check:ci         # the same without writing; what CI runs
+# desktop app, from desktop/
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+```
+
+CI also formats every tracked `.rs` file directly, because `cargo fmt` skips modules declared inside the `tools!` macro.
+
+### Run locally
+
+```bash
+npm run dev                          # the website at http://localhost:3000
+sh desktop/scripts/fetch-pdfium.sh   # once: PDFium for the desktop app
+cd desktop && cargo run              # the desktop app
+```
+
+### Tests
+
+```bash
+npm test                    # web unit tests (node --test); includes the tools.json versus src/config/tools.ts check
+npx playwright install chromium     # once
+npm run test:e2e:web        # browser tests against a production build
+cd desktop && cargo test --locked   # engines, registry and tool tests; media tests skip without ffmpeg
 ```
 
 ## Releasing
 
-Bump `version` in `package.json`, commit, then push a tag `v<version>`. `.github/workflows/release.yml` builds on Windows, runs the unit tests and the tool tests against the packaged app, attaches build provenance and publishes both exe files to a GitHub Release. The tag must match the `package.json` version or the workflow stops.
+Set the same new version in `desktop/Cargo.toml` and `package.json`, commit, then push a tag `vX.Y.Z`. `.github/workflows/release.yml` builds the installers, attaches `SHA256SUMS.txt` and a build provenance attestation, and publishes a GitHub Release. The tag must match both versions. A manual run of the workflow makes a private draft build instead of a release.
 
 ## Contributing
 
-Contributions are welcome, as PRs and issues.
+- **A bug, or something Offkit should do:** [open an issue](https://github.com/akshit-bansal11/offkit/issues/new/choose). The templates ask for what is needed to act on it. Open one before starting anything bigger than a fix.
+- **A security hole:** report it privately, as [SECURITY.md](SECURITY.md) describes, not in a public issue.
+- **A change:** branch on your fork, run the checks until they are clean, and open a pull request against `main`. [CONTRIBUTING.md](CONTRIBUTING.md) has the details.
 
-**To add a tool:**
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html), and `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-1. Create `src/app/(tools)/your-tool/` with `layout.tsx` and `page.tsx`.
-2. Register it in `src/config/tools.ts`. The launcher and the docs page both pick it up from there.
-3. Use `ToolPageShell` as the layout wrapper.
+## Support
 
-Tools must work offline: no CDN, no network requests.
+Offkit is free and stays free. If it is useful to you and you would like to say so with money, there are three ways:
 
-**To report a bug or request a feature:** open an issue with a clear title and description. For bugs, include steps to reproduce and your Windows version. For feature requests, describe the use case, not just the solution.
+- **[Ko-fi](https://ko-fi.com/akshit_bansal11)**, from anywhere.
+- **[PayPal](https://paypal.me/AkshitBansal141)**, from anywhere.
+- **UPI**, from any UPI app in India: `artistbansal2004@okaxis`
 
-## Licence
+A star, a bug report or telling someone about it helps as much.
 
-The project's code is MIT, see [LICENSE](LICENSE). The packaged app bundles third-party engines under their own licences, including FFmpeg (`@ffmpeg/core`, GPL-2.0-or-later) and ImageMagick.
+## License
 
-## Links
+[MIT](LICENSE).
 
-- **Website:** [offkit.akshitbansal.me](https://offkit.akshitbansal.me)
-- **Docs:** [offkit.akshitbansal.me/docs](https://offkit.akshitbansal.me/docs)
-- **GitHub:** [github.com/akshit-bansal11](https://github.com/akshit-bansal11)
-- **LinkedIn:** [linkedin.com/in/akshit-bansal11](https://linkedin.com/in/akshit-bansal11)
+## Credits
+
+- Icons are [Lucide](https://lucide.dev), ISC licence; some came from Feather (MIT). The licence text is in `desktop/ui/icons/LICENSE`.
+- The interface typeface is Inter and code is set in JetBrains Mono, both under the SIL Open Font License; the licences are in `desktop/ui/fonts/`.
+- PDF tools in the desktop app use [PDFium](https://pdfium.googlesource.com/pdfium/) (BSD-3-Clause and Apache-2.0), from [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries). FFmpeg is a separate install and is not distributed with Offkit.
+- The web app runs FFmpeg (`@ffmpeg/core`, GPL-2.0-or-later) and ImageMagick (`@imagemagick/magick-wasm`) as WebAssembly.
+- Every bundled third-party component's licence is in the `THIRD-PARTY-NOTICES.html` that ships in each package.
+- Built by [Akshit Bansal](https://github.com/akshit-bansal11) ([LinkedIn](https://linkedin.com/in/akshit-bansal11)).
