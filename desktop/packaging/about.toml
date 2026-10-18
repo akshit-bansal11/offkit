@@ -16,6 +16,12 @@ accepted = [
     "0BSD",
     "Unlicense",
     "OFL-1.1",
+    "bzip2-1.0.6",
+    "NCSA",
+    # Slint is GPL-3.0, royalty-free or commercial. Offkit takes the royalty-free licence, whose
+    # attribution condition the About sheet meets (AboutSlint). cargo-about has no text for a
+    # LicenseRef, so release.yml ships Slint's own file as slint-LICENSE.md.
+    "LicenseRef-Slint-Royalty-free-2.0",
 ]
 # Offkit itself is `publish = false` and not a third party.
 private = { ignore = true }

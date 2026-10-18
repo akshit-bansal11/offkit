@@ -158,6 +158,11 @@ jobs:
         run: >
           cargo about generate --locked -c packaging/about.toml packaging/about.hbs
           -o packaging/resources/THIRD-PARTY-NOTICES.html
+      # cargo-about carries no text for a LicenseRef licence, so Slint's comes from the crate itself.
+      - name: Slint licence
+        run: |
+          manifest=$(cargo metadata --format-version 1 --locked --manifest-path desktop/Cargo.toml | jq -r '.packages[] | select(.name == "slint") | .manifest_path')
+          cp "$(dirname "$manifest")/LICENSES/LicenseRef-Slint-Royalty-free-2.0.md" desktop/packaging/resources/slint-LICENSE.md
       - name: Build the app
         working-directory: desktop
         run: cargo build --release --locked --target ${{ matrix.target }}
