@@ -1,9 +1,9 @@
 // SiteShell.tsx
 // Page frame for the website build: skip link, header nav, main landmark and footer.
 
-import { Github } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { GithubMark } from "@/components/common/GithubMark";
 import { Button } from "@/components/ui/Button";
 import { siteConfig } from "@/config/site";
 
@@ -33,7 +33,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
             <li>
               <Button asChild variant="ghost" size="sm">
                 <a href={siteConfig.repositoryUrl}>
-                  <Github aria-hidden="true" />
+                  <GithubMark />
                   GitHub
                 </a>
               </Button>
