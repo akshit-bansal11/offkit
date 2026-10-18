@@ -1,6 +1,10 @@
 [package]
 name = "offkit"
-version = "0.1.0"
+version = "0.2.0"
+description = "37 everyday file and developer tools that run offline on your own machine."
+repository = "https://github.com/akshit-bansal11/offkit"
+homepage = "https://offkit.akshitbansal.me"
+authors = ["Akshit Bansal"]
 edition = "2024"
 license = "MIT"
 publish = false
@@ -77,6 +81,40 @@ sevenz-rust2 = "=0.24.0"
 
 [build-dependencies]
 slint-build = "=1.18.1"
+
+# Embeds the icon and version info into offkit.exe (MIT); the build script only calls it when
+# the target is Windows.
+[target.'cfg(windows)'.build-dependencies]
+winresource = "=0.1.31"
+
+# cargo-packager 0.11.8 (`cargo packager --release --target <triple>`, run from this folder).
+# It does not build the binary: build it first with `cargo build --release --target <triple>`.
+# `resources` land next to the exe on NSIS, in `Contents/Resources` in the macOS app and in
+# `usr/lib/offkit` in the deb and AppImage; `engine/pdf.rs` searches all three for pdfium.
+[package.metadata.packager]
+product-name = "Offkit"
+identifier = "me.akshitbansal.offkit"
+publisher = "Akshit Bansal"
+category = "DeveloperTool"
+icons = ["assets/icon.png", "assets/icon.ico"]
+formats = ["nsis", "dmg", "appimage", "deb"]
+# The release workflow stages pdfium, its licences and the third-party notices here.
+resources = [{ src = "packaging/resources", target = "." }]
+
+[package.metadata.packager.nsis]
+installer-mode = "currentUser"
+
+# Ad hoc signed ("-"), not notarised: there is no Apple Developer ID. The packager signs the binary
+# with the hardened runtime, and an ad hoc signature carries no Team ID, so library validation would
+# refuse the bundled libpdfium.dylib; the entitlements switch that check off.
+[package.metadata.packager.macos]
+signing-identity = "-"
+entitlements = "packaging/entitlements.plist"
+minimum-system-version = "11.0"
+
+[package.metadata.packager.deb]
+# Run-time libraries Slint (fontconfig, xkbcommon, OpenGL) and rodio/cpal (ALSA) load.
+depends = ["libasound2", "libfontconfig1", "libgl1", "libxkbcommon0"]
 
 # Debug builds stay fast to compile; release trades build time for size and speed.
 [profile.release]
