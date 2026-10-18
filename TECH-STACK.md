@@ -33,7 +33,7 @@ Authoritative for this repo; overrides the global stack defaults. Versions come 
 | UI runtime | react | 19.3.1 |
 | Language | typescript | 5.9.3 (7.x blocked: typescript-eslint doesn't support it) |
 | Styling | tailwindcss | 3.4.19 (4.x migration deferred) |
-| Icons | lucide-react | 0.577.0 (1.x pending: PR #16) |
+| Icons | lucide-react | 1.57.0 (brand icons were removed in 1.x; the GitHub mark is inline in `GithubMark.tsx`) |
 | Media engine | @ffmpeg/ffmpeg | 0.12.15 |
 | PDF | pdfjs-dist / pdf-lib | 6.4.299 / 1.17.1 |
 | Images | @imagemagick/magick-wasm | 0.0.44 |
