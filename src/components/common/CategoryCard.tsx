@@ -19,12 +19,12 @@ export function CategoryCard({
 }: CategoryCardProps) {
   const Heading = headingLevel;
   const CategoryIcon = category.icon;
-  const accent = category.accentColor ?? "#ffffff";
+  const accent = category.accentColor ?? "#f6f7fb";
 
   return (
     <section className="h-full">
       <div
-        className="group h-full overflow-hidden rounded-3xl border border-white/10 bg-[#0f0f0f]/72 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur-xl transition-all duration-300"
+        className="group h-full overflow-hidden rounded-3xl border border-border bg-card/70 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur-xl transition-all duration-300"
         style={
           {
             "--accent": accent,
@@ -41,8 +41,8 @@ export function CategoryCard({
           }}
         />
 
-        <div className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(44,44,44,0.52)_0%,rgba(31,31,31,0.38)_100%)] p-2">
-          <div className="flex justify-between items-center relative rounded-2xl border border-white/8 bg-white/[0.015] lg:p-4 md:p-3 sm:p-2 p-2">
+        <div className="border-b border-border bg-gradient-to-b from-secondary/50 to-secondary/30 p-2">
+          <div className="flex justify-between items-center relative rounded-2xl border border-border bg-foreground/[0.015] lg:p-4 md:p-3 sm:p-2 p-2">
             <Heading className="lg:text-4xl md:text-3xl sm:text-2xl text-xl font-medium tracking-[-0.04em] text-foreground">
               {category.name}
             </Heading>
@@ -70,8 +70,8 @@ export function CategoryCard({
           </div>
         </div>
 
-        <div className="bg-white/[0.02] backdrop-blur-md px-6 py-6 sm:px-7 sm:py-7">
-          <div className="mb-4 flex items-center justify-between border-b border-white/8 pb-3 text-xs uppercase tracking-[0.16em] text-white/40">
+        <div className="bg-foreground/[0.02] backdrop-blur-md px-6 py-6 sm:px-7 sm:py-7">
+          <div className="mb-4 flex items-center justify-between border-b border-border pb-3 text-xs uppercase tracking-[0.16em] text-muted-foreground">
             <span
               className="border-l-2 pl-2 transition-colors duration-300"
               style={{ borderColor: `${accent}66` }}

@@ -49,15 +49,15 @@ import type { ToolCategoryDefinition, ToolDefinition } from "@/types/tool";
 import { siteConfig } from "./site.ts";
 
 export const toolCategories: ToolCategoryDefinition[] = [
-  { name: "Audio", icon: AudioLines, accentColor: "#60a5fa" },
-  { name: "Video", icon: Video, accentColor: "#facc15" },
-  { name: "Dev", icon: Code2, accentColor: "#4ade80" },
-  { name: "Images", icon: ImageIcon, accentColor: "#f87171" },
+  { name: "Audio", icon: AudioLines, accentColor: "#4aa8ff" },
+  { name: "Video", icon: Video, accentColor: "#ffc23d" },
+  { name: "Dev", icon: Code2, accentColor: "#2fd59a" },
+  { name: "Images", icon: ImageIcon, accentColor: "#ff5a4e" },
   { name: "SVG", icon: VectorSquare, accentColor: "#f472b6" },
   { name: "Colors", icon: SwatchBook, accentColor: "#a78bfa" },
   { name: "CSS", icon: FileCode2, accentColor: "#fb923c" },
   { name: "PDF", icon: FileText, accentColor: "#34d399" },
-  { name: "Text", icon: Type, accentColor: "#38bdf8" },
+  { name: "Text", icon: Type, accentColor: "#4aa8ff" },
 ];
 
 export const tools: ToolDefinition[] = [
@@ -561,9 +561,9 @@ export const toolsByCategory = toolCategories.map((category) => ({
 
 export function getToolAccentColor(slug: string): string {
   const tool = getToolBySlug(slug);
-  if (!tool) return "#60a5fa";
+  if (!tool) return "#4aa8ff";
   const category = toolCategories.find((c) => c.name === tool.category);
-  return category?.accentColor ?? "#60a5fa";
+  return category?.accentColor ?? "#4aa8ff";
 }
 
 /** True when the tool runs in the browser. A desktop-only tool keeps its URL but shows a download panel. */

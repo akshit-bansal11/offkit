@@ -3,19 +3,19 @@
   "categories": [
     {
       "name": "Audio",
-      "accent": "#60a5fa"
+      "accent": "#4aa8ff"
     },
     {
       "name": "Video",
-      "accent": "#facc15"
+      "accent": "#ffc23d"
     },
     {
       "name": "Dev",
-      "accent": "#4ade80"
+      "accent": "#2fd59a"
     },
     {
       "name": "Images",
-      "accent": "#f87171"
+      "accent": "#ff5a4e"
     },
     {
       "name": "SVG",
@@ -35,7 +35,7 @@
     },
     {
       "name": "Text",
-      "accent": "#38bdf8"
+      "accent": "#4aa8ff"
     }
   ],
   "tools": [

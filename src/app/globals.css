@@ -4,93 +4,83 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Offkit palette: Ink #1b1f3b, Citrus #ffc23d, Mint #2fd59a, Coral #ff5a4e,
+  Sky #4aa8ff, Paper #f6f7fb. One accent hue: ink in light, citrus in dark.
+  Text pairs >= 4.5:1, borders/focus/icons >= 3:1 (the decorative --border
+  hairline is the exception); ratios measured with a WCAG 2.x contrast script.
+*/
 :root {
+  color-scheme: light;
   --radius: 0.625rem;
-  --background: oklch(100% 0 0deg);
-
-  /* Accent palette */
-  --accent-blue:   #60a5fa;
-  --accent-yellow: #facc15;
-  --accent-green:  #4ade80;
-  --accent-red:    #f87171;
-  --accent-pink:   #f472b6;
-
-  /* Category accent colors — one unique color per category */
-  --accent-audio:     #60a5fa; /* blue        */
-  --accent-video:     #facc15; /* yellow       */
-  --accent-dev:       #4ade80; /* green        */
-  --accent-images:    #f87171; /* red          */
-  --accent-svg:       #f472b6; /* pink         */
-  --accent-colors:    #a78bfa; /* violet       */
-  --accent-css:       #fb923c; /* orange       */
-  --accent-pdf: #34d399; /* emerald      */
-  --accent-text:      #38bdf8; /* sky          */
-  --foreground: oklch(14.5% 0 0deg);
-  --card: oklch(100% 0 0deg);
-  --card-foreground: oklch(14.5% 0 0deg);
-  --popover: oklch(100% 0 0deg);
-  --popover-foreground: oklch(14.5% 0 0deg);
-  --primary: oklch(20.5% 0 0deg);
-  --primary-foreground: oklch(98.5% 0 0deg);
-  --secondary: oklch(97% 0 0deg);
-  --secondary-foreground: oklch(20.5% 0 0deg);
-  --muted: oklch(97% 0 0deg);
-  --muted-foreground: oklch(55.6% 0 0deg);
-  --accent: oklch(97% 0 0deg);
-  --accent-foreground: oklch(20.5% 0 0deg);
-  --destructive: oklch(57.7% 0.245 27.325deg);
-  --destructive-foreground: oklch(57.7% 0.245 27.325deg);
-  --border: oklch(92.2% 0 0deg);
-  --input: oklch(92.2% 0 0deg);
-  --ring: oklch(70.8% 0 0deg);
+  --background: #f6f7fb;
+  --foreground: #1b1f3b;
+  --card: #fff;
+  --card-foreground: #1b1f3b;
+  --popover: #fff;
+  --popover-foreground: #1b1f3b;
+  --primary: #1b1f3b;
+  --primary-foreground: #f6f7fb;
+  --secondary: #eceef5;
+  --secondary-foreground: #1b1f3b;
+  --muted: #eceef5;
+  --muted-foreground: #565b7a;
+  --accent: #eceef5;
+  --accent-foreground: #1b1f3b;
+  --destructive: #c4362c;
+  --destructive-foreground: #c4362c;
+  --border: #e2e4ee;
+  --input: #858aa6;
+  --ring: #1b1f3b;
   --chart-1: oklch(64.6% 0.222 41.116deg);
   --chart-2: oklch(60% 0.118 184.704deg);
   --chart-3: oklch(39.8% 0.07 227.392deg);
   --chart-4: oklch(82.8% 0.189 84.429deg);
   --chart-5: oklch(76.9% 0.188 70.08deg);
-  --sidebar: oklch(98.5% 0 0deg);
-  --sidebar-foreground: oklch(14.5% 0 0deg);
-  --sidebar-primary: oklch(20.5% 0 0deg);
-  --sidebar-primary-foreground: oklch(98.5% 0 0deg);
-  --sidebar-accent: oklch(97% 0 0deg);
-  --sidebar-accent-foreground: oklch(20.5% 0 0deg);
-  --sidebar-border: oklch(92.2% 0 0deg);
-  --sidebar-ring: oklch(70.8% 0 0deg);
+  --sidebar: #f6f7fb;
+  --sidebar-foreground: #1b1f3b;
+  --sidebar-primary: #1b1f3b;
+  --sidebar-primary-foreground: #f6f7fb;
+  --sidebar-accent: #eceef5;
+  --sidebar-accent-foreground: #1b1f3b;
+  --sidebar-border: #e2e4ee;
+  --sidebar-ring: #1b1f3b;
 }
 
 .dark {
-  --background: oklch(14.5% 0 0deg);
-  --foreground: oklch(98.5% 0 0deg);
-  --card: oklch(14.5% 0 0deg);
-  --card-foreground: oklch(98.5% 0 0deg);
-  --popover: oklch(14.5% 0 0deg);
-  --popover-foreground: oklch(98.5% 0 0deg);
-  --primary: oklch(98.5% 0 0deg);
-  --primary-foreground: oklch(20.5% 0 0deg);
-  --secondary: oklch(26.9% 0 0deg);
-  --secondary-foreground: oklch(98.5% 0 0deg);
-  --muted: oklch(26.9% 0 0deg);
-  --muted-foreground: oklch(70.8% 0 0deg);
-  --accent: oklch(26.9% 0 0deg);
-  --accent-foreground: oklch(98.5% 0 0deg);
-  --destructive: oklch(39.6% 0.141 25.723deg);
-  --destructive-foreground: oklch(63.7% 0.237 25.331deg);
-  --border: oklch(26.9% 0 0deg);
-  --input: oklch(26.9% 0 0deg);
-  --ring: oklch(43.9% 0 0deg);
+  color-scheme: dark;
+  --background: #161a30;
+  --foreground: #f6f7fb;
+  --card: #1b1f3b;
+  --card-foreground: #f6f7fb;
+  --popover: #1b1f3b;
+  --popover-foreground: #f6f7fb;
+  --primary: #ffc23d;
+  --primary-foreground: #1b1f3b;
+  --secondary: #2a2f4f;
+  --secondary-foreground: #f6f7fb;
+  --muted: #2a2f4f;
+  --muted-foreground: #a9adc6;
+  --accent: #2a2f4f;
+  --accent-foreground: #f6f7fb;
+  --destructive: #ff5a4e;
+  --destructive-foreground: #ff5a4e;
+  --border: #363c60;
+  --input: #7d82a0;
+  --ring: #ffc23d;
   --chart-1: oklch(48.8% 0.243 264.376deg);
   --chart-2: oklch(69.6% 0.17 162.48deg);
   --chart-3: oklch(76.9% 0.188 70.08deg);
   --chart-4: oklch(62.7% 0.265 303.9deg);
   --chart-5: oklch(64.5% 0.246 16.439deg);
-  --sidebar: oklch(20.5% 0 0deg);
-  --sidebar-foreground: oklch(98.5% 0 0deg);
-  --sidebar-primary: oklch(48.8% 0.243 264.376deg);
-  --sidebar-primary-foreground: oklch(98.5% 0 0deg);
-  --sidebar-accent: oklch(26.9% 0 0deg);
-  --sidebar-accent-foreground: oklch(98.5% 0 0deg);
-  --sidebar-border: oklch(26.9% 0 0deg);
-  --sidebar-ring: oklch(43.9% 0 0deg);
+  --sidebar: #1b1f3b;
+  --sidebar-foreground: #f6f7fb;
+  --sidebar-primary: #ffc23d;
+  --sidebar-primary-foreground: #1b1f3b;
+  --sidebar-accent: #2a2f4f;
+  --sidebar-accent-foreground: #f6f7fb;
+  --sidebar-border: #363c60;
+  --sidebar-ring: #ffc23d;
 }
 
 @layer base {
@@ -125,12 +115,14 @@
   .page-shell {
     @apply relative min-h-screen;
 
-    background-color: #080808;
-    background-image: url("/resources/grid-background.svg");
+    background-color: var(--background);
+    background-image:
+      linear-gradient(to right, rgb(246 247 251 / 14%) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(246 247 251 / 14%) 1px, transparent 1px);
     background-attachment: fixed;
     background-position: center top;
     background-repeat: repeat;
-    background-size: 1600px 900px;
+    background-size: 40px 40px;
   }
 
   /* Subtle grid + radial glow overlay */
@@ -152,7 +144,7 @@
 
   /* Gradient fill for the product name on the launcher and the landing page */
   .brand-title {
-    background: linear-gradient(135deg, #fff 0%, #84b9fbff 30%, #ffa9a9ff 70%, #fff 90%);
+    background: linear-gradient(135deg, #f6f7fb 0%, #4aa8ff 30%, #ff5a4e 70%, #f6f7fb 90%);
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
@@ -181,7 +173,7 @@
 
   /* Error banner */
   .error-banner {
-    @apply rounded-xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-sm text-red-300;
+    @apply rounded-xl border border-[#ff5a4e]/25 bg-[#ff5a4e]/[0.08] px-4 py-3 text-sm text-[#ff5a4e];
   }
 
   /* Emerald accent badge (used for status, "client-side" pills, etc.) */
@@ -189,16 +181,9 @@
     @apply flex border-white/15 bg-white/[0.06] text-white/80;
   }
 
-  /* Colored accent badges */
-  .badge-blue   { @apply flex border-blue-400/25   bg-blue-400/10   text-blue-300;   }
-  .badge-yellow { @apply flex border-yellow-400/25 bg-yellow-400/10 text-yellow-300; }
-  .badge-green  { @apply flex border-green-400/25  bg-green-400/10  text-green-300;  }
-  .badge-red    { @apply flex border-red-400/25    bg-red-400/10    text-red-300;    }
-  .badge-pink   { @apply flex border-pink-400/25   bg-pink-400/10   text-pink-300;   }
-
   .category-card-scroll {
     scrollbar-width: thin;
-    scrollbar-color: rgb(72 72 72 / 85%) transparent;
+    scrollbar-color: rgb(54 60 96 / 85%) transparent;
   }
 
   .category-card-scroll::-webkit-scrollbar {
@@ -211,7 +196,7 @@
 
   .category-card-scroll::-webkit-scrollbar-thumb {
     border-radius: 9999px;
-    background: rgb(72 72 72 / 85%);
+    background: rgb(54 60 96 / 85%);
   }
 
   .category-card-scroll::-webkit-scrollbar-button {
@@ -222,8 +207,8 @@
 
   /* Accent-tinted primary CTA button */
   .btn-accent {
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
+    background: var(--primary);
+    color: var(--primary-foreground);
     border: none;
     transition: filter 150ms ease, transform 100ms ease;
   }
@@ -243,10 +228,10 @@
 
   /* Tool-page scoped accents (keeps home page unchanged) */
   .tool-accent-scope {
-    --tool-accent-primary: #60a5fa;
-    --tool-accent-secondary: #60a5fa;
-    --tool-accent-primary-rgb: 96 165 250;
-    --tool-accent-secondary-rgb: 96 165 250;
+    --tool-accent-primary: #4aa8ff;
+    --tool-accent-secondary: #4aa8ff;
+    --tool-accent-primary-rgb: 74 168 255;
+    --tool-accent-secondary-rgb: 74 168 255;
     --tool-border: rgb(var(--tool-accent-primary-rgb) / 22%);
   }
 
@@ -293,7 +278,7 @@
   }
 
   .tool-accent-scope [data-slot="progress"] {
-    background-color: rgb(30 41 59 / 60%);
+    background-color: rgb(42 47 79 / 60%);
   }
 
   .tool-accent-scope [data-slot="progress-indicator"] {

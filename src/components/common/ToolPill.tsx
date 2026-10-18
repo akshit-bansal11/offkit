@@ -22,15 +22,15 @@ export function ToolPill({
   const label = tool.shortName ?? tool.name;
 
   const pillClass = cn(
-    "inline-flex min-h-11 items-center gap-2.5 rounded-full border border-white/[0.08] bg-[#252626] px-5 py-2.5 text-sm font-medium text-[#e7e5e4] shadow-[inset_1px_1px_0px_rgba(72,72,72,0.15)] transition-all duration-300",
+    "inline-flex min-h-11 items-center gap-2.5 rounded-full border border-border bg-secondary px-5 py-2.5 text-sm font-medium text-foreground shadow-[inset_1px_1px_0px_rgba(246,247,251,0.06)] transition-all duration-300",
     isInDevelopment
       ? "cursor-not-allowed opacity-60"
-      : "hover:bg-[#2b2c2c] hover:border-[var(--pill-accent-border,rgba(255,255,255,0.25))]",
+      : "hover:bg-secondary/80 hover:border-[var(--pill-accent-border,var(--muted-foreground))]",
   );
 
   const iconStyle = accentColor
-    ? { color: `${accentColor}99` }
-    : { color: "#acabaa" };
+    ? { color: accentColor }
+    : { color: "var(--muted-foreground)" };
 
   const content = (
     <>
@@ -44,7 +44,7 @@ export function ToolPill({
       )}
       <span>{label}</span>
       {!runsOnWeb(tool) && (
-        <span className="rounded-full border border-white/15 px-2 text-xs text-[#acabaa]">
+        <span className="rounded-full border border-border px-2 text-xs text-muted-foreground">
           Desktop
         </span>
       )}

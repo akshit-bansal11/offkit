@@ -24,13 +24,13 @@ export default function Image() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        // Same value .page-shell uses in globals.css.
-        background: "#080808",
-        color: "#ffffff",
+        // Brand palette (see globals.css): ink background, paper text, citrus accent.
+        background: "#161a30",
+        color: "#f6f7fb",
       }}
     >
-      <div style={{ fontSize: 120 }}>Offkit</div>
-      <div style={{ fontSize: 40, color: "#a3a3a3" }}>
+      <div style={{ fontSize: 120, color: "#ffc23d" }}>Offkit</div>
+      <div style={{ fontSize: 40, color: "#a9adc6" }}>
         File tools that run on your device. Nothing is uploaded.
       </div>
     </div>,
