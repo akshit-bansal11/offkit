@@ -22,8 +22,8 @@ export function PlatformGate({ children }: { children: ReactNode }) {
       <h1 className="text-3xl font-semibold tracking-tight">{tool.name}</h1>
       <h2 className="text-xl font-medium">Available in the desktop app</h2>
       <p className="text-muted-foreground">
-        This tool needs the Offkit desktop app (Windows, macOS, Linux).
-        Download it from the latest release.
+        This tool needs the Offkit desktop app (Windows, macOS, Linux). Download
+        it from the latest release.
       </p>
       <Button asChild>
         <a href={siteConfig.download.latest}>Download the desktop app</a>
