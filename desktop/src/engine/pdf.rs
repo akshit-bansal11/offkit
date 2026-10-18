@@ -75,20 +75,32 @@ pub fn pdfium() -> Option<&'static Pdfium> {
         .as_ref()
 }
 
-/// Next to the executable, then `desktop/vendor/<os>/pdfium/` in development builds, where
-/// `scripts/fetch-pdfium.sh` puts it. Never the system's library path: the app binds the build
-/// it was tested with.
+/// Next to the executable, then where the installer puts the app's resources (macOS: the
+/// bundle's `Contents/Resources`; deb and AppImage: `usr/lib/offkit`; the Windows installer
+/// uses the executable's own folder), then `desktop/vendor/<os>/pdfium/` in development builds,
+/// where `scripts/fetch-pdfium.sh` puts it. Never the system's library path: the app binds the
+/// build it was tested with.
 fn library_dirs() -> Vec<PathBuf> {
     let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(Path::to_path_buf));
+    // The exe sits in `Contents/MacOS` or `usr/bin`, so the resources are a sibling folder.
+    let bundle = exe_dir.as_ref().and_then(|dir| {
+        if cfg!(target_os = "macos") {
+            Some(dir.join("../Resources"))
+        } else if cfg!(target_os = "linux") {
+            Some(dir.join("../lib/offkit"))
+        } else {
+            None
+        }
+    });
     let vendor = cfg!(debug_assertions).then(|| {
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("vendor")
             .join(std::env::consts::OS)
             .join("pdfium")
     });
-    exe_dir.into_iter().chain(vendor).collect()
+    exe_dir.into_iter().chain(bundle).chain(vendor).collect()
 }
 
 fn find_library(dirs: &[PathBuf]) -> Option<PathBuf> {
@@ -1020,6 +1032,12 @@ mod tests {
 
     fn lib() -> &'static Pdfium {
         pdfium().expect("PDFium missing: run desktop/scripts/fetch-pdfium.sh")
+    }
+
+    #[test]
+    fn library_search_starts_with_the_exes_own_folder() {
+        let exe = std::env::current_exe().unwrap();
+        assert_eq!(library_dirs().first().map(PathBuf::as_path), exe.parent());
     }
 
     fn temp_dir(test: &str) -> PathBuf {

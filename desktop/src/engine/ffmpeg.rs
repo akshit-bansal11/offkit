@@ -43,7 +43,8 @@ impl Ffmpeg {
     }
 
     /// Looks next to the executable, then in `desktop/vendor/<os>/` (development builds), then on
-    /// PATH. Both `ffmpeg` and `ffprobe` must sit in the same directory.
+    /// PATH, then (macOS only) in the Homebrew and MacPorts folders. Both `ffmpeg` and `ffprobe`
+    /// must sit in the same directory.
     fn locate() -> Option<Self> {
         let exe_dir = std::env::current_exe()
             .ok()
@@ -57,10 +58,16 @@ impl Ffmpeg {
         let path_dirs = std::env::var_os("PATH")
             .map(|p| std::env::split_paths(&p).collect::<Vec<_>>())
             .unwrap_or_default();
+        // An app opened from Finder gets a minimal PATH without the folders package managers use.
+        let mac_dirs = ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"]
+            .into_iter()
+            .filter(|_| cfg!(target_os = "macos"))
+            .map(PathBuf::from);
         exe_dir
             .into_iter()
             .chain(vendor)
             .chain(path_dirs)
+            .chain(mac_dirs)
             .find_map(|dir| {
                 let bin = |name: &str| dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
                 let (ffmpeg, ffprobe) = (bin("ffmpeg"), bin("ffprobe"));
