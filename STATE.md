@@ -15,7 +15,7 @@
 
 - **In flight:** nothing. The `v0.2.0` release run (39118463064) succeeded and the release is published as Latest.
 - **Blocked on:** the owner, for the Vercel rename and the new domain (`OPEN_ITEMS.md`).
-- **Next action:** owner merges Dependabot #20 (actions/setup-node 7) and #21 (diff 9). Both rebased onto `668cedc` and passed CI on 2026-10-19; the agent session may not merge.
+- **Next action:** the owner items in `OPEN_ITEMS.md`. Dependabot #20 (actions/setup-node 7) and #21 (diff 9) merged on 2026-10-19 after passing CI on the rebased `main`.
 
 ## Verified facts
 
