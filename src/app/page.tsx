@@ -1,5 +1,5 @@
 // page.tsx
-// Landing page: what Offkit is, every tool to open in the browser, and the Windows download.
+// Landing page: what Offkit is, every tool to open in the browser, and the desktop app download.
 
 import { Download } from "lucide-react";
 import type { Metadata } from "next";
@@ -34,14 +34,14 @@ export default function Home() {
           </h1>
           <p className="mt-4 max-w-2xl text-center text-base leading-7 text-muted-foreground sm:text-lg">
             {tools.length} file tools that run on your device. Use them here in
-            your browser, or download the Windows app. Your files are never
-            uploaded.
+            your browser, or download the desktop app for Windows, macOS and
+            Linux. Your files are never uploaded.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">
               <a href={siteConfig.download.latest}>
                 <Download aria-hidden="true" />
-                Download for Windows
+                Download the desktop app
               </a>
             </Button>
             <Button
@@ -54,7 +54,7 @@ export default function Home() {
             </Button>
           </div>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Windows 10 or later, 64-bit.
+            Windows 10 or later (64-bit), macOS 11 or later, or 64-bit Linux.
           </p>
         </section>
 
@@ -92,8 +92,8 @@ export default function Home() {
               <dd className="mt-2 text-sm leading-6 text-muted-foreground">
                 No tool sends your files anywhere. The one tool that goes online
                 is Directory Scaffold, which asks GitHub for a repository&apos;s
-                file list when you use it. The Windows app blocks every other
-                outbound request.
+                file list when you use it. The desktop app makes no network
+                requests of its own.
               </dd>
             </div>
             <div>
@@ -101,7 +101,7 @@ export default function Home() {
               <dd className="mt-2 text-sm leading-6 text-muted-foreground">
                 There is nothing to sign in to. This website counts page views
                 and reports script errors, and never sees your files. The
-                Windows app collects nothing.
+                desktop app collects nothing.
               </dd>
             </div>
           </dl>

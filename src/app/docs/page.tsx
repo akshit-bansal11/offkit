@@ -9,7 +9,7 @@ import { runsOnWeb, toolsByCategory } from "@/config/tools";
 
 const TITLE = "Documentation";
 const DESCRIPTION =
-  "How to use Offkit in your browser or install it on Windows, what each tool does, and its known limits.";
+  "How to use Offkit in your browser or install the desktop app on Windows, macOS or Linux, what each tool does, and its known limits.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -70,19 +70,38 @@ export default function DocsPage() {
               .
             </li>
             <li>
-              Run it. Windows SmartScreen may show &quot;Windows protected your
-              PC&quot; because the installer is not code-signed. Choose More
-              info, then Run anyway.
+              Windows: run offkit-&lt;version&gt;.exe. SmartScreen may show
+              &quot;Windows protected your PC&quot; because the installer is not
+              code-signed. Choose More info, then Run anyway. Open Offkit from
+              the Start menu.
             </li>
-            <li>Open Offkit from the Start menu.</li>
+            <li>
+              macOS: open offkit-&lt;version&gt;-arm64.dmg (Apple Silicon) or
+              offkit-&lt;version&gt;-x64.dmg (Intel) and drag Offkit to
+              Applications. The app is ad hoc signed and not notarised, so on
+              first launch right-click it and choose Open, or go to System
+              Settings, then Privacy &amp; Security, and choose Open Anyway.
+            </li>
+            <li>
+              Linux: run offkit-&lt;version&gt;-x86_64.AppImage, or install
+              offkit-&lt;version&gt;-amd64.deb.
+            </li>
           </ol>
           <p className={body}>
-            The app does not update itself. To update, download the newest
-            installer and run it again.
+            Each release also lists SHA256SUMS.txt for checking your download.
           </p>
           <p className={body}>
-            To uninstall, open Settings, then Apps, then Installed apps, find
-            Offkit and choose Uninstall.
+            The audio and video tools need FFmpeg and ffprobe installed, because
+            Offkit does not bundle them. Use winget install Gyan.FFmpeg on
+            Windows, brew install ffmpeg on macOS, or sudo apt install ffmpeg on
+            Linux. Until then the app shows a Get FFmpeg screen. PDFium for the
+            PDF tools is bundled.
+          </p>
+          <p className={body}>
+            The app does not update itself. To update, download the newest
+            release and install it again. To uninstall on Windows, open
+            Settings, then Apps, then Installed apps, find Offkit and choose
+            Uninstall.
           </p>
         </section>
 
@@ -92,7 +111,7 @@ export default function DocsPage() {
           </h2>
           <p className={body}>
             Every tool works on files on your own device, in the browser and in
-            the Windows app alike. Nothing is uploaded and there is no account.
+            the desktop app alike. Nothing is uploaded and there is no account.
           </p>
           <p className={body}>
             Directory Scaffold is the one tool that goes online: it asks
@@ -105,8 +124,9 @@ export default function DocsPage() {
             This website counts page views with Vercel Web Analytics and reports
             script errors to Better Stack. Neither receives your files, and
             Better Stack&apos;s script does not load on the Directory Scaffold
-            page. The Windows app blocks every other outbound request and sends
-            no analytics or error reports.
+            page. The desktop app makes no network requests of its own and sends
+            no analytics or error reports. It only opens a link in your browser
+            when you click one.
           </p>
         </section>
 
@@ -150,17 +170,14 @@ export default function DocsPage() {
           </h2>
           <ul className={`${body} list-disc space-y-2 pl-5`}>
             <li>
-              Video can be encoded as H.264, MPEG-4, VP8, ProRes, FLV and
-              Theora. H.265 and VP9 are not available in the bundled FFmpeg
-              build.
+              In the browser, video can be encoded as H.264, MPEG-4, VP8,
+              ProRes, FLV and Theora; H.265 and VP9 are not in its FFmpeg build.
+              The desktop app offers whatever encoders the FFmpeg you installed
+              has.
             </li>
             <li>
-              Media tools hold the whole file in memory, so very large videos
-              can fail. Try a shorter clip or a smaller file.
-            </li>
-            <li>
-              The desktop app is Windows only for now. On macOS and Linux, use
-              the tools in your browser.
+              In the browser, media tools hold the whole file in memory, so very
+              large videos can fail. Try a shorter clip or a smaller file.
             </li>
           </ul>
         </section>
