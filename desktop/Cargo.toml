@@ -96,7 +96,8 @@ product-name = "Offkit"
 identifier = "me.akshitbansal.offkit"
 publisher = "Akshit Bansal"
 category = "DeveloperTool"
-icons = ["assets/icon.png", "assets/icon.ico"]
+# macOS needs the .icns: the packager maps a 1024px PNG to no ICNS slot and fails.
+icons = ["assets/icon.png", "assets/icon.ico", "assets/icon.icns"]
 formats = ["nsis", "dmg", "appimage", "deb"]
 # The release workflow stages pdfium, its licences and the third-party notices here.
 resources = [{ src = "packaging/resources", target = "." }]
