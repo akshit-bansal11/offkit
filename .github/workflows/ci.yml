@@ -95,3 +95,11 @@ jobs:
           name: playwright-report-web
           path: playwright-report
           retention-days: 7
+      # e2e/ui-sweep.spec.ts screenshots every tool page; kept to review the UI.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ui-sweep
+          path: ui-sweep
+          retention-days: 7
+          if-no-files-found: ignore

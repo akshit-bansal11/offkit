@@ -34,8 +34,9 @@ jobs:
           cp desktop/vendor/windows/pdfium/pdfium.dll desktop/target/release/
           exe="$PWD/desktop/target/release/offkit.exe"
           mkdir shots
+          tools=$(python -c "import json; print(' '.join(t['slug'] for t in json.load(open('tools.json'))['tools']))")
           for theme in light dark; do
-            for tool in video-converter md-editor json-formatter pdf-toolkit color-converter; do
+            for tool in $tools; do
               OFFKIT_SNAPSHOT="$PWD/shots/$tool-$theme.png" OFFKIT_TOOL=$tool OFFKIT_THEME=$theme timeout 60 "$exe"
             done
             OFFKIT_SNAPSHOT="$PWD/shots/about-$theme.png" OFFKIT_THEME=$theme OFFKIT_ABOUT=1 timeout 60 "$exe"
@@ -43,8 +44,9 @@ jobs:
       - name: Every screenshot exists
         run: |
           status=0
+          tools=$(python -c "import json; print(' '.join(t['slug'] for t in json.load(open('tools.json'))['tools']))")
           for theme in light dark; do
-            for name in video-converter md-editor json-formatter pdf-toolkit color-converter about; do
+            for name in $tools about; do
               if [ ! -s "shots/$name-$theme.png" ]; then
                 echo "::error::shots/$name-$theme.png is missing"
                 status=1
