@@ -38,7 +38,10 @@ export component InspectorSection {
             }
         }
 
-        if root.footnote != "": HorizontalLayout {
+        // A VerticalLayout, not a HorizontalLayout: as the root of an `if` it passes its width,
+        // less padding, to the wrapped text, so the text is measured at its real width. Under a
+        // HorizontalLayout it was measured as one line and the next section drew over it.
+        if root.footnote != "": VerticalLayout {
             padding-left: Theme.space-3;
             padding-right: Theme.space-3;
 
