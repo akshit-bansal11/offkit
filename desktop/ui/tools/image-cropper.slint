@@ -675,7 +675,7 @@ component Settings inherits Inspector {
 
             SegmentedControl {
                 label: "Apply crop to";
-                options: ["Each Image", "All Images"];
+                options: ["Each", "All"];
                 current-index: ImageCropper.scope == CropScope.all ? 1 : 0;
                 selected(i) => {
                     ImageCropper.scope = i == 1 ? CropScope.all : CropScope.each;

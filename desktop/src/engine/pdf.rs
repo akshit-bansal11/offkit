@@ -844,7 +844,7 @@ fn recompress_images(
         .map_err(|e| JobError::Failed(format!("Couldn't read {name}: {e}")))?;
     if doc.is_encrypted() || doc.was_encrypted() {
         return Err(JobError::Failed(format!(
-            "{name} is encrypted, so its images can't be recompressed. Try Rasterise pages."
+            "{name} is encrypted, so its images can't be recompressed. Try Rasterise instead."
         )));
     }
     let images: Vec<ObjectId> = doc

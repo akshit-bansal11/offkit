@@ -54,7 +54,7 @@ component Settings inherits Inspector {
 
             SegmentedControl {
                 label: "Method";
-                options: ["Recompress images", "Rasterise pages"];
+                options: ["Recompress", "Rasterise"];
                 current-index: PdfCompressor.mode == PdfCompressMode.images ? 0 : 1;
                 selected(i) => { PdfCompressor.mode = i == 0 ? PdfCompressMode.images : PdfCompressMode.rasterise; }
             }
