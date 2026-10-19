@@ -1,6 +1,6 @@
 [package]
 name = "offkit"
-version = "0.2.0"
+version = "0.2.1"
 description = "37 everyday file and developer tools that run offline on your own machine."
 repository = "https://github.com/akshit-bansal11/offkit"
 homepage = "https://offkit.akshitbansal.me"
