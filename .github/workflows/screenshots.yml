@@ -11,7 +11,8 @@ permissions:
 jobs:
   screenshots:
     runs-on: windows-latest
-    timeout-minutes: 45
+    # A cold release build takes ~22 minutes and each of the 76 launches ~18 seconds.
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
@@ -37,7 +38,8 @@ jobs:
           tools=$(python -c "import json; print(' '.join(t['slug'] for t in json.load(open('tools.json'))['tools']))")
           for theme in light dark; do
             for tool in $tools; do
-              OFFKIT_SNAPSHOT="$PWD/shots/$tool-$theme.png" OFFKIT_TOOL=$tool OFFKIT_THEME=$theme timeout 60 "$exe"
+              echo "$(date +%T) $tool $theme"
+              OFFKIT_SNAPSHOT="$PWD/shots/$tool-$theme.png" OFFKIT_TOOL=$tool OFFKIT_THEME=$theme timeout 60 "$exe" || echo "::warning::$tool $theme exited with $?"
             done
             OFFKIT_SNAPSHOT="$PWD/shots/about-$theme.png" OFFKIT_THEME=$theme OFFKIT_ABOUT=1 timeout 60 "$exe"
           done
@@ -55,6 +57,7 @@ jobs:
           done
           exit $status
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
         with:
           name: screenshots
           path: shots/*.png
