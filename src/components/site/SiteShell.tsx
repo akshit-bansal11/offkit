@@ -21,7 +21,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           aria-label="Site"
           className="flex flex-wrap items-center justify-between gap-4"
         >
-          <Link href="/" className="text-lg font-semibold tracking-tight">
+          <Link href="/" className="rounded-md text-lg font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Offkit
           </Link>
           <ul className="flex flex-wrap items-center gap-2">
@@ -48,7 +48,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
         <p>
           Offkit is open source.{" "}
           <a
-            className="underline underline-offset-4"
+            className="rounded-sm underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             href={siteConfig.repositoryUrl}
           >
             Read the code on GitHub

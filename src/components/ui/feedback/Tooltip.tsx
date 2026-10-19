@@ -29,13 +29,15 @@ function Tooltip({ children, content, side = "top", className }: TooltipProps) {
       className="relative inline-flex"
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
+      onFocus={() => setVisible(true)}
+      onBlur={() => setVisible(false)}
     >
       {children}
       {visible && (
         <div
           role="tooltip"
           className={cn(
-            "absolute z-50 w-max max-w-xs rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground shadow-md animate-in fade-in-0 zoom-in-95",
+            "absolute z-50 w-max max-w-xs rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground shadow-md pointer-events-none animate-in fade-in-0 zoom-in-95 motion-reduce:animate-none",
             positionClass,
             className,
           )}

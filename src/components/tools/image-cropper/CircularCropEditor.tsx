@@ -71,14 +71,14 @@ export function CircularCropEditor({
     context.resetTransform();
 
     // Draw circular outline
-    context.strokeStyle = "#4ade80";
+    context.strokeStyle = "#2fd59a";
     context.lineWidth = 2;
     context.beginPath();
     context.arc(scaledCx, scaledCy, scaledR, 0, Math.PI * 2);
     context.stroke();
 
     // Draw center point
-    context.fillStyle = "#4ade80";
+    context.fillStyle = "#2fd59a";
     context.beginPath();
     context.arc(scaledCx, scaledCy, 4, 0, Math.PI * 2);
     context.fill();

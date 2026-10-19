@@ -62,7 +62,7 @@ export function MeshCropEditor({
     context.clearRect(scaledCrop.x, scaledCrop.y, scaledCrop.w, scaledCrop.h);
 
     // Draw outline
-    context.strokeStyle = "#4ade80";
+    context.strokeStyle = "#2fd59a";
     context.lineWidth = 2;
     context.strokeRect(scaledCrop.x, scaledCrop.y, scaledCrop.w, scaledCrop.h);
 
@@ -98,7 +98,7 @@ export function MeshCropEditor({
     context.stroke();
 
     // Draw handles (same as rectangular)
-    context.fillStyle = "#4ade80";
+    context.fillStyle = "#2fd59a";
     [
       [scaledCrop.x, scaledCrop.y],
       [scaledCrop.x + scaledCrop.w / 2, scaledCrop.y],

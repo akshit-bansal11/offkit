@@ -1,5 +1,8 @@
 import type { Config } from "tailwindcss";
 
+const token = (name: string) =>
+  `color-mix(in srgb, var(--${name}) calc(<alpha-value> * 100%), transparent)`;
+
 const config: Config = {
   darkMode: ["class"],
   content: [
@@ -10,61 +13,64 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        background: token("background"),
+        foreground: token("foreground"),
         card: {
-          DEFAULT: "var(--card)",
-          foreground: "var(--card-foreground)",
+          DEFAULT: token("card"),
+          foreground: token("card-foreground"),
         },
         popover: {
-          DEFAULT: "var(--popover)",
-          foreground: "var(--popover-foreground)",
+          DEFAULT: token("popover"),
+          foreground: token("popover-foreground"),
         },
         primary: {
-          DEFAULT: "var(--primary)",
-          foreground: "var(--primary-foreground)",
+          DEFAULT: token("primary"),
+          foreground: token("primary-foreground"),
         },
         secondary: {
-          DEFAULT: "var(--secondary)",
-          foreground: "var(--secondary-foreground)",
+          DEFAULT: token("secondary"),
+          foreground: token("secondary-foreground"),
         },
         muted: {
-          DEFAULT: "var(--muted)",
-          foreground: "var(--muted-foreground)",
+          DEFAULT: token("muted"),
+          foreground: token("muted-foreground"),
         },
         accent: {
-          DEFAULT: "var(--accent)",
-          foreground: "var(--accent-foreground)",
+          DEFAULT: token("accent"),
+          foreground: token("accent-foreground"),
         },
         destructive: {
-          DEFAULT: "var(--destructive)",
-          foreground: "var(--destructive-foreground)",
+          DEFAULT: token("destructive"),
+          foreground: token("destructive-foreground"),
         },
-        border: "var(--border)",
-        input: "var(--input)",
-        ring: "var(--ring)",
+        success: token("success"),
+        warning: token("warning"),
+        info: token("info"),
+        border: token("border"),
+        input: token("input"),
+        ring: token("ring"),
         chart: {
-          1: "var(--chart-1)",
-          2: "var(--chart-2)",
-          3: "var(--chart-3)",
-          4: "var(--chart-4)",
-          5: "var(--chart-5)",
+          1: token("chart-1"),
+          2: token("chart-2"),
+          3: token("chart-3"),
+          4: token("chart-4"),
+          5: token("chart-5"),
         },
         sidebar: {
-          DEFAULT: "var(--sidebar)",
-          foreground: "var(--sidebar-foreground)",
-          primary: "var(--sidebar-primary)",
-          "primary-foreground": "var(--sidebar-primary-foreground)",
-          accent: "var(--sidebar-accent)",
-          "accent-foreground": "var(--sidebar-accent-foreground)",
-          border: "var(--sidebar-border)",
-          ring: "var(--sidebar-ring)",
+          DEFAULT: token("sidebar"),
+          foreground: token("sidebar-foreground"),
+          primary: token("sidebar-primary"),
+          "primary-foreground": token("sidebar-primary-foreground"),
+          accent: token("sidebar-accent"),
+          "accent-foreground": token("sidebar-accent-foreground"),
+          border: token("sidebar-border"),
+          ring: token("sidebar-ring"),
         },
       },
       borderRadius: {
         sm: "calc(var(--radius) - 4px)",
         md: "calc(var(--radius) - 2px)",
-        lg: "var(--radius)",
+        lg: token("radius"),
         xl: "calc(var(--radius) + 4px)",
       },
     },

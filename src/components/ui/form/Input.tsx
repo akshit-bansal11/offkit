@@ -15,7 +15,7 @@ const inputVariants = cva(
       variant: {
         default:
           "border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        dark: "border-white/10 bg-black text-white placeholder:text-white/35 focus-visible:border-white/20 focus-visible:ring-0",
+        dark: "border-white/10 bg-black text-white placeholder:text-white/35 transition-colors hover:border-white/20 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
       },
     },
     defaultVariants: {

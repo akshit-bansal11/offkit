@@ -1,5 +1,5 @@
 // Checkbox.tsx
-// A custom checkbox control built on Radix UI primitives.
+// A custom checkbox control using the native checkbox input.
 
 "use client";
 
@@ -9,13 +9,13 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const checkboxVariants = cva(
-  "peer h-4 w-4 shrink-0 rounded border accent-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none",
+  "peer h-4 w-4 shrink-0 cursor-pointer rounded border accent-primary disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none",
   {
     variants: {
       variant: {
         default:
           "border-input bg-background ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        dark: "border-white/15 bg-black ring-offset-0 focus-visible:border-white/20 focus-visible:ring-0",
+        dark: "border-white/15 bg-black ring-offset-0 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
       },
     },
     defaultVariants: {
