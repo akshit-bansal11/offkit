@@ -4,6 +4,26 @@ All notable changes to Offkit, formerly Open Tools. The format follows [Keep a C
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-20
+
+A sweep of interface bugs in both apps, plus interaction polish.
+
+### Fixed
+
+- **Website: dead sliders and buttons.** Every colour class with an opacity (`bg-primary/20`, `hover:bg-primary/90`, `ring-ring/50` and 231 more) produced no CSS, so slider tracks were invisible and buttons and fields showed no hover or focus. Sliders now draw a filled track in the tool's accent.
+- **Website: controls that could not be reached.** The Video Editor's trim end could not be dragged; Blob Generator's marks, and decorative layers in Glassmorphism, Palette Library, PDF Splitter and PDF Converter, sat over controls and took their clicks.
+- **Website: keyboard access.** Two checkboxes built from a `div` in Video Editor and Video Merger are real switches, hover-only remove buttons appear on keyboard focus, and icon-only buttons have names.
+- **Website: colours.** Status messages use the Offkit palette (coral, mint, citrus, sky) instead of stock reds, greens, ambers and blues, with measured contrast.
+- **Desktop: slider drags.** Blob Generator's sliders stopped after the first movement, and Box Shadow's layer list lost keyboard focus on each change: both rebuilt their rows on every edit. Sliders now also snap to their step.
+- **Desktop: overlapping text.** A wrapped note under an inspector section was measured as one line, so the next section drew over it, in seven tools.
+- **Desktop: layout.** PDF Compressor's inspector overflowed sideways, Image Cropper elided a label to "C…", and Gradient Maker showed a sideways scrollbar.
+- **Desktop: the dark switch knob** was nearly invisible on the citrus track.
+
+### Changed
+
+- Both apps give sliders, buttons, switches, checkboxes and list rows hover and press feedback, and respect reduced motion. Desktop sliders take Home, End, Page Up and Page Down.
+- PDF Compressor's methods are labelled Recompress and Rasterise, and Image Cropper's scope Each and All.
+
 ## [0.2.0] - 2026-10-18
 
 Open Tools is now **Offkit**. The Electron app from 0.1.0 is gone: the desktop app is rewritten as a native Rust and Slint program, and the website serves every tool in the browser again. Both read one tool registry, so a tool that only works on one side says so on the other.
@@ -62,6 +82,7 @@ The first tagged release, as Open Tools.
 - The gradient type switch now works, and PDF errors show inline.
 - The Video Merger normalises clips by default.
 
-[Unreleased]: https://github.com/akshit-bansal11/offkit/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/akshit-bansal11/offkit/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/akshit-bansal11/offkit/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/akshit-bansal11/offkit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/akshit-bansal11/offkit/releases/tag/v0.1.0
