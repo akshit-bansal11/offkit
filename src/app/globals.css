@@ -287,8 +287,10 @@
     border-color: rgb(var(--tool-accent-primary-rgb) / 30%);
   }
 
+  /* Read by the Slider's track and thumb, which it draws itself. */
   .tool-accent-scope [data-slot="slider"] {
-    background-color: rgb(var(--tool-accent-primary-rgb) / 18%);
+    --slider-color: rgb(var(--tool-accent-primary-rgb));
+    --slider-track: rgb(var(--tool-accent-primary-rgb) / 18%);
   }
 
   .tool-accent-scope [data-slot="progress"] {
