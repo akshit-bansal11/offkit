@@ -3,7 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 // The website suite: landing page, docs and every tool, served by `next start`.
 export default defineConfig({
   testDir: "e2e",
-  testMatch: ["site.spec.ts", "web-tools.spec.ts"],
+  testMatch: ["site.spec.ts", "web-tools.spec.ts", "ui-sweep.spec.ts"],
   timeout: 120_000,
   expect: { timeout: 20_000 },
   // One worker: the media tests load a 32 MB wasm engine per page, and the
