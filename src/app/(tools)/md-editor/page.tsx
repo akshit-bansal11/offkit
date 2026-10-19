@@ -330,7 +330,7 @@ function MdEditorTool() {
         .prose th, .prose td { border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem 0.75rem; }
         .prose th { background: rgba(255,255,255,0.05); font-weight: 600; }
         .prose hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem 0; }
-        .prose a { color: #60a5fa; text-decoration: underline; }
+        .prose a { color: var(--info); text-decoration: underline; }
         .prose strong { font-weight: 700; }
         .prose em { font-style: italic; }
         .prose img { max-width: 100%; border-radius: 8px; }
@@ -346,9 +346,11 @@ function MdEditorTool() {
             return (
               <button
                 key={i}
+                type="button"
                 title={btn.label}
+                aria-label={btn.label}
                 onClick={() => handleToolbarAction(btn.action)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 {btn.icon}
               </button>

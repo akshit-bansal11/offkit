@@ -146,7 +146,7 @@ function ConvertFromPdfTool() {
 
       {file && (
         <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-background/45 p-4">
-          <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400">
+          <div className="rounded-lg bg-success/10 p-2 text-success">
             <File className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -319,7 +319,7 @@ function ConvertFromPdfTool() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       )}

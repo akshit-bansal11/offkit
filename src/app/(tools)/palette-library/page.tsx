@@ -79,6 +79,11 @@ function PaletteLibraryTool() {
       </Card>
 
       <div className="space-y-16">
+        {sortedCounts.length === 0 && (
+          <p className="rounded-2xl border border-white/10 bg-background/40 p-8 text-center text-sm text-muted-foreground">
+            No palettes match &quot;{search.trim()}&quot;.
+          </p>
+        )}
         {sortedCounts.map((count) => {
           const palettes = palettesByCount[count];
           if (!palettes || palettes.length === 0) return null;
@@ -92,7 +97,7 @@ function PaletteLibraryTool() {
                 {palettes.map((palette) => (
                   <div
                     key={palette.name}
-                    className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-white/5 bg-[#121212] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:shadow-xl hover:shadow-blue-900/10"
+                    className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-white/5 bg-[#121212] shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:shadow-xl hover:shadow-info/10"
                   >
                     {/* Color Bars */}
                     <div className="flex h-32 w-full">
@@ -106,7 +111,7 @@ function PaletteLibraryTool() {
                           className="group/color relative h-full flex-1 rounded-none p-0 transition-all duration-300 hover:flex-[1.15] hover:bg-transparent"
                           style={{ backgroundColor: color }}
                         >
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 transition-opacity duration-300 group-hover/color:opacity-100">
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 transition-opacity duration-300 group-hover/color:opacity-100">
                             {copiedColor === color ? (
                               <CheckCircle2 className="size-8 text-white drop-shadow-md" />
                             ) : (

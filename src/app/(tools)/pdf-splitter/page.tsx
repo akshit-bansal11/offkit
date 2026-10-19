@@ -212,7 +212,7 @@ function PdfSplitterTool() {
 
       {file && (
         <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-background/45 p-4">
-          <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400">
+          <div className="rounded-lg bg-success/10 p-2 text-success">
             <File className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -224,6 +224,7 @@ function PdfSplitterTool() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Remove file"
             className="size-8 text-muted-foreground"
             onClick={() => {
               setFile(null);
@@ -305,12 +306,14 @@ function PdfSplitterTool() {
                   {thumbnails.map((t) => (
                     <button
                       key={t.index}
+                      type="button"
+                      aria-pressed={selectedPages.has(t.index)}
                       onClick={() =>
                         splitMode === "range" && togglePage(t.index)
                       }
-                      className={`relative overflow-hidden rounded-xl border aspect-[1/1.41] transition-all ${
+                      className={`relative overflow-hidden rounded-xl border aspect-[1/1.41] transition-all motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                         selectedPages.has(t.index)
-                          ? "border-emerald-400 ring-1 ring-emerald-400"
+                          ? "border-success ring-1 ring-success"
                           : "border-white/10 hover:border-white/30"
                       } ${splitMode !== "range" ? "cursor-default" : "cursor-pointer"}`}
                     >
@@ -320,11 +323,11 @@ function PdfSplitterTool() {
                         alt={`Page ${t.index + 1}`}
                         className="h-full w-full object-contain bg-white"
                       />
-                      <div className="absolute bottom-0 inset-x-0 bg-black/60 py-0.5 text-center text-[9px] text-white">
+                      <div className="pointer-events-none absolute bottom-0 inset-x-0 bg-black/60 py-0.5 text-center text-[9px] text-white">
                         {t.index + 1}
                       </div>
                       {selectedPages.has(t.index) && (
-                        <div className="absolute top-1 right-1 size-3 rounded-full bg-emerald-400" />
+                        <div className="pointer-events-none absolute top-1 right-1 size-3 rounded-full bg-success" />
                       )}
                     </button>
                   ))}
@@ -376,7 +379,7 @@ function PdfSplitterTool() {
       {error && (
         <div
           role="alert"
-          className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
           {error}
         </div>

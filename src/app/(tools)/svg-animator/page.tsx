@@ -340,7 +340,7 @@ function SvgAnimatorTool() {
       />
 
       {errorMessage ? (
-        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {errorMessage}
         </div>
       ) : null}
@@ -355,13 +355,13 @@ function SvgAnimatorTool() {
               <Badge className="border-white/15 bg-white/[0.06] text-white/75">
                 {parsedSvg.pathLengths.length} paths
               </Badge>
-              <Badge className="border-blue-500/20 bg-blue-500/10 text-blue-300">
+              <Badge className="border-info/25 bg-info/10 text-info">
                 Mode: {mode}
               </Badge>
-              <Badge className="border-purple-500/20 bg-purple-500/10 text-purple-300">
+              <Badge className="border-success/25 bg-success/10 text-success">
                 Speed: {speed.toFixed(2)}x
               </Badge>
-              <Badge className="border-orange-500/20 bg-orange-500/10 text-orange-300">
+              <Badge className="border-warning/25 bg-warning/10 text-warning">
                 Total: {formatDuration(totalAnimationTime)}
               </Badge>
             </div>

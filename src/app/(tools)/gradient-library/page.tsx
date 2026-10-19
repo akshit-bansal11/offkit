@@ -109,7 +109,7 @@ function GradientLibraryTool() {
           return (
             <div
               key={gradient.name}
-              className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-white/5 bg-card/50 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:shadow-xl hover:shadow-blue-900/10"
+              className="group flex flex-col overflow-hidden rounded-[1.5rem] border border-white/5 bg-card/50 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:shadow-xl hover:shadow-info/10"
             >
               {/* Gradient Preview */}
               <div className="relative h-32 w-full shrink-0 overflow-hidden md:h-36">

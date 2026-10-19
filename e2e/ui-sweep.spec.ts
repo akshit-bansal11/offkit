@@ -35,6 +35,7 @@ function coveredControls(page: Page) {
         rect.width < 2 ||
         rect.height < 2 ||
         style.visibility === "hidden" ||
+        style.pointerEvents === "none" ||
         style.opacity === "0" ||
         element.closest("[aria-hidden=true], [inert]") !== null;
       if (hidden || (element as HTMLButtonElement).disabled) continue;

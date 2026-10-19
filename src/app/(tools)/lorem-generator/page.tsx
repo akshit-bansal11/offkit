@@ -353,9 +353,11 @@ function LoremGeneratorTool() {
                 fullWidth
                 size="sm"
                 value={unit}
-                onValueChange={(value) =>
-                  setUnit(value as "words" | "sentences" | "paragraphs")
-                }
+                onValueChange={(value) => {
+                  const next = value as "words" | "sentences" | "paragraphs";
+                  setUnit(next);
+                  if (next !== "words") setCount((c) => Math.min(c, 100));
+                }}
                 options={[
                   {
                     label: (
@@ -399,7 +401,8 @@ function LoremGeneratorTool() {
                   value={count}
                   onChange={(e) => {
                     const val = parseInt(e.target.value);
-                    if (!isNaN(val)) setCount(Math.max(1, val));
+                    const max = unit === "words" ? 500 : 100;
+                    if (!isNaN(val)) setCount(Math.min(Math.max(1, val), max));
                   }}
                   className="bg-background/50 text-sm font-mono h-9"
                 />

@@ -291,7 +291,7 @@ function VideoEditorTool() {
       )}
 
       {isBigFile && isReady && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-3 text-amber-400">
+        <div className="flex items-start gap-3 rounded-2xl border border-warning/25 bg-warning/10 p-3 text-warning">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <p className="text-xs leading-relaxed">
             File is larger than 50 MB. The bundled FFmpeg runs in memory and
@@ -325,6 +325,7 @@ function VideoEditorTool() {
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Remove video"
               className="size-7 text-muted-foreground"
               onClick={() => setState(initState())}
             >
@@ -350,7 +351,7 @@ function VideoEditorTool() {
             <div className="relative h-8 w-full overflow-hidden rounded-lg bg-white/[0.06]">
               {/* Selected region */}
               <div
-                className="absolute inset-y-0 bg-yellow-400/20 border-x border-yellow-400/50"
+                className="absolute inset-y-0 bg-warning/20 border-x border-warning/50"
                 style={{
                   left: `${(state.trimStart / Math.max(state.duration, 1)) * 100}%`,
                   width: `${((state.trimEnd - state.trimStart) / Math.max(state.duration, 1)) * 100}%`,
@@ -359,6 +360,7 @@ function VideoEditorTool() {
               {/* Start handle */}
               <input
                 type="range"
+                aria-label="Trim start"
                 min={0}
                 max={state.duration}
                 step={0.1}
@@ -370,7 +372,24 @@ function VideoEditorTool() {
                   );
                   patch({ trimStart: parseFloat(val.toFixed(1)) });
                 }}
-                className="absolute inset-0 w-full cursor-pointer opacity-0"
+                className="pointer-events-none absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent focus-visible:outline-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-8 [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:bg-warning [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-8 [&::-moz-range-thumb]:w-2 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:rounded-sm [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-warning"
+              />
+              {/* End handle */}
+              <input
+                type="range"
+                aria-label="Trim end"
+                min={0}
+                max={state.duration}
+                step={0.1}
+                value={state.trimEnd}
+                onChange={(e) => {
+                  const val = Math.max(
+                    Number(e.target.value),
+                    state.trimStart + 0.1,
+                  );
+                  patch({ trimEnd: parseFloat(val.toFixed(1)) });
+                }}
+                className="pointer-events-none absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent focus-visible:outline-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-8 [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:bg-warning [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-8 [&::-moz-range-thumb]:w-2 [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:rounded-sm [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-warning"
               />
             </div>
             <div className="mt-2 flex justify-between text-xs font-mono text-muted-foreground">
@@ -410,6 +429,7 @@ function VideoEditorTool() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Start earlier"
                           className="size-8 border border-white/10"
                           onClick={() =>
                             patch({
@@ -428,6 +448,7 @@ function VideoEditorTool() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="Start later"
                           className="size-8 border border-white/10"
                           onClick={() =>
                             patch({
@@ -448,6 +469,7 @@ function VideoEditorTool() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="End earlier"
                           className="size-8 border border-white/10"
                           onClick={() =>
                             patch({
@@ -466,6 +488,7 @@ function VideoEditorTool() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="End later"
                           className="size-8 border border-white/10"
                           onClick={() =>
                             patch({
@@ -558,18 +581,19 @@ function VideoEditorTool() {
                       dimensions).
                     </p>
                     <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                      <div
-                        role="checkbox"
+                      <button
+                        type="button"
+                        role="switch"
                         aria-checked={state.cropEnabled}
                         onClick={() =>
                           patch({ cropEnabled: !state.cropEnabled })
                         }
-                        className={`relative h-4 w-7 rounded-full transition-colors ${state.cropEnabled ? "bg-yellow-400" : "bg-white/15"}`}
+                        className={`relative h-4 w-7 cursor-pointer rounded-full transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${state.cropEnabled ? "bg-warning" : "bg-white/15 hover:bg-white/25"}`}
                       >
                         <span
-                          className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${state.cropEnabled ? "left-3.5" : "left-0.5"}`}
+                          className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform motion-reduce:transition-none ${state.cropEnabled ? "left-3.5" : "left-0.5"}`}
                         />
-                      </div>
+                      </button>
                       Enabled
                     </label>
                   </div>
@@ -800,7 +824,7 @@ function VideoEditorTool() {
           {/* Export bar */}
           <Card className="divide-y divide-white/[0.06] border-white/10 bg-white/[0.015]">
             <div className="flex flex-wrap items-center gap-3 px-5 py-3">
-              <Zap className="size-4 text-yellow-400" />
+              <Zap className="size-4 text-warning" />
               <p className="text-sm font-medium">Export</p>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -870,7 +894,7 @@ function VideoEditorTool() {
       )}
 
       {state.error && (
-        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.error}
         </div>
       )}

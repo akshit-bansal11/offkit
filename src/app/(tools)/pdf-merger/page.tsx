@@ -177,7 +177,7 @@ function PdfMergerTool() {
               className={`group flex items-center gap-3 rounded-2xl border border-white/10 bg-background/45 p-3 transition-colors hover:border-white/15 cursor-grab active:cursor-grabbing ${draggingId === item.id ? "opacity-40" : ""}`}
             >
               <GripVertical className="size-4 shrink-0 text-white/25 group-hover:text-white/50" />
-              <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400">
+              <div className="rounded-lg bg-success/10 p-2 text-success">
                 <File className="size-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -201,6 +201,7 @@ function PdfMergerTool() {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label={`Remove ${item.name}`}
                 className="size-8 shrink-0 text-muted-foreground"
                 onClick={() => removeFile(item.id)}
                 disabled={isProcessing}
@@ -288,7 +289,7 @@ function PdfMergerTool() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       )}

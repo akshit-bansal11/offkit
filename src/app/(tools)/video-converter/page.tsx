@@ -36,6 +36,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/layout/Card";
+import { Slider } from "@/components/ui/Slider";
 import { getToolBySlug } from "@/config/tools";
 import {
   audioCodecArgs,
@@ -397,7 +398,7 @@ function VideoConverterTool() {
           </CardHeader>
           <CardContent className="space-y-4 p-5">
             {errorMessage ? (
-              <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+              <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {errorMessage}
               </div>
             ) : null}
@@ -548,8 +549,7 @@ function VideoConverterTool() {
                                     : "Balanced"}
                               </span>
                             </div>
-                            <input
-                              type="range"
+                            <Slider
                               min={0}
                               max={51}
                               step={1}
@@ -566,7 +566,6 @@ function VideoConverterTool() {
                                 item.status === "converting" ||
                                 item.videoCodec === "copy"
                               }
-                              className="w-full accent-primary"
                             />
                           </div>
                         </div>
@@ -607,7 +606,9 @@ function VideoConverterTool() {
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           <ToolInputCardBadge>{item.status}</ToolInputCardBadge>
                           {item.error ? (
-                            <span className="text-red-300">{item.error}</span>
+                            <span className="text-destructive">
+                              {item.error}
+                            </span>
                           ) : null}
                         </div>
                       </div>

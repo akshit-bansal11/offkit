@@ -157,7 +157,7 @@ function RadiusSlider({ value, onChange }: RadiusSliderProps) {
             onClick={() => onChange(mark)}
             variant="ghost"
             size="icon"
-            className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border border-white/40 bg-background/80 p-0 shadow-sm hover:bg-primary/30"
+            className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border border-white/40 bg-background/80 p-0 shadow-sm hover:bg-primary/30"
             style={{ left: `calc(${mark}% - 6px)` }}
             aria-label={`Set radius to ${mark}%`}
             title={`${mark}%`}
@@ -446,7 +446,7 @@ function BlobGeneratorTool() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Card className="overflow-hidden rounded-3xl border-white/10 bg-card/70 shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 bg-background/20 px-4 py-3">
-                <CardTitle className="flex items-center gap-2 border-l-2 border-blue-500 pl-2 text-sm font-medium text-muted-foreground">
+                <CardTitle className="flex items-center gap-2 border-l-2 border-info pl-2 text-sm font-medium text-muted-foreground">
                   Native CSS
                 </CardTitle>
                 <Button
@@ -471,7 +471,7 @@ function BlobGeneratorTool() {
               <Textarea
                 readOnly
                 value={cssValue}
-                className="h-[90px] resize-none border-0 bg-background/50 p-4 font-mono text-sm leading-relaxed text-blue-400 focus-visible:ring-0"
+                className="h-[90px] resize-none border-0 bg-background/50 p-4 font-mono text-sm leading-relaxed text-info focus-visible:ring-0"
               />
             </Card>
 

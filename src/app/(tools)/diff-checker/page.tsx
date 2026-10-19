@@ -220,13 +220,13 @@ function DiffCheckerTool() {
           <div className="flex gap-2">
             <Badge
               variant="outline"
-              className="bg-red-500/10 text-red-400 border-red-500/20 px-2 py-0.5"
+              className="bg-destructive/10 text-destructive border-destructive/25 px-2 py-0.5"
             >
               Removed
             </Badge>
             <Badge
               variant="outline"
-              className="bg-green-500/10 text-green-400 border-green-500/20 px-2 py-0.5"
+              className="bg-success/10 text-success border-success/25 px-2 py-0.5"
             >
               Added
             </Badge>
@@ -247,7 +247,7 @@ function DiffCheckerTool() {
                   return (
                     <ins
                       key={index}
-                      className="rounded-sm bg-green-500/20 px-0.5 font-semibold text-green-300 no-underline"
+                      className="rounded-sm bg-success/20 px-0.5 font-semibold text-success no-underline"
                     >
                       {part.value}
                     </ins>
@@ -257,7 +257,7 @@ function DiffCheckerTool() {
                   return (
                     <del
                       key={index}
-                      className="bg-red-500/20 text-red-300 line-through opacity-70 px-0.5 rounded-sm"
+                      className="bg-destructive/20 text-destructive line-through opacity-70 px-0.5 rounded-sm"
                     >
                       {part.value}
                     </del>

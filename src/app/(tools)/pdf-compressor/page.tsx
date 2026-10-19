@@ -108,7 +108,7 @@ function PdfCompressorTool() {
 
       {file && (
         <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-background/45 p-4">
-          <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400">
+          <div className="rounded-lg bg-success/10 p-2 text-success">
             <File className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -121,6 +121,7 @@ function PdfCompressorTool() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Remove file"
             className="size-8 text-muted-foreground"
             onClick={() => {
               setFile(null);
@@ -139,7 +140,7 @@ function PdfCompressorTool() {
         <Card className="divide-y divide-white/[0.06] border-white/10 bg-white/[0.015]">
           <div className="space-y-5 p-5">
             {/* Warning banner */}
-            <div className="flex items-start gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-amber-400">
+            <div className="flex items-start gap-3 rounded-xl bg-warning/10 border border-warning/25 p-3 text-warning">
               <ImageIcon className="size-4 mt-0.5 shrink-0" />
               <p className="text-xs leading-relaxed">
                 <strong>Note:</strong> Compression rasterizes pages into
@@ -214,13 +215,13 @@ function PdfCompressorTool() {
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   <span>Original: {formatFileSize(file.size)}</span>
                   <span>→</span>
-                  <span className="text-emerald-400 font-medium">
+                  <span className="text-success font-medium">
                     Compressed: {formatFileSize(outputSize)}
                   </span>
                   {reduction !== null && reduction > 0 && (
                     <Badge
                       variant="outline"
-                      className="border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0 text-[10px] text-emerald-400"
+                      className="border-success/25 bg-success/10 px-1.5 py-0 text-[10px] text-success"
                     >
                       -{reduction}%
                     </Badge>
@@ -275,7 +276,7 @@ function PdfCompressorTool() {
       {error && (
         <div
           role="alert"
-          className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
           {error}
         </div>

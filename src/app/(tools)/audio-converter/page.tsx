@@ -479,7 +479,7 @@ function AudioConverterTool() {
                                   : item.status}
                               </ToolInputCardBadge>
                               {item.error ? (
-                                <span className="text-right text-red-400">
+                                <span className="text-right text-destructive">
                                   {item.error}
                                 </span>
                               ) : null}

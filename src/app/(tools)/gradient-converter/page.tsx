@@ -220,7 +220,7 @@ function GradientConverterTool() {
           </div>
 
           {hasError && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+            <div className="rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive">
               Cannot parse gradient. Ensure it&apos;s a valid linear, radial, or
               conic gradient value.
             </div>

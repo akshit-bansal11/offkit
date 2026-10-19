@@ -401,7 +401,7 @@ function PdfConverterTool() {
       {errorMessage ? (
         <div
           role="alert"
-          className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
           {errorMessage}
         </div>
@@ -442,7 +442,7 @@ function PdfConverterTool() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setImgFiles([])}
-                  className="text-muted-foreground hover:text-red-400"
+                  className="text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="size-4 mr-2" />
                   Clear All
@@ -490,11 +490,12 @@ function PdfConverterTool() {
                       type="button"
                       variant="ghost"
                       size="icon"
+                      aria-label={`Remove ${item.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         removeImgFile(item.id);
                       }}
-                      className="ml-1 h-8 w-8 p-0 opacity-0 text-muted-foreground transition-opacity group-hover:opacity-100 hover:text-red-400"
+                      className="ml-1 h-8 w-8 p-0 opacity-0 text-muted-foreground transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive motion-reduce:transition-none"
                     >
                       <X className="size-4" />
                     </Button>
@@ -508,7 +509,7 @@ function PdfConverterTool() {
           {activeTab === "pdf-to-img" && pdfFile && (
             <div className="space-y-4 rounded-3xl border bg-card/40 p-6">
               <div className="flex items-center gap-4 bg-background/50 p-4 rounded-2xl border">
-                <div className="p-3 bg-red-500/10 rounded-xl text-red-500">
+                <div className="p-3 bg-destructive/10 rounded-xl text-destructive">
                   <File className="size-6" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -522,11 +523,12 @@ function PdfConverterTool() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Remove PDF"
                   onClick={() => {
                     setPdfFile(null);
                     setPdfPages([]);
                   }}
-                  className="text-muted-foreground hover:text-red-400"
+                  className="text-muted-foreground hover:text-destructive"
                 >
                   <X className="size-5" />
                 </Button>
@@ -561,7 +563,7 @@ function PdfConverterTool() {
                             className="h-full w-full object-contain"
                           />
                         </div>
-                        <div className="absolute top-4 left-4">
+                        <div className="pointer-events-none absolute top-4 left-4">
                           <Badge
                             variant="secondary"
                             className="bg-black/80 text-white backdrop-blur shadow-md"
@@ -569,7 +571,7 @@ function PdfConverterTool() {
                             Page {page.pageNumber}
                           </Badge>
                         </div>
-                        <div className="absolute inset-x-2 bottom-2 rounded-xl bg-black/60 p-2 opacity-0 backdrop-blur-md transition-all group-hover:opacity-100 flex items-center justify-center">
+                        <div className="absolute inset-x-2 bottom-2 rounded-xl bg-black/60 p-2 opacity-0 backdrop-blur-md transition-all group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none flex items-center justify-center">
                           <Button
                             size="sm"
                             variant="secondary"

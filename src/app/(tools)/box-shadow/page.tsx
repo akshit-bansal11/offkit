@@ -299,7 +299,8 @@ function BoxShadowTool() {
                         variant="ghost"
                         size="icon"
                         onClick={(e) => removeLayer(layer.id, e)}
-                        className="h-8 w-8 rounded-md p-0 text-muted-foreground transition-colors hover:bg-red-400/10 hover:text-red-400"
+                        aria-label="Remove layer"
+                        className="h-8 w-8 rounded-md p-0 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="size-3.5" />
                       </Button>
