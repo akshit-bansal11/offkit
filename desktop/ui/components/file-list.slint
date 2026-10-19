@@ -111,6 +111,13 @@ export component FileRow {
     accessible-role: list-item;
     accessible-label: root.item.name;
 
+    // Hover wash. Declared first so the row's buttons sit above it and keep their clicks.
+    Rectangle {
+        background: row-ta.has-hover ? Theme.bg-hover : transparent;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+    }
+    row-ta := TouchArea { }
+
     if !root.first: Rectangle {
         x: root.text-inset;
         y: 0;
@@ -172,6 +179,7 @@ export component FileRow {
                     color: Theme.text-secondary;
                     font-size: Theme.size-footnote;
                     horizontal-alignment: right;
+                    overflow: elide;
                 }
                 ProgressBar { progress: root.item.progress; }
             }

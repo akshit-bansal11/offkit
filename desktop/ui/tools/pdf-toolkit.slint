@@ -387,7 +387,8 @@ export component PageGrid {
                     width: Theme.pdf-tile-size;
                     height: Theme.pdf-tile-size;
                     border-radius: Theme.radius-control;
-                    background: tile-ta.has-hover && root.selectable ? Theme.bg-pressed : Theme.bg-hover;
+                    background: root.selectable && tile-ta.pressed ? Theme.bg-pressed : root.selectable && tile-ta.has-hover ? Theme.bg-control-track : Theme.bg-hover;
+                    animate background { duration: Theme.dur-fast; easing: Theme.ease; }
 
                     if tile.image.width == 0: Text {
                         text: "…";

@@ -9,6 +9,7 @@
 
 use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
@@ -16,7 +17,7 @@ use image::{RgbaImage, imageops};
 use resvg::tiny_skia::{
     self, FillRule, IntSize, Mask, Paint, Path, PathBuilder, Pixmap, PixmapPaint, Transform,
 };
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 use crate::{AppWindow, BoxShadow, BoxShadowColor, BoxShadowRow, clipboard, jobs};
 
@@ -453,6 +454,9 @@ struct State {
     /// The preview area, in logical pixels.
     area: (f32, f32),
     worker: Option<LatestWorker<Scene>>,
+    /// The layer list's rows, one model for the app's life: replacing it on every change would
+    /// rebuild the rows and drop the keyboard focus from the one just selected.
+    layer_rows: Rc<VecModel<BoxShadowRow>>,
 }
 
 impl Default for State {
@@ -464,6 +468,7 @@ impl Default for State {
             background: BACKGROUND,
             area: (0.0, 0.0),
             worker: None,
+            layer_rows: Rc::default(),
         }
     }
 }
@@ -636,6 +641,7 @@ pub fn init(app: &AppWindow) {
         g.set_background_hex(s.background.hex().into());
         g.set_background_color(s.background.slint(u8::MAX));
     });
+    with(|s| g.set_rows(ModelRc::from(s.layer_rows.clone())));
     load_active(app);
     refresh(app);
 }
@@ -690,7 +696,13 @@ fn refresh(app: &AppWindow) {
             })
             .collect();
         g.set_active_label(rows[s.active].label.clone());
-        g.set_rows(ModelRc::new(VecModel::from(rows)));
+        if s.layer_rows.row_count() == rows.len() {
+            for (i, row) in rows.into_iter().enumerate() {
+                s.layer_rows.set_row_data(i, row);
+            }
+        } else {
+            s.layer_rows.set_vec(rows);
+        }
         g.set_active(s.active as i32);
         g.set_css(css(&s.layers).into());
     });

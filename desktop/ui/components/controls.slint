@@ -69,7 +69,8 @@ export component Button {
         drop-shadow-offset-y: Theme.shadow-1-y;
         drop-shadow-color: kind == ButtonKind.plain ? transparent : Theme.shadow-1-color;
         opacity: root.enabled ? 1 : Theme.opacity-disabled;
-        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+        transform-scale: root.enabled && ta.pressed ? 0.97 : 1;
+        animate background, transform-scale { duration: Theme.dur-fast; easing: Theme.ease; }
 
         // Secondary buttons get a hover wash on top of their solid fill.
         if kind == ButtonKind.secondary: Rectangle {
@@ -142,12 +143,14 @@ export component IconButton {
     Rectangle {
         border-radius: Theme.radius-control;
         background: ta.pressed ? Theme.bg-pressed : ta.has-hover ? Theme.bg-hover : transparent;
-        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+        transform-scale: ta.pressed ? 0.92 : 1;
+        animate background, transform-scale { duration: Theme.dur-fast; easing: Theme.ease; }
     }
 
     Image {
         source: root.icon;
         colorize: ta.has-hover && root.enabled ? Theme.text-primary : root.tint;
+        animate colorize { duration: Theme.dur-fast; easing: Theme.ease; }
         width: Theme.icon-size;
         height: Theme.icon-size;
         opacity: root.enabled ? 1 : Theme.opacity-disabled;
@@ -204,22 +207,34 @@ export component Switch {
         border-color: Theme.border-control;
         opacity: root.enabled ? 1 : Theme.opacity-disabled;
         animate background { duration: Theme.dur-base; easing: Theme.ease; }
+
+        // Hover wash; accent-hover when on, so the state change reads either way.
+        Rectangle {
+            border-radius: parent.border-radius;
+            background: root.checked ? (sw-ta.pressed ? Theme.accent-pressed : sw-ta.has-hover ? Theme.accent-hover : transparent) : (sw-ta.pressed ? Theme.bg-pressed : sw-ta.has-hover ? Theme.bg-hover : transparent);
+            animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+        }
     }
 
     Rectangle {
-        width: 16px;
+        // The knob stretches while pressed, as on iOS.
+        width: root.enabled && sw-ta.pressed ? 20px : 16px;
         height: 16px;
         y: 2px;
         x: root.checked ? root.width - self.width - 2px : 2px;
+        animate width { duration: Theme.dur-fast; easing: Theme.ease; }
         border-radius: self.height / 2;
-        background: Theme.bg-knob;
+        // On the accent track the knob takes the label colour (L 16.08, D 9.98): the light
+        // knob would be 1.5:1 against citrus in the dark scheme.
+        background: root.checked ? Theme.on-accent : Theme.bg-knob;
         drop-shadow-blur: Theme.shadow-1-blur;
         drop-shadow-offset-y: Theme.shadow-1-y;
         drop-shadow-color: Theme.shadow-1-color;
-        animate x { duration: Theme.dur-base; easing: Theme.ease; }
+        opacity: root.enabled ? 1 : Theme.opacity-disabled;
+        animate x, background { duration: Theme.dur-base; easing: Theme.ease; }
     }
 
-    TouchArea {
+    sw-ta := TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => { root.flip(); }
@@ -249,10 +264,13 @@ export component Slider {
     in property <string> label;
     callback changed(float);
 
-    private property <float> fraction: (root.value - root.minimum) / (root.maximum - root.minimum);
+    private property <float> fraction: root.maximum > root.minimum ? clamp((root.value - root.minimum) / (root.maximum - root.minimum), 0, 1) : 0;
+    // The pointer maths uses the resting size; only the drawn knob grows.
     private property <length> knob-size: 18px;
+    private property <length> knob-draw: root.enabled && ta.pressed ? 22px : root.enabled && ta.has-hover ? 20px : 18px;
+    private property <length> track-height: root.enabled && (ta.pressed || ta.has-hover) ? 6px : 4px;
 
-    height: 22px;
+    height: 24px;
     min-width: 120px;
     horizontal-stretch: 1;
     forward-focus: fs;
@@ -265,19 +283,25 @@ export component Slider {
     accessible-action-increment => { root.set(root.value + root.step); }
     accessible-action-decrement => { root.set(root.value - root.step); }
 
+    // Snaps to `step` counted from `minimum`, so a step of 25 lands on 0/25/50, never 37.
     function set(v: float) {
-        let next = round(clamp(v, root.minimum, root.maximum));
+        let snapped = root.step > 0 ? root.minimum + round((v - root.minimum) / root.step) * root.step : v;
+        let next = clamp(snapped, root.minimum, root.maximum);
         if (next != root.value) {
             root.value = next;
             root.changed(next);
         }
     }
+    function from-pointer(x: length) {
+        root.set(root.minimum + clamp((x - root.knob-size / 2) / (root.width - root.knob-size), 0, 1) * (root.maximum - root.minimum));
+    }
 
     Rectangle {
         y: (parent.height - self.height) / 2;
-        height: 4px;
-        border-radius: 2px;
+        height: root.track-height;
+        border-radius: self.height / 2;
         background: Theme.bg-control-track;
+        animate height { duration: Theme.dur-fast; easing: Theme.ease; }
 
         Rectangle {
             x: 0;
@@ -288,17 +312,19 @@ export component Slider {
     }
 
     knob := Rectangle {
-        width: root.knob-size;
-        height: root.knob-size;
-        x: (root.width - self.width) * root.fraction;
+        width: root.knob-draw;
+        height: root.knob-draw;
+        x: (root.width - root.knob-size) * root.fraction + (root.knob-size - self.width) / 2;
         y: (root.height - self.height) / 2;
         border-radius: self.height / 2;
         background: Theme.bg-knob;
-        border-width: 1px;
-        border-color: Theme.border-control;
+        border-width: root.enabled && ta.pressed ? 2px : 1px;
+        border-color: root.enabled && ta.pressed ? Theme.accent-text : Theme.border-control;
         drop-shadow-blur: Theme.shadow-1-blur;
         drop-shadow-offset-y: Theme.shadow-1-y;
         drop-shadow-color: Theme.shadow-1-color;
+        opacity: root.enabled ? 1 : Theme.opacity-disabled;
+        animate width, height, border-color { duration: Theme.dur-fast; easing: Theme.ease; }
 
         FocusRing { has-focus: fs.has-focus; radius: parent.height / 2; }
     }
@@ -308,12 +334,12 @@ export component Slider {
         mouse-cursor: pointer;
         pointer-event(event) => {
             if (event.kind == PointerEventKind.down && event.button == PointerEventButton.left) {
-                root.set(root.minimum + clamp((self.mouse-x - root.knob-size / 2) / (root.width - root.knob-size), 0, 1) * (root.maximum - root.minimum));
+                root.from-pointer(self.mouse-x);
             }
         }
         moved => {
             if (self.pressed) {
-                root.set(root.minimum + clamp((self.mouse-x - root.knob-size / 2) / (root.width - root.knob-size), 0, 1) * (root.maximum - root.minimum));
+                root.from-pointer(self.mouse-x);
             }
         }
     }
@@ -328,6 +354,22 @@ export component Slider {
             }
             if (event.text == Key.RightArrow || event.text == Key.UpArrow) {
                 root.set(root.value + root.step);
+                return accept;
+            }
+            if (event.text == Key.PageDown) {
+                root.set(root.value - root.step * 10);
+                return accept;
+            }
+            if (event.text == Key.PageUp) {
+                root.set(root.value + root.step * 10);
+                return accept;
+            }
+            if (event.text == Key.Home) {
+                root.set(root.minimum);
+                return accept;
+            }
+            if (event.text == Key.End) {
+                root.set(root.maximum);
                 return accept;
             }
             reject
@@ -378,6 +420,7 @@ export component Select {
             font-size: Theme.size-body;
             vertical-alignment: center;
             horizontal-alignment: right;
+            overflow: elide;
         }
         Image {
             source: AppIcons.chevrons-up-down;
@@ -463,8 +506,10 @@ export component Select {
 
                 item-ta := TouchArea {
                     clicked => {
-                        root.pick(i);
+                        // Close first: picking can make Rust replace `options`, which rebuilds
+                        // this very row.
                         popup.close();
+                        root.pick(i);
                     }
                 }
             }
@@ -503,6 +548,7 @@ export component SearchField {
     }
 
     height: Theme.control-height;
+    horizontal-stretch: 1;
     accessible-role: text-input;
     accessible-label: root.placeholder;
     forward-focus: input;

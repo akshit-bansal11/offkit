@@ -39,6 +39,7 @@ export component TextField {
         border-width: 1px;
         border-color: root.invalid ? Theme.danger : Theme.border-control;
         opacity: root.enabled ? 1 : Theme.opacity-disabled;
+
     }
 
     Rectangle {
@@ -108,7 +109,7 @@ export component Checkbox {
             height: Theme.icon-size;
             y: (parent.height - self.height) / 2;
             border-radius: Theme.radius-nested;
-            background: root.checked ? Theme.accent : Theme.bg-control;
+            background: root.checked ? (cb-ta.pressed ? Theme.accent-pressed : cb-ta.has-hover ? Theme.accent-hover : Theme.accent) : (cb-ta.pressed ? Theme.bg-pressed : cb-ta.has-hover ? Theme.bg-hover : Theme.bg-control);
             border-width: root.checked ? 0 : 1px;
             border-color: Theme.border-control;
             opacity: root.enabled ? 1 : Theme.opacity-disabled;
@@ -129,11 +130,12 @@ export component Checkbox {
             color: Theme.text-primary;
             font-size: Theme.size-body;
             vertical-alignment: center;
+            overflow: elide;
             opacity: root.enabled ? 1 : Theme.opacity-disabled;
         }
     }
 
-    TouchArea {
+    cb-ta := TouchArea {
         enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => { root.flip(); }

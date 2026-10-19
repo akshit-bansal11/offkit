@@ -64,6 +64,7 @@ component SwatchButton inherits Rectangle {
         border-top-left-radius: parent.border-top-left-radius;
         border-top-right-radius: parent.border-top-right-radius;
         background: ta.pressed ? Theme.bg-pressed : ta.has-hover ? Theme.bg-hover : transparent;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
     }
 
     VerticalLayout {

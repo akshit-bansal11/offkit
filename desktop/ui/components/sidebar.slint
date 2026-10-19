@@ -34,7 +34,7 @@ component SidebarItem {
         x: Theme.space-2;
         width: parent.width - 2 * Theme.space-2;
         border-radius: Theme.radius-control;
-        background: root.selected ? Theme.selection-fill : ta.has-hover ? Theme.bg-hover : transparent;
+        background: root.selected ? Theme.selection-fill : ta.pressed ? Theme.bg-pressed : ta.has-hover ? Theme.bg-hover : transparent;
         animate background { duration: Theme.dur-fast; easing: Theme.ease; }
 
         HorizontalLayout {
@@ -190,7 +190,8 @@ export component Sidebar inherits Rectangle {
             about-item := Rectangle {
                 height: Theme.row-height;
                 border-radius: Theme.radius-control;
-                background: about-ta.has-hover ? Theme.bg-hover : transparent;
+                background: about-ta.pressed ? Theme.bg-pressed : about-ta.has-hover ? Theme.bg-hover : transparent;
+                animate background { duration: Theme.dur-fast; easing: Theme.ease; }
                 accessible-role: button;
                 accessible-label: "About Offkit";
                 accessible-action-default => { root.about(); }

@@ -7,11 +7,12 @@
 
 use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::thread::JoinHandle;
 
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg;
-use slint::{ComponentHandle, ModelRc, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 use super::box_shadow::{LatestWorker, Rgb, rgb, slint_image};
 use crate::{
@@ -318,6 +319,9 @@ struct State {
     color: Rgb,
     svg: String,
     worker: Option<LatestWorker<(String, f32)>>,
+    /// The corner rows the inspector's sliders are built from. One model for the app's life:
+    /// replacing it mid-drag would rebuild the dragged slider and drop the drag.
+    rows: Rc<VecModel<BlobCornerRow>>,
 }
 
 impl Default for State {
@@ -327,6 +331,7 @@ impl Default for State {
             color: DEFAULT_COLOR,
             svg: String::new(),
             worker: None,
+            rows: Rc::default(),
         }
     }
 }
@@ -364,6 +369,7 @@ pub fn init(app: &AppWindow) {
     with(|s| s.worker = Some(worker));
 
     let g = app.global::<BlobGenerator>();
+    with(|s| g.set_corners(ModelRc::from(s.rows.clone())));
     g.set_eight_point(true);
     g.set_gradient(true);
     g.set_seed(1.0);
@@ -542,7 +548,13 @@ fn refresh(app: &AppWindow) {
                 y: c[i].y as f32,
             })
             .collect();
-        g.set_corners(ModelRc::new(VecModel::from(rows)));
+        if s.rows.row_count() == rows.len() {
+            for (i, row) in rows.into_iter().enumerate() {
+                s.rows.set_row_data(i, row);
+            }
+        } else {
+            s.rows.set_vec(rows);
+        }
         g.set_css(css(c, fill).into());
         g.set_tailwind(tailwind(c, fill).into());
         s.svg = svg(c, fill, size);

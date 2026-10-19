@@ -448,11 +448,13 @@ component Thumb {
     }
     Rectangle {
         border-radius: Theme.radius-control;
+        background: ta.pressed ? Theme.bg-pressed : ta.has-hover ? Theme.bg-hover : transparent;
         border-width: root.selected ? Theme.drop-outline-width : 1px;
         border-color: root.selected ? Theme.accent-text : Theme.separator;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
     }
 
-    TouchArea {
+    ta := TouchArea {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
