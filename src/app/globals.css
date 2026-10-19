@@ -30,6 +30,12 @@
   --accent-foreground: #1b1f3b;
   --destructive: #c4362c;
   --destructive-foreground: #c4362c;
+
+  /* Status text: 5.33:1 / 5.71:1, 5.54:1 / 5.93:1, 5.80:1 / 6.21:1 on --background / --card. */
+  --success: #0f7550;
+  --warning: #8a5a00;
+  --info: #1d5fb8;
+
   --border: #e2e4ee;
   --input: #858aa6;
   --ring: #1b1f3b;
@@ -67,6 +73,12 @@
   --accent-foreground: #f6f7fb;
   --destructive: #ff5a4e;
   --destructive-foreground: #ff5a4e;
+
+  /* Status text: 9.07:1 / 8.50:1, 10.65:1 / 9.98:1, 6.81:1 / 6.38:1 on --background / --card. */
+  --success: #2fd59a;
+  --warning: #ffc23d;
+  --info: #4aa8ff;
+
   --border: #363c60;
   --input: #7d82a0;
   --ring: #ffc23d;

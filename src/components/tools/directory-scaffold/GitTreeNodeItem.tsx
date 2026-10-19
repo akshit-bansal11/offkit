@@ -33,12 +33,12 @@ export function GitTreeNodeItem({
       >
         {isFolder ? (
           isCollapsed ? (
-            <Folder className="size-4 text-amber-300" />
+            <Folder className="size-4 text-warning" />
           ) : (
-            <FolderOpen className="size-4 text-amber-300" />
+            <FolderOpen className="size-4 text-warning" />
           )
         ) : (
-          <File className="size-4 text-sky-300" />
+          <File className="size-4 text-info" />
         )}
         <span className="truncate">{node.name}</span>
       </Button>

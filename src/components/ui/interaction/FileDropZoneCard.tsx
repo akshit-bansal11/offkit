@@ -125,7 +125,7 @@ export function FileDropZoneCard({
         tabIndex={disabled ? -1 : 0}
         aria-disabled={disabled}
         className={cn(
-          "drop-zone group relative flex min-h-[240px] w-full flex-col items-center justify-center gap-4 outline-none transition-all duration-300",
+          "drop-zone group relative flex min-h-[240px] w-full flex-col items-center justify-center gap-4 outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
           disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
           isDragging && "drop-zone-active scale-[1.01]",
         )}

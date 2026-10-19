@@ -1,5 +1,5 @@
 // Progress.tsx
-// Visual progress bar indicator built on Radix UI primitives.
+// Visual progress bar indicator.
 
 "use client";
 
@@ -27,8 +27,8 @@ function Progress({
     >
       <div
         data-slot="progress-indicator"
-        className="bg-primary h-full w-full flex-1 transition-all duration-300 ease-in-out"
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+        className="bg-primary h-full w-full flex-1 transition-transform duration-300 ease-in-out motion-reduce:transition-none"
+        style={{ transform: `translateX(-${100 - Math.min(100, Math.max(0, value ?? 0))}%)` }}
       />
     </div>
   );

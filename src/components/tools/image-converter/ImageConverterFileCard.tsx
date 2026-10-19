@@ -65,7 +65,7 @@ function getStatusBadgeProps(status: FileItem["status"]) {
         label: "Converting",
         variant: "secondary" as const,
         className:
-          "border-blue-500/20 bg-blue-500/10 px-1.5 py-0 text-[10px] text-blue-600 dark:text-blue-400",
+          "border-info/25 bg-info/10 px-1.5 py-0 text-[10px] text-info",
       };
     case "done":
       return {
@@ -253,7 +253,7 @@ export function ImageConverterFileCard({
               )}
 
               {item.status === "converting" && (
-                <span className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400">
+                <span className="inline-flex items-center gap-1.5 text-xs text-info">
                   <Loader2 className="size-3.5 animate-spin" />
                   {item.progress}%
                 </span>
@@ -280,7 +280,7 @@ export function ImageConverterFileCard({
                     onClick={onRetry}
                     variant="outline"
                     size="icon"
-                    className="size-8 border-red-500/30 px-0 text-red-500 hover:bg-red-500/10"
+                    className="size-8 border-destructive/25 px-0 text-destructive hover:bg-destructive/10"
                   >
                     <RotateCcw className="size-3.5" />
                   </ToolInputCardButton>
@@ -297,18 +297,18 @@ export function ImageConverterFileCard({
         )}
 
         {item.status === "error" && item.error && (
-          <div className="mt-3 flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/5 p-2.5">
-            <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-red-500" />
-            <p className="text-xs text-red-600 dark:text-red-400">
+          <div className="mt-3 flex items-start gap-2 rounded-md border border-destructive/25 bg-destructive/10 p-2.5">
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+            <p className="text-xs text-destructive">
               {item.error}
             </p>
           </div>
         )}
 
         {!isTargetSupported && item.status === "idle" && (
-          <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/5 p-2.5">
-            <Info className="mt-0.5 size-3.5 shrink-0 text-amber-500" />
-            <p className="text-xs text-amber-600 dark:text-amber-400">
+          <div className="mt-3 flex items-start gap-2 rounded-md border border-warning/25 bg-warning/10 p-2.5">
+            <Info className="mt-0.5 size-3.5 shrink-0 text-warning" />
+            <p className="text-xs text-warning">
               HEIF files can be used as input, but HEIF output is not available
               in the bundled codec yet.
             </p>

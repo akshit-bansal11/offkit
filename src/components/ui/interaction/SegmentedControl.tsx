@@ -41,7 +41,7 @@ const segmentedControlVariants = cva(
 );
 
 const segmentedControlItemVariants = cva(
-  "inline-flex items-center justify-center rounded-md font-medium transition-colors outline-none disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center rounded-md cursor-pointer font-medium transition-[color,background-color,transform] outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] motion-reduce:transition-none motion-reduce:transform-none disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {

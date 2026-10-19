@@ -32,7 +32,7 @@ export function ToolPageShell({
     const category = tool?.category;
     const primary =
       toolCategories.find((entry) => entry.name === category)?.accentColor ??
-      "#60a5fa";
+      "#4aa8ff";
 
     const secondary = primary;
 

@@ -8,7 +8,7 @@ export function NotSmallerNotice({ className }: { className?: string }) {
   return (
     <p
       role="status"
-      className={cn("text-xs leading-relaxed text-amber-300", className)}
+      className={cn("text-xs leading-relaxed text-warning", className)}
     >
       {NOT_SMALLER_MESSAGE}
     </p>

@@ -60,11 +60,11 @@ export function CropCanvasEditor({
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.clearRect(scaledCrop.x, scaledCrop.y, scaledCrop.w, scaledCrop.h);
 
-    context.strokeStyle = "#4ade80";
+    context.strokeStyle = "#2fd59a";
     context.lineWidth = 2;
     context.strokeRect(scaledCrop.x, scaledCrop.y, scaledCrop.w, scaledCrop.h);
 
-    context.fillStyle = "#4ade80";
+    context.fillStyle = "#2fd59a";
     [
       [scaledCrop.x, scaledCrop.y],
       [scaledCrop.x + scaledCrop.w / 2, scaledCrop.y],

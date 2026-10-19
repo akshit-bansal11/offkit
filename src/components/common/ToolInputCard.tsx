@@ -48,7 +48,7 @@ function ToolInputCard({
               : tone === "done"
                 ? "rgba(255,255,255,0.8)"
                 : tone === "error"
-                  ? "#f87171"
+                  ? "var(--destructive)"
                   : "transparent",
         } as React.CSSProperties
       }

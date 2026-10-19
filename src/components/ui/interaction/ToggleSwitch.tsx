@@ -9,7 +9,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const toggleSwitchVariants = cva(
-  "relative inline-flex shrink-0 cursor-pointer items-center rounded-full bg-[hsl(0,0%,7%)] outline-none transition-all disabled:pointer-events-none disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring/50",
+  "relative inline-flex shrink-0 cursor-pointer items-center rounded-full bg-[hsl(0,0%,7%)] outline-none transition-all active:scale-[0.97] motion-reduce:transition-none motion-reduce:transform-none disabled:pointer-events-none disabled:opacity-50 focus-visible:ring-[3px] focus-visible:ring-ring/50",
   {
     variants: {
       variant: {
@@ -39,7 +39,7 @@ const toggleSwitchVariants = cva(
 );
 
 const toggleSwitchThumbVariants = cva(
-  "absolute top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full bg-[rgb(26,26,26)] shadow-[inset_4px_4px_4px_0px_rgba(64,64,64,0.25),inset_-4px_-4px_4px_0px_rgba(16,16,16,0.5)] transition-all duration-300 ease-out",
+  "absolute top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full bg-[rgb(26,26,26)] shadow-[inset_4px_4px_4px_0px_rgba(64,64,64,0.25),inset_-4px_-4px_4px_0px_rgba(16,16,16,0.5)] transition-all duration-300 ease-out motion-reduce:transition-none",
   {
     variants: {
       size: {
