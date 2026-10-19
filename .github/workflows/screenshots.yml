@@ -4,6 +4,11 @@ name: Screenshots
 # site and README can use true screenshots. Run by hand; the PNGs come back as the `screenshots` artifact.
 on:
   workflow_dispatch:
+    inputs:
+      tools:
+        description: Space-separated slugs to render (default every tool)
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -31,11 +36,14 @@ jobs:
         working-directory: desktop
       # PDFium beside the exe, where a release build looks for it, so the PDF Toolkit shows real content.
       - name: Take the screenshots
+        env:
+          TOOLS: ${{ inputs.tools }}
         run: |
           cp desktop/vendor/windows/pdfium/pdfium.dll desktop/target/release/
           exe="$PWD/desktop/target/release/offkit.exe"
           mkdir shots
-          tools=$(python -c "import json; print(' '.join(t['slug'] for t in json.load(open('tools.json'))['tools']))")
+          tools="$TOOLS"
+          [ -n "$tools" ] || tools=$(python -c "import json; print(' '.join(t['slug'] for t in json.load(open('tools.json'))['tools']))")
           for theme in light dark; do
             for tool in $tools; do
               echo "$(date +%T) $tool $theme"
@@ -44,9 +52,12 @@ jobs:
             OFFKIT_SNAPSHOT="$PWD/shots/about-$theme.png" OFFKIT_THEME=$theme OFFKIT_ABOUT=1 timeout 60 "$exe"
           done
       - name: Every screenshot exists
+        env:
+          TOOLS: ${{ inputs.tools }}
         run: |
           status=0
-          tools=$(python -c "import json; print(' '.join(t['slug'] for t in json.load(open('tools.json'))['tools']))")
+          tools="$TOOLS"
+          [ -n "$tools" ] || tools=$(python -c "import json; print(' '.join(t['slug'] for t in json.load(open('tools.json'))['tools']))")
           for theme in light dark; do
             for name in $tools about; do
               if [ ! -s "shots/$name-$theme.png" ]; then
