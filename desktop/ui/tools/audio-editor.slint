@@ -206,10 +206,9 @@ component EffectSection {
     callback reset();
 
     VerticalLayout {
-        spacing: Theme.space-2;
-
         HorizontalLayout {
             padding-left: Theme.space-3;
+            padding-bottom: Theme.space-2;
             min-height: Theme.control-height;
 
             Text {
@@ -240,12 +239,17 @@ component EffectSection {
             }
         }
 
-        if root.footnote != "": VerticalLayout {
+        // Not under an `if`, as InspectorSection's footnote: a wrapped Text inside one is measured
+        // as a single line. Only this layout's padding separates it from the card above.
+        VerticalLayout {
             padding-left: Theme.space-3;
             padding-right: Theme.space-3;
+            padding-top: root.footnote == "" ? 0px : Theme.space-2;
 
             Text {
                 text: root.footnote;
+                height: root.footnote == "" ? 0px : self.preferred-height;
+                visible: root.footnote != "";
                 color: Theme.text-secondary;
                 font-size: Theme.size-footnote;
                 wrap: word-wrap;

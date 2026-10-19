@@ -13,10 +13,9 @@ export component InspectorSection {
     in property <string> footnote;
 
     VerticalLayout {
-        spacing: Theme.space-2;
-
         if root.title != "": HorizontalLayout {
             padding-left: Theme.space-3;
+            padding-bottom: Theme.space-2;
 
             Text {
                 text: root.title;
@@ -38,15 +37,17 @@ export component InspectorSection {
             }
         }
 
-        // A VerticalLayout, not a HorizontalLayout: as the root of an `if` it passes its width,
-        // less padding, to the wrapped text, so the text is measured at its real width. Under a
-        // HorizontalLayout it was measured as one line and the next section drew over it.
-        if root.footnote != "": VerticalLayout {
+        // Not under an `if`: Slint 1.18 measured a wrapped Text inside one as a single line, so
+        // the next section drew over its other lines. An empty footnote collapses to nothing.
+        VerticalLayout {
             padding-left: Theme.space-3;
             padding-right: Theme.space-3;
+            padding-top: root.footnote == "" ? 0px : Theme.space-2;
 
             Text {
                 text: root.footnote;
+                height: root.footnote == "" ? 0px : self.preferred-height;
+                visible: root.footnote != "";
                 color: Theme.text-secondary;
                 font-size: Theme.size-footnote;
                 wrap: word-wrap;
