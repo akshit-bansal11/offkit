@@ -68,6 +68,8 @@ component StopRow inherits HorizontalLayout {
     }
     Slider {
         y: (parent.height - self.height) / 2;
+        // Below the slider's usual 120px, so a stop row fits the pane without a sideways scrollbar.
+        min-width: 64px;
         label: "Stop " + (root.index + 1) + " position";
         minimum: 0;
         maximum: 100;
