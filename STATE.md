@@ -1,6 +1,6 @@
 # STATE.md — Offkit
 
-**Updated:** 2026-10-19 · **Branch:** `feat/ui-sweep` · **Released:** `v0.2.0` (tag on `f01e39d`)
+**Updated:** 2026-10-20 · **Branch:** `main` · **Released:** `v0.2.1` (tag on `bbd2404`)
 
 ## Bootstrap record
 
@@ -9,13 +9,13 @@
 | Bootstrapped | 2026-10-18 (continuity files added with the 0.2.0 release; the code predates them) |
 | Stack detected as | Rust 2024 + Slint 1.18.1 desktop app (`desktop/`), Next.js 16 web app (`src/`), shared `tools.json` — see `TECH-STACK.md` |
 | Quality gate command | Web `npm run check:ci`; desktop `cargo fmt --check` + `cargo clippy --locked --all-targets -D warnings` — **run in CI only** |
-| Deployed at | Web: `https://open-tools.akshitbansal.me` (resolves). `https://offkit.akshitbansal.me` does **not** resolve yet. Desktop: GitHub Releases `v0.2.0` |
+| Deployed at | Web: `https://open-tools.akshitbansal.me` (resolves). `https://offkit.akshitbansal.me` does **not** resolve yet. Desktop: GitHub Releases `v0.2.1` |
 
 ## Where the work is right now
 
-- **In flight:** `feat/ui-sweep`, a UI/UX bug sweep of both apps (web colour tokens, slider drags, covered controls, brand status colours, interaction polish). CI is green on it; not merged.
+- **In flight:** nothing. The `v0.2.1` release run (39306646164) succeeded and the release is published as Latest. It carries the UI/UX sweep of both apps (PR #22).
 - **Blocked on:** the owner, for the Vercel rename and the new domain (`OPEN_ITEMS.md`).
-- **Next action:** merge `feat/ui-sweep` once the owner has looked at it, then the owner items in `OPEN_ITEMS.md`. Dependabot #20 (actions/setup-node 7) and #21 (diff 9) merged on 2026-10-19 after passing CI on the rebased `main`.
+- **Next action:** the owner items in `OPEN_ITEMS.md`.
 
 ## Verified facts
 
@@ -25,8 +25,9 @@
 | The deb puts `libpdfium.so`, notices and licences in `usr/lib/offkit/`, which `library_dirs()` searches as `../lib/offkit` from `usr/bin` | Unpacked `offkit-0.2.0-draft.5-amd64.deb` | 2026-10-18 |
 | Desktop fmt, clippy and tests pass; web lint, unit and e2e tests pass | CI run 39114734441 on the released tree's parent, plus `f01e39d` adding only the `.icns` | 2026-10-18 |
 | The desktop UI renders in both themes with version 0.2.0 and the AboutSlint badge | `screenshots.yml` run 39113390794 artifact | 2026-10-18 |
-| Every web tool page has no covered controls, no stuck sliders and no page errors | `e2e/ui-sweep.spec.ts` in CI run 39288524320 (`feat/ui-sweep`) | 2026-10-19 |
+| Every web tool page has no covered controls, no stuck sliders and no page errors | `e2e/ui-sweep.spec.ts` in CI run 39288524320 (PR #22) | 2026-10-19 |
 | Opacity-modified Tailwind colour classes (`bg-card/70`, …) generate CSS | colours go through `color-mix` with `<alpha-value>` in `tailwind.config.ts`; sweep screenshots show the slider tracks and cards | 2026-10-19 |
+| v0.2.1 builds and packages on all four targets and is published as Latest with SHA256SUMS | Release run 39306646164; `gh release view v0.2.1` lists the exe, two dmg, AppImage and deb | 2026-10-20 |
 | `main` is unprotected | `gh api repos/akshit-bansal11/offkit/branches/main/protection` → 404 | 2026-10-18 |
 
 ## Standing hazards
@@ -71,6 +72,6 @@
 ## Session handoff
 
 - **Do not touch:** nothing is mid-flight.
-- **Half-applied changes:** none; `feat/ui-sweep` is complete and green but unmerged.
+- **Half-applied changes:** none.
 - **Left behind:** nothing. Test drafts, merged branches and worktrees are cleaned up (checked 2026-10-19).
 - **Open questions:** see `OPEN_ITEMS.md` (owner: Vercel rename, domain, repo homepage).
