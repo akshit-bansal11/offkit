@@ -417,7 +417,8 @@ export component AudioEditorView inherits VerticalLayout {
     // that doesn't use Space passes it up to here. Clicking the waveform focuses this, so the
     // key works straight after a jump.
     keys := FocusScope {
-        vertical-stretch: 1;
+        // Without FFmpeg it holds nothing; don't let it share the height with the message above.
+        vertical-stretch: AudioEditor.ffmpeg-found ? 1 : 0;
         focus-on-click: false;
         key-pressed(event) => {
             if (event.text == " " && AudioEditor.stage == AudioEditorStage.ready) {
