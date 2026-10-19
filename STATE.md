@@ -1,6 +1,6 @@
 # STATE.md — Offkit
 
-**Updated:** 2026-10-18 · **Branch:** `main` · **Released:** `v0.2.0` (tag on `f01e39d`)
+**Updated:** 2026-10-19 · **Branch:** `feat/ui-sweep` · **Released:** `v0.2.0` (tag on `f01e39d`)
 
 ## Bootstrap record
 
@@ -13,9 +13,9 @@
 
 ## Where the work is right now
 
-- **In flight:** nothing. The `v0.2.0` release run (39118463064) succeeded and the release is published as Latest.
+- **In flight:** `feat/ui-sweep`, a UI/UX bug sweep of both apps (web colour tokens, slider drags, covered controls, brand status colours, interaction polish). CI is green on it; not merged.
 - **Blocked on:** the owner, for the Vercel rename and the new domain (`OPEN_ITEMS.md`).
-- **Next action:** the owner items in `OPEN_ITEMS.md`. Dependabot #20 (actions/setup-node 7) and #21 (diff 9) merged on 2026-10-19 after passing CI on the rebased `main`.
+- **Next action:** merge `feat/ui-sweep` once the owner has looked at it, then the owner items in `OPEN_ITEMS.md`. Dependabot #20 (actions/setup-node 7) and #21 (diff 9) merged on 2026-10-19 after passing CI on the rebased `main`.
 
 ## Verified facts
 
@@ -25,6 +25,8 @@
 | The deb puts `libpdfium.so`, notices and licences in `usr/lib/offkit/`, which `library_dirs()` searches as `../lib/offkit` from `usr/bin` | Unpacked `offkit-0.2.0-draft.5-amd64.deb` | 2026-10-18 |
 | Desktop fmt, clippy and tests pass; web lint, unit and e2e tests pass | CI run 39114734441 on the released tree's parent, plus `f01e39d` adding only the `.icns` | 2026-10-18 |
 | The desktop UI renders in both themes with version 0.2.0 and the AboutSlint badge | `screenshots.yml` run 39113390794 artifact | 2026-10-18 |
+| Every web tool page has no covered controls, no stuck sliders and no page errors | `e2e/ui-sweep.spec.ts` in CI run 39288524320 (`feat/ui-sweep`) | 2026-10-19 |
+| Opacity-modified Tailwind colour classes (`bg-card/70`, …) generate CSS | colours go through `color-mix` with `<alpha-value>` in `tailwind.config.ts`; sweep screenshots show the slider tracks and cards | 2026-10-19 |
 | `main` is unprotected | `gh api repos/akshit-bansal11/offkit/branches/main/protection` → 404 | 2026-10-18 |
 
 ## Standing hazards
@@ -33,6 +35,7 @@
 | --- | --- | --- |
 | Any local `cargo`, `npm`, `npx`, `node` | Concurrent local builds crashed the owner's laptop | Push a branch; CI and `lockfile.yml` do the work |
 | Tagging `v*` | Publishes a public GitHub Release with provenance | Run `release.yml` by hand first: it makes a private draft |
+| A colour token written as a bare `var(--x)` in `tailwind.config.ts` | Tailwind 3 silently drops every `/NN` opacity class for it (234 were dead) | Wrap it with the `token()` helper there |
 | Hand-editing JSX text or long attributes | Biome reflows to 80 columns and `biome ci` fails on any difference | Match Biome's fill exactly; let CI confirm |
 
 ## Environment state
@@ -51,7 +54,7 @@
 | --- | --- | --- |
 | Desktop unit (`cargo test`, Windows) | green | Media tests need ffmpeg, which CI installs via Chocolatey |
 | Web unit (`node --test`) | green | |
-| Browser (Playwright) | green | |
+| Browser (Playwright) | green | Includes `ui-sweep.spec.ts`, which screenshots every tool into the `ui-sweep` artifact |
 | Desktop on macOS / Linux | **never run** | Built and packaged in CI; nobody has launched them |
 | Accessibility scan | never run | Contrast is measured by script in `theme.slint` / `globals.css` comments |
 
@@ -68,6 +71,6 @@
 ## Session handoff
 
 - **Do not touch:** nothing is mid-flight.
-- **Half-applied changes:** none.
+- **Half-applied changes:** none; `feat/ui-sweep` is complete and green but unmerged.
 - **Left behind:** nothing. Test drafts, merged branches and worktrees are cleaned up (checked 2026-10-19).
 - **Open questions:** see `OPEN_ITEMS.md` (owner: Vercel rename, domain, repo homepage).
