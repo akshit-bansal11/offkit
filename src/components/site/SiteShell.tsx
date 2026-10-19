@@ -21,7 +21,10 @@ export function SiteShell({ children }: { children: ReactNode }) {
           aria-label="Site"
           className="flex flex-wrap items-center justify-between gap-4"
         >
-          <Link href="/" className="rounded-md text-lg font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Link
+            href="/"
+            className="rounded-md text-lg font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             Offkit
           </Link>
           <ul className="flex flex-wrap items-center gap-2">
