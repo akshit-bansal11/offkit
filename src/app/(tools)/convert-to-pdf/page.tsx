@@ -220,7 +220,7 @@ function ConvertToPdfTool() {
       />
 
       {/* Info banner */}
-      <div className="flex items-start gap-3 rounded-2xl border border-sky-500/20 bg-sky-500/[0.07] p-3 text-sky-400">
+      <div className="flex items-start gap-3 rounded-2xl border border-info/25 bg-info/10 p-3 text-info">
         <Info className="size-4 mt-0.5 shrink-0" />
         <p className="text-xs leading-relaxed">
           Currently supports JPG, PNG, and WEBP images. DOCX/HTML conversion
@@ -359,7 +359,7 @@ function ConvertToPdfTool() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       )}

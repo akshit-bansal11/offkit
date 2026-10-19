@@ -364,7 +364,7 @@ function PdfToolkitTool() {
       {errorMessage ? (
         <div
           role="alert"
-          className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+          className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
           {errorMessage}
         </div>
@@ -397,7 +397,7 @@ function PdfToolkitTool() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setMergeFiles([])}
-                  className="text-muted-foreground hover:text-red-400"
+                  className="text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="size-4 mr-2" />
                   Clear All
@@ -440,7 +440,7 @@ function PdfToolkitTool() {
                     <div className="px-3 text-muted-foreground/30 transition-colors group-hover:text-muted-foreground h-full flex items-center bg-black/10 py-4">
                       <GripVertical className="size-4" />
                     </div>
-                    <div className="p-3 text-red-500/80">
+                    <div className="p-3 text-destructive/80">
                       <File className="size-6" />
                     </div>
                     <div className="flex-1 min-w-0 py-3 select-none">
@@ -455,13 +455,14 @@ function PdfToolkitTool() {
                       type="button"
                       variant="ghost"
                       size="icon"
+                      aria-label={`Remove ${item.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         setMergeFiles((prev) =>
                           prev.filter((i) => i.id !== item.id),
                         );
                       }}
-                      className="h-8 w-8 p-0 opacity-0 text-muted-foreground transition-opacity group-hover:opacity-100 hover:text-red-400"
+                      className="h-8 w-8 p-0 opacity-0 text-muted-foreground transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive motion-reduce:transition-none"
                     >
                       <X className="size-4" />
                     </Button>
@@ -475,7 +476,7 @@ function PdfToolkitTool() {
           {activeTab !== "merge" &&
             (splitFile || compressFile || reorderFile) && (
               <div className="flex items-center gap-4 bg-background/50 p-4 rounded-3xl border shadow-sm">
-                <div className="p-3 bg-red-500/10 rounded-xl text-red-500">
+                <div className="p-3 bg-destructive/10 rounded-xl text-destructive">
                   <File className="size-6" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -499,6 +500,7 @@ function PdfToolkitTool() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Remove file"
                   onClick={() => {
                     if (activeTab === "split") setSplitFile(null);
                     if (activeTab === "compress") {
@@ -510,7 +512,7 @@ function PdfToolkitTool() {
                       setReorderPages([]);
                     }
                   }}
-                  className="text-muted-foreground hover:text-red-400"
+                  className="text-muted-foreground hover:text-destructive"
                 >
                   <X className="size-5" />
                 </Button>
@@ -671,7 +673,7 @@ function PdfToolkitTool() {
 
               {activeTab === "compress" && (
                 <>
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400">
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-warning/10 border border-warning/25 text-warning">
                     <ImageIcon className="size-5 shrink-0 mt-0.5" />
                     <p className="text-[11px] leading-relaxed">
                       <strong>Note:</strong> Client-side compression flattens

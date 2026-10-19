@@ -220,6 +220,7 @@ function SvgPatternTool() {
                 <Button
                   variant={activePattern === pattern ? "default" : "outline"}
                   key={pattern}
+                  aria-pressed={activePattern === pattern}
                   onClick={() => setActivePattern(pattern)}
                   className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 text-xs font-medium capitalize transition ${
                     activePattern === pattern
@@ -318,6 +319,7 @@ function SvgPatternTool() {
               <CardTitle className="text-base">CSS</CardTitle>
               <Button
                 size="sm"
+                aria-label="Copy CSS"
                 onClick={() => copy(cssValue, "css")}
                 className={
                   copiedCSS
@@ -335,7 +337,7 @@ function SvgPatternTool() {
             <Textarea
               readOnly
               value={cssValue}
-              className="min-h-[140px] rounded-xl bg-[#05070f] font-mono text-xs text-rose-400"
+              className="min-h-[140px] rounded-xl bg-[#05070f] font-mono text-xs text-info"
             />
           </Card>
 
@@ -344,6 +346,7 @@ function SvgPatternTool() {
               <CardTitle className="text-base">SVG</CardTitle>
               <Button
                 size="sm"
+                aria-label="Copy SVG"
                 onClick={() => copy(exportSvg, "svg")}
                 className={
                   copiedSVG
@@ -361,7 +364,7 @@ function SvgPatternTool() {
             <Textarea
               readOnly
               value={exportSvg}
-              className="min-h-[220px] rounded-xl bg-[#05070f] font-mono text-xs text-amber-400"
+              className="min-h-[220px] rounded-xl bg-[#05070f] font-mono text-xs text-warning"
             />
           </Card>
         </div>

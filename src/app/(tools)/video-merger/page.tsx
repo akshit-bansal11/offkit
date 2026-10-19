@@ -362,7 +362,7 @@ function VideoMergerTool() {
       />
 
       {hasBigFile && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-3 text-amber-400">
+        <div className="flex items-start gap-3 rounded-2xl border border-warning/25 bg-warning/10 p-3 text-warning">
           <AlertTriangle className="size-4 mt-0.5 shrink-0" />
           <p className="text-xs leading-relaxed">
             Large files detected (&gt;200MB). The bundled FFmpeg runs in memory
@@ -436,6 +436,7 @@ function VideoMergerTool() {
               <Button
                 variant="ghost"
                 size="icon"
+                aria-label="Remove clip"
                 className="size-8 shrink-0 text-muted-foreground"
                 onClick={() => removeTrack(track.id)}
                 disabled={status === "merging"}
@@ -481,16 +482,17 @@ function VideoMergerTool() {
             <div className="ml-auto flex flex-wrap items-center gap-2">
               {/* Normalize toggle */}
               <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                <div
-                  role="checkbox"
+                <button
+                  type="button"
+                  role="switch"
                   aria-checked={normalizeRes}
                   onClick={() => setNormalizeRes((v) => !v)}
-                  className={`relative h-4 w-7 rounded-full transition-colors ${normalizeRes ? "bg-yellow-400" : "bg-white/15"}`}
+                  className={`relative h-4 w-7 cursor-pointer rounded-full transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${normalizeRes ? "bg-warning" : "bg-white/15 hover:bg-white/25"}`}
                 >
                   <span
-                    className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${normalizeRes ? "left-3.5" : "left-0.5"}`}
+                    className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform motion-reduce:transition-none ${normalizeRes ? "left-3.5" : "left-0.5"}`}
                   />
-                </div>
+                </button>
                 Normalize resolution
               </label>
 
@@ -547,7 +549,7 @@ function VideoMergerTool() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       )}

@@ -394,7 +394,7 @@ function AudioJoinerTool() {
                         <span className="font-mono text-xs text-muted-foreground">
                           {hasTrim ? (
                             <>
-                              <span className="text-blue-400">
+                              <span className="text-info">
                                 {formatDuration(clipDuration)}
                               </span>{" "}
                               <span className="text-white/30">
@@ -414,7 +414,7 @@ function AudioJoinerTool() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`h-7 gap-1 border text-[10px] ${track.trimExpanded ? "border-blue-500/30 bg-blue-500/10 text-blue-400" : "border-white/10 text-muted-foreground"}`}
+                      className={`h-7 gap-1 border text-[10px] ${track.trimExpanded ? "border-info/25 bg-info/10 text-info" : "border-white/10 text-muted-foreground"}`}
                       onClick={() =>
                         updateTrack(track.id, {
                           trimExpanded: !track.trimExpanded,

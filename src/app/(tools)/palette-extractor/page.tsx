@@ -124,7 +124,7 @@ function PaletteExtractorTool() {
             ) : null}
 
             {error ? (
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+              <div className="rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">
                 {error}
               </div>
             ) : null}
@@ -169,7 +169,7 @@ function PaletteExtractorTool() {
                       type="button"
                       variant="ghost"
                       onClick={() => handleCopyColor(color)}
-                      className="group h-auto justify-start rounded-[1.5rem] border bg-background/50 p-4 text-left font-normal transition hover:border-primary/40 hover:bg-background/50"
+                      className="group h-auto flex-col items-stretch justify-start rounded-[1.5rem] border bg-background/50 p-4 text-left font-normal transition hover:border-primary/40 hover:bg-background/50"
                     >
                       <div
                         className="h-28 rounded-2xl border"
@@ -183,7 +183,7 @@ function PaletteExtractorTool() {
                           </p>
                         </div>
                         {copiedColor === color ? (
-                          <Badge className="gap-1.5 bg-white/[0.06] text-white/75">
+                          <Badge className="gap-1.5 border-success/25 bg-success/10 text-success">
                             <CheckCircle2 className="size-3.5" />
                             Copied
                           </Badge>

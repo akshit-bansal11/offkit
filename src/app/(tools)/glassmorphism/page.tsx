@@ -147,11 +147,11 @@ function GlassmorphismTool() {
               {bgType === "abstract" && (
                 <>
                   <div
-                    className="absolute top-[20%] left-[20%] w-32 h-32 bg-rose-500 rounded-full mix-blend-screen mix-blend-overlay filter blur-[4px] animate-pulse"
+                    className="pointer-events-none absolute top-[20%] left-[20%] w-32 h-32 bg-rose-500 rounded-full mix-blend-screen mix-blend-overlay filter blur-[4px] animate-pulse"
                     style={{ animationDuration: "4s" }}
                   />
                   <div
-                    className="absolute bottom-[20%] right-[20%] w-48 h-48 bg-blue-500 rounded-full mix-blend-screen mix-blend-overlay filter blur-[8px] animate-pulse"
+                    className="pointer-events-none absolute bottom-[20%] right-[20%] w-48 h-48 bg-blue-500 rounded-full mix-blend-screen mix-blend-overlay filter blur-[8px] animate-pulse"
                     style={{ animationDuration: "6s" }}
                   />
                 </>
@@ -209,7 +209,7 @@ function GlassmorphismTool() {
                 <Textarea
                   readOnly
                   value={cssValue}
-                  className="h-[120px] font-mono text-sm leading-relaxed p-4 bg-background/50 border-0 focus-visible:ring-0 resize-none text-blue-400"
+                  className="h-[120px] font-mono text-sm leading-relaxed p-4 bg-background/50 border-0 focus-visible:ring-0 resize-none text-info"
                 />
               </div>
             </Card>

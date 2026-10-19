@@ -232,7 +232,7 @@ function DirectoryScaffoldTool() {
           {errorMessage ? (
             <div
               role="alert"
-              className="rounded-lg border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+              className="rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive"
             >
               {errorMessage}
             </div>
@@ -241,7 +241,7 @@ function DirectoryScaffoldTool() {
           {treeRoot && truncated ? (
             <p
               role="status"
-              className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+              className="rounded-lg border border-warning/25 bg-warning/10 px-4 py-3 text-sm text-warning"
             >
               This repository is too large for GitHub to list in one request, so
               the tree below is incomplete.
@@ -258,7 +258,7 @@ function DirectoryScaffoldTool() {
               </Badge>
               <Badge
                 variant="outline"
-                className="border-blue-500/20 bg-blue-500/10 text-blue-300"
+                className="border-info/25 bg-info/10 text-info"
               >
                 {nodeCounts.files} files
               </Badge>

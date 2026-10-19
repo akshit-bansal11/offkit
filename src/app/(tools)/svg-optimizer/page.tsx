@@ -356,7 +356,7 @@ function SvgOptimizerTool() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-3 top-3 z-10 text-muted-foreground hover:text-red-400"
+                      className="absolute right-3 top-3 z-10 text-muted-foreground hover:text-destructive"
                       onClick={() => setInputSvg("")}
                     >
                       Clear
@@ -420,7 +420,7 @@ function SvgOptimizerTool() {
             {optimizedData.origSize > 0 && (
               <Badge
                 variant="outline"
-                className={`px-3 py-1 font-mono text-sm border-white/15 bg-white/[0.06] text-white/75 ${savingsPct < 0 ? "border-red-500/30 bg-red-500/10 text-red-300" : ""}`}
+                className={`px-3 py-1 font-mono text-sm ${savingsPct < 0 ? "border-destructive/25 bg-destructive/10 text-destructive" : savingsPct > 0 ? "border-success/25 bg-success/10 text-success" : "border-white/15 bg-white/[0.06] text-white/75"}`}
               >
                 {savingsPct > 0
                   ? `-${savingsPct}% Saved`
@@ -518,7 +518,7 @@ function SvgOptimizerTool() {
             <Card className="overflow-hidden border-white/10 bg-card/70 shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 bg-background/20 px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-amber-400/70" />
+                  <span className="size-2 rounded-full bg-warning/70" />
                   <CardTitle className="text-sm uppercase tracking-[0.18em] text-foreground/90">
                     Optimized SVG
                   </CardTitle>
@@ -542,7 +542,7 @@ function SvgOptimizerTool() {
             <Card className="overflow-hidden border-white/10 bg-card/70 shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 bg-background/20 px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-sky-400/70" />
+                  <span className="size-2 rounded-full bg-info/70" />
                   <CardTitle className="text-sm uppercase tracking-[0.18em] text-foreground/90">
                     JSX Output
                   </CardTitle>

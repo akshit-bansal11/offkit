@@ -130,9 +130,9 @@ function TreeNode({ node, depth, zip, onSelect, selected }: TreeNodeProps) {
               <ChevronRight className="size-3.5" />
             )}
             {expanded ? (
-              <FolderOpen className="size-3.5 text-amber-400" />
+              <FolderOpen className="size-3.5 text-warning" />
             ) : (
-              <Folder className="size-3.5 text-amber-400" />
+              <Folder className="size-3.5 text-warning" />
             )}
           </button>
         ) : (
@@ -141,7 +141,7 @@ function TreeNode({ node, depth, zip, onSelect, selected }: TreeNodeProps) {
               type="checkbox"
               checked={selected.has(node.path)}
               onChange={(e) => onSelect(node.path, e.target.checked)}
-              className="size-3 accent-emerald-400"
+              className="size-3 accent-success"
             />
             <File className="size-3.5 text-muted-foreground" />
           </>
@@ -329,7 +329,7 @@ function ArchiveExtractorTool() {
           {/* Header */}
           <div className="flex flex-wrap items-center gap-3 px-5 py-3">
             <div className="flex items-center gap-2">
-              <FolderOpen className="size-4 text-amber-400" />
+              <FolderOpen className="size-4 text-warning" />
               <span className="text-sm font-medium">{file.name}</span>
             </div>
             <Badge
@@ -437,7 +437,7 @@ function ArchiveExtractorTool() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+        <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       )}

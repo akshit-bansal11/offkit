@@ -306,11 +306,11 @@ function ImageConverter() {
   return (
     <div className="space-y-6">
       {UNSUPPORTED_OUTPUT_FORMATS.length > 0 && (
-        <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+        <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-warning/25 bg-warning/10 px-4 py-3">
           <div className="flex items-start gap-2.5">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+            <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" />
             <div>
-              <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              <p className="text-sm font-medium text-warning">
                 HEIF Export Limitation
               </p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">
@@ -325,11 +325,11 @@ function ImageConverter() {
         </div>
       )}
 
-      <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3">
+      <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-info/25 bg-info/10 px-4 py-3">
         <div className="flex items-start gap-2.5">
-          <Info className="mt-0.5 size-4 shrink-0 text-blue-500" />
+          <Info className="mt-0.5 size-4 shrink-0 text-info" />
           <div>
-            <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+            <p className="text-sm font-medium text-info">
               Upload Limits
             </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">
@@ -342,11 +342,11 @@ function ImageConverter() {
       </div>
 
       {uploadWarning && (
-        <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/5 p-4">
+        <div className="mb-6 rounded-lg border border-destructive/25 bg-destructive/10 p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 size-5 shrink-0 text-red-500" />
+            <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
             <div className="flex-1">
-              <p className="font-medium text-red-600 dark:text-red-400">
+              <p className="font-medium text-destructive">
                 Upload Rejected
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -357,7 +357,7 @@ function ImageConverter() {
               onClick={() => setUploadWarning(null)}
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-red-500 hover:text-red-600 dark:hover:text-red-400"
+              className="h-6 w-6 text-destructive hover:text-destructive"
             >
               <X className="size-4" />
             </Button>
