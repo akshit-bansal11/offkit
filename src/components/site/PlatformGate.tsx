@@ -28,7 +28,10 @@ export function PlatformGate({ children }: { children: ReactNode }) {
       <Button asChild>
         <a href={siteConfig.download.latest}>Download the desktop app</a>
       </Button>
-      <Link className="rounded-sm text-sm underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring" href="/">
+      <Link
+        className="rounded-sm text-sm underline outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        href="/"
+      >
         Back to all tools
       </Link>
     </main>

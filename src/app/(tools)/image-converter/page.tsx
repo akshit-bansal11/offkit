@@ -329,9 +329,7 @@ function ImageConverter() {
         <div className="flex items-start gap-2.5">
           <Info className="mt-0.5 size-4 shrink-0 text-info" />
           <div>
-            <p className="text-sm font-medium text-info">
-              Upload Limits
-            </p>
+            <p className="text-sm font-medium text-info">Upload Limits</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">
               Uploads are limited to 10MB, 4096px on either side, and 20MP
               total. ICO exports above 512px are automatically resized to fit
@@ -346,9 +344,7 @@ function ImageConverter() {
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
             <div className="flex-1">
-              <p className="font-medium text-destructive">
-                Upload Rejected
-              </p>
+              <p className="font-medium text-destructive">Upload Rejected</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {uploadWarning}
               </p>

@@ -299,9 +299,7 @@ export function ImageConverterFileCard({
         {item.status === "error" && item.error && (
           <div className="mt-3 flex items-start gap-2 rounded-md border border-destructive/25 bg-destructive/10 p-2.5">
             <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-            <p className="text-xs text-destructive">
-              {item.error}
-            </p>
+            <p className="text-xs text-destructive">{item.error}</p>
           </div>
         )}
 
