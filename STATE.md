@@ -47,7 +47,7 @@
 | Required status checks | none enforced | 2026-10-18 |
 | Release approval environment | none; releases need no secrets (unsigned / ad hoc signed) | 2026-10-18 |
 | Secrets present in CI | none needed | 2026-10-18 |
-| Vercel project | still named `open-tools`; only `open-tools.akshitbansal.me` attached | 2026-10-18 |
+| Vercel project | named `offkit`; `offkit.akshitbansal.dev` attached. Only `main` deploys (`vercel.json`): each deployment stores ~48 MB of `public/vendor` wasm, and per-branch previews had grown storage to ~6 GB | 2026-10-23 |
 
 ## Test status, honestly
 
