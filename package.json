@@ -41,7 +41,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@playwright/test": "^1.64.1",
-    "@types/diff": "^7.0.2",
+    "@types/diff": "^8.0.0",
     "@types/node": "^26",
     "@types/pdfjs-dist": "^2.10.378",
     "@types/react": "^19",
