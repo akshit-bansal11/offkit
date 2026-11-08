@@ -1,0 +1,140 @@
+// Palette Maker: a palette of 2 to 10 colours, each with a hex field, a lock, and buttons to move
+// or remove it. Randomise replaces the unlocked colours; the palette copies as CSS custom
+// properties, a Tailwind theme, or JSON. State lives in the `PaletteMaker` global, driven by
+// src/tools/palette_maker.rs.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { Button, IconButton } from "../components/controls.slint";
+import { Checkbox, ColorWell } from "../components/fields.slint";
+import { CopyButton, Notice, NoticeTone } from "../components/editor.slint";
+
+export struct MakerColor {
+    color: color,
+    hex: string,
+    locked: bool,
+    // The hex field holds something that is not #rrggbb.
+    invalid: bool,
+}
+
+export global PaletteMaker {
+    in property <[MakerColor]> colors;
+    in property <bool> can-add;
+    in property <bool> can-remove;
+    in property <string> error;
+
+    callback edit(int, string);
+    callback set-locked(int, bool);
+    callback move-color(int, int);
+    callback remove(int);
+    callback add();
+    callback randomise();
+    callback copy-css() -> bool;
+    callback copy-tailwind() -> bool;
+    callback copy-json() -> bool;
+}
+
+export component PaletteMakerView inherits VerticalLayout {
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    HorizontalLayout {
+        spacing: Theme.space-2;
+
+        Button {
+            text: "Randomise";
+            icon: AppIcons.regenerate;
+            clicked => { PaletteMaker.randomise(); }
+        }
+        Button {
+            text: "Add color";
+            icon: AppIcons.plus;
+            enabled: PaletteMaker.can-add;
+            clicked => { PaletteMaker.add(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        CopyButton {
+            text: "CSS";
+            copy => { return PaletteMaker.copy-css(); }
+        }
+        CopyButton {
+            text: "Tailwind";
+            copy => { return PaletteMaker.copy-tailwind(); }
+        }
+        CopyButton {
+            text: "JSON";
+            copy => { return PaletteMaker.copy-json(); }
+        }
+    }
+
+    if PaletteMaker.error != "": Notice {
+        text: PaletteMaker.error;
+        tone: NoticeTone.error;
+    }
+
+    HorizontalLayout {
+        height: Theme.colors-card-art / 2;
+
+        for c in PaletteMaker.colors: Rectangle {
+            horizontal-stretch: 1;
+            background: c.color;
+            accessible-role: none;
+        }
+    }
+
+    ScrollView {
+        vertical-stretch: 1;
+
+        VerticalLayout {
+            alignment: start;
+            spacing: Theme.space-3;
+            padding-right: Theme.space-3;
+
+            for c[i] in PaletteMaker.colors: VerticalLayout {
+                spacing: Theme.space-1;
+
+                HorizontalLayout {
+                    spacing: Theme.space-2;
+
+                    ColorWell {
+                        color: c.color;
+                        hex: c.hex;
+                        label: "Color " + (i + 1) + " hex";
+                        invalid: c.invalid;
+                        edited(text) => { PaletteMaker.edit(i, text); }
+                        accepted(text) => { PaletteMaker.edit(i, text); }
+                    }
+                    Checkbox {
+                        text: "Lock " + (i + 1);
+                        checked: c.locked;
+                        toggled(on) => { PaletteMaker.set-locked(i, on); }
+                    }
+                    IconButton {
+                        icon: AppIcons.move-up;
+                        label: "Move color " + (i + 1) + " up";
+                        enabled: i > 0;
+                        clicked => { PaletteMaker.move-color(i, -1); }
+                    }
+                    IconButton {
+                        icon: AppIcons.move-down;
+                        label: "Move color " + (i + 1) + " down";
+                        enabled: i < PaletteMaker.colors.length - 1;
+                        clicked => { PaletteMaker.move-color(i, 1); }
+                    }
+                    IconButton {
+                        icon: AppIcons.trash;
+                        label: "Remove color " + (i + 1);
+                        enabled: PaletteMaker.can-remove;
+                        clicked => { PaletteMaker.remove(i); }
+                    }
+                }
+                if c.invalid: Notice {
+                    text: "Enter a hex color like #1A2B3C.";
+                    tone: NoticeTone.error;
+                }
+            }
+        }
+    }
+}

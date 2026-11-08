@@ -68,12 +68,12 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn loads_38_tools_in_9_categories_with_unique_slugs() {
+    fn loads_39_tools_in_9_categories_with_unique_slugs() {
         let r = Registry::load().unwrap();
         assert_eq!(r.categories.len(), 9);
-        assert_eq!(r.tools.len(), 38);
+        assert_eq!(r.tools.len(), 39);
         let slugs: HashSet<_> = r.tools.iter().map(|t| &t.slug).collect();
-        assert_eq!(slugs.len(), 38);
+        assert_eq!(slugs.len(), 39);
         let cats: HashSet<_> = r.categories.iter().map(|c| c.name.as_str()).collect();
         assert!(r.tools.iter().all(|t| cats.contains(t.category.as_str())));
     }

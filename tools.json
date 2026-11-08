@@ -256,6 +256,15 @@
       "icon": "grid-3x3"
     },
     {
+      "slug": "palette-maker",
+      "platforms": ["web", "desktop"],
+      "name": "Palette Maker",
+      "shortName": "Make",
+      "description": "Build a 2 to 10 color palette, lock favorites, randomize the rest, and export CSS variables, Tailwind theme JSON, or plain JSON.",
+      "category": "Colors",
+      "icon": "pipette"
+    },
+    {
       "slug": "palette-extractor",
       "platforms": ["web", "desktop"],
       "name": "Palette Extractor",

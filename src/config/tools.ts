@@ -365,6 +365,18 @@ export const tools: ToolDefinition[] = [
     icon: Grid3X3,
   },
   {
+    slug: "palette-maker",
+    platforms: ["web", "desktop"],
+    href: "/palette-maker",
+    name: "Palette Maker",
+    shortName: "Make",
+    description:
+      "Build a 2 to 10 color palette, lock favorites, randomize the rest, and export CSS variables, Tailwind theme JSON, or plain JSON.",
+    category: "Colors",
+    highlights: ["Export CSS, Tailwind and JSON"],
+    icon: Pipette,
+  },
+  {
     slug: "palette-extractor",
     platforms: ["web", "desktop"],
     href: "/palette-extractor",
