@@ -353,6 +353,18 @@ export const tools: ToolDefinition[] = [
     icon: Palette,
   },
   {
+    slug: "color-blocks",
+    platforms: ["web", "desktop"],
+    href: "/color-blocks",
+    name: "Color Blocks",
+    shortName: "Blocks",
+    description:
+      "Browse 639 solid color swatches, filter by hue family or lightness, and copy any hex value.",
+    category: "Colors",
+    highlights: ["Filter by hue family and lightness"],
+    icon: Grid3X3,
+  },
+  {
     slug: "palette-extractor",
     platforms: ["web", "desktop"],
     href: "/palette-extractor",

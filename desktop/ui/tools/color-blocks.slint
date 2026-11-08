@@ -1,0 +1,164 @@
+// Color Blocks: a wall of solid colour swatches, filtered by hue family and by lightness. Click
+// or press Space/Enter on a block to copy its hex. State lives in the `ColorBlocks` global,
+// driven by src/tools/color_blocks.rs.
+
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { AppIcons } from "../icons/icons.slint";
+import { FocusRing, Select } from "../components/controls.slint";
+import { SegmentedControl } from "../components/fields.slint";
+import { Notice, NoticeTone } from "../components/editor.slint";
+
+export struct BlockItem {
+    color: color,
+    hex: string,
+    // The label reads in white on this colour, rather than black.
+    light-ink: bool,
+}
+
+export global ColorBlocks {
+    in property <[BlockItem]> blocks;
+    in property <[string]> family-options;
+    // "12 of 639 colors".
+    in property <string> count-text;
+    in property <string> error;
+    in-out property <int> family-index;
+    in-out property <int> tone-index;
+
+    callback filter(int, int);
+    callback copy-color(string) -> bool;
+}
+
+component BlockButton inherits Rectangle {
+    in property <BlockItem> block;
+
+    private property <bool> copied;
+
+    function copy() {
+        root.copied = ColorBlocks.copy-color(root.block.hex);
+    }
+
+    border-radius: Theme.radius-group;
+    background: root.block.color;
+    border-width: 1px;
+    border-color: Theme.separator;
+    accessible-role: button;
+    accessible-label: "Copy " + root.block.hex;
+    accessible-action-default => { root.copy(); }
+
+    Rectangle {
+        border-radius: parent.border-radius;
+        background: ta.pressed ? Theme.bg-pressed : ta.has-hover ? Theme.bg-hover : transparent;
+        animate background { duration: Theme.dur-fast; easing: Theme.ease; }
+    }
+
+    VerticalLayout {
+        padding: Theme.space-2;
+        alignment: end;
+
+        HorizontalLayout {
+            alignment: start;
+            spacing: Theme.space-1;
+
+            if root.copied: Image {
+                source: AppIcons.check;
+                colorize: root.block.light-ink ? Theme.swatch-ink-light : Theme.swatch-ink-dark;
+                width: Theme.icon-size-small;
+                height: Theme.icon-size-small;
+                y: (parent.height - self.height) / 2;
+            }
+            Text {
+                text: root.copied ? "Copied" : root.block.hex;
+                color: root.block.light-ink ? Theme.swatch-ink-light : Theme.swatch-ink-dark;
+                font-family: Theme.font-family-mono;
+                font-size: Theme.size-footnote;
+                overflow: elide;
+            }
+        }
+    }
+
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.copy(); }
+    }
+    fs := FocusScope {
+        key-pressed(event) => {
+            if (event.text == " " || event.text == "\n") {
+                root.copy();
+                return accept;
+            }
+            reject
+        }
+    }
+    FocusRing { has-focus: fs.has-focus; radius: Theme.radius-group; }
+
+    Timer {
+        interval: 1600ms;
+        running: root.copied;
+        triggered => { root.copied = false; }
+    }
+}
+
+export component ColorBlocksView inherits VerticalLayout {
+    padding: Theme.space-6;
+    padding-top: 0;
+    spacing: Theme.space-4;
+
+    HorizontalLayout {
+        spacing: Theme.space-3;
+
+        Select {
+            label: "Hue family";
+            options: ColorBlocks.family-options;
+            current-index <=> ColorBlocks.family-index;
+            selected => { ColorBlocks.filter(ColorBlocks.family-index, ColorBlocks.tone-index); }
+        }
+        SegmentedControl {
+            label: "Lightness";
+            options: ["All", "Light", "Dark"];
+            current-index <=> ColorBlocks.tone-index;
+            selected => { ColorBlocks.filter(ColorBlocks.family-index, ColorBlocks.tone-index); }
+        }
+        Text {
+            text: ColorBlocks.count-text;
+            color: Theme.text-secondary;
+            font-size: Theme.size-body;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+    }
+
+    if ColorBlocks.error != "": Notice {
+        text: ColorBlocks.error;
+        tone: NoticeTone.error;
+    }
+
+    ScrollView {
+        vertical-stretch: 1;
+
+        VerticalLayout {
+            alignment: start;
+            padding-right: Theme.space-3;
+
+            if ColorBlocks.blocks.length == 0: Text {
+                text: "No colors match these filters.";
+                color: Theme.text-secondary;
+                font-size: Theme.size-body;
+            }
+            grid := Rectangle {
+                property <int> columns: max(1, floor((self.width + Theme.space-3) / (Theme.blocks-cell-min-width + Theme.space-3)));
+                property <length> cell-width: (self.width - (self.columns - 1) * Theme.space-3) / self.columns;
+
+                height: ceil(ColorBlocks.blocks.length / self.columns) * (Theme.blocks-cell-height + Theme.space-3);
+
+                for block[i] in ColorBlocks.blocks: BlockButton {
+                    x: mod(i, grid.columns) * (grid.cell-width + Theme.space-3);
+                    y: floor(i / grid.columns) * (Theme.blocks-cell-height + Theme.space-3);
+                    width: grid.cell-width;
+                    height: Theme.blocks-cell-height;
+                    block: block;
+                }
+            }
+        }
+    }
+}

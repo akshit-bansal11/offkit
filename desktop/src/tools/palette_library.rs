@@ -77,7 +77,7 @@ fn luminance(c: Rgba) -> f64 {
 }
 
 /// Whether white reads better than black on `c`, by the WCAG contrast ratio.
-fn light_ink(c: Rgba) -> bool {
+pub fn light_ink(c: Rgba) -> bool {
     let l = luminance(c);
     1.05 / (l + 0.05) > (l + 0.05) / 0.05
 }

@@ -92,6 +92,7 @@ tools! {
     gradient_library,
     gradient_converter,
     palette_library,
+    color_blocks,
 
     // css
     blob_generator,

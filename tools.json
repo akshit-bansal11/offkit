@@ -247,6 +247,15 @@
       "icon": "palette"
     },
     {
+      "slug": "color-blocks",
+      "platforms": ["web", "desktop"],
+      "name": "Color Blocks",
+      "shortName": "Blocks",
+      "description": "Browse 639 solid color swatches, filter by hue family or lightness, and copy any hex value.",
+      "category": "Colors",
+      "icon": "grid-3x3"
+    },
+    {
       "slug": "palette-extractor",
       "platforms": ["web", "desktop"],
       "name": "Palette Extractor",
