@@ -21,9 +21,9 @@ The file holds:
 - `categories`, each with a `name` and an `accent` colour. The web app uses the accent; the desktop app ignores it and keeps one UI accent (`desktop/ui/theme.slint`).
 - `tools`, each with `slug`, `name`, `shortName`, `description`, `category`, `icon` and `platforms`.
 
-`platforms` is a list of `"web"` and `"desktop"`. A tool that omits `desktop` has no view in the desktop app; the shell shows a shared "This tool runs in your browser" panel with an Open in Browser button (`desktop/ui/tools/web-only.slint`). A tool that omits `web` keeps its URL on the site but shows a download panel (`src/components/site/PlatformGate.tsx`, `runsOnWeb` in `src/config/tools.ts`). Today all 37 tools list both.
+`platforms` is a list of `"web"` and `"desktop"`. A tool that omits `desktop` has no view in the desktop app; the shell shows a shared "This tool runs in your browser" panel with an Open in Browser button (`desktop/ui/tools/web-only.slint`). A tool that omits `web` keeps its URL on the site but shows a download panel (`src/components/site/PlatformGate.tsx`, `runsOnWeb` in `src/config/tools.ts`). Today all 39 tools list both.
 
-The desktop binary compiles `tools.json` in with `include_str!` (`desktop/src/registry.rs`). The website still keeps its own copy of the registry in `src/config/tools.ts`, with the icon components; `src/lib/tools.test.ts` fails when the two disagree, and a desktop test asserts 37 tools in 9 categories with unique slugs.
+The desktop binary compiles `tools.json` in with `include_str!` (`desktop/src/registry.rs`). The website still keeps its own copy of the registry in `src/config/tools.ts`, with the icon components; `src/lib/tools.test.ts` fails when the two disagree, and a desktop test asserts 39 tools in 9 categories with unique slugs.
 
 ## Desktop app
 

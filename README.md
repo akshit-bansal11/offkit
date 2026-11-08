@@ -1,6 +1,6 @@
 # Offkit
 
-Offkit is 37 everyday file and developer tools for audio, video, images, PDFs, SVG, colours, CSS, text and dev work, and every one runs on your own machine. It is a native desktop app for Windows, macOS and Linux, and a web app that does the same work in the browser.
+Offkit is 39 everyday file and developer tools for audio, video, images, PDFs, SVG, colours, CSS, text and dev work, and every one runs on your own machine. It is a native desktop app for Windows, macOS and Linux, and a web app that does the same work in the browser.
 
 [Website](https://offkit.akshitbansal.me) · [Documentation](https://offkit.akshitbansal.me/docs) · [Releases](https://github.com/akshit-bansal11/offkit/releases/latest)
 
@@ -18,7 +18,7 @@ Offkit was called Open Tools before v0.2.0.
 - **Makes design assets.** Gradients, palettes, CSS blobs, glass effects, box shadows and animated or patterned SVGs, with SVG optimisation.
 - **Handles text and dev chores.** JSON, Base64, diffs, Markdown, lorem ipsum, archives (ZIP, TAR, TAR.GZ, GZ, 7z) and directory trees.
 - **Stays on your device.** Files are processed locally. There is no upload and no account.
-- **Runs in two places.** The desktop app and the website offer the same tools. A tool can be limited to one side; `tools.json` lists each tool's `platforms`, and today all 37 list both.
+- **Runs in two places.** The desktop app and the website offer the same tools. A tool can be limited to one side; `tools.json` lists each tool's `platforms`, and today all 39 list both.
 
 ## Install
 
@@ -65,7 +65,7 @@ A tool that runs on the web only shows an **Open in Browser** button in the desk
 - **Dev:** Directory Scaffold, Archive Extractor, Archiver.
 - **Images:** Image Cropper, Image Converter.
 - **SVG:** SVG Border Animator, SVG Pattern Generator, SVG Optimizer.
-- **Colors:** Gradient Maker, Gradient Library, Palette Library, Palette Extractor, Gradient Converter, Color Converter.
+- **Colors:** Gradient Maker, Gradient Library, Palette Library, Color Blocks, Palette Maker, Palette Extractor, Gradient Converter, Color Converter.
 - **CSS:** CSS Blob Generator, Glassmorphism Generator, Box Shadow Generator.
 - **PDF:** PDF Toolkit, PDF ↔ Image Converter, PDF Merger, PDF Splitter, PDF Compressor, Convert to PDF, Convert from PDF.
 - **Text:** Lorem Generator, Diff Checker, JSON Formatter, Base64, Markdown Editor.
