@@ -21,7 +21,7 @@ pub const SLUG: &str = "palette-maker";
 
 const MIN_COLORS: usize = 2;
 const MAX_COLORS: usize = 10;
-const DEFAULT_COLORS: [&str; 4] = ["#2563EB", "#8B5CF6", "#EC4899", "#F59E0B"];
+const DEFAULT_COLORS: [&str; 4] = ["#2563eb", "#8b5cf6", "#ec4899", "#f59e0b"];
 
 // ---- Logic --------------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ struct Row {
 impl Row {
     fn new(rgba: Rgba) -> Self {
         Row {
-            text: color::hex(rgba),
+            text: color::hex(rgba).to_lowercase(),
             rgba,
             locked: false,
             invalid: false,
@@ -111,16 +111,14 @@ fn css(colors: &[String]) -> String {
     format!(":root {{\n{}\n}}", lines.join("\n"))
 }
 
+/// A Tailwind v4 theme block: `--color-palette-1` yields `bg-palette-1`.
 fn tailwind(colors: &[String]) -> String {
     let lines: Vec<String> = colors
         .iter()
         .enumerate()
-        .map(|(i, c)| format!("        \"palette-{}\": \"{c}\"", i + 1))
+        .map(|(i, c)| format!("  --color-palette-{}: {c};", i + 1))
         .collect();
-    format!(
-        "{{\n  \"theme\": {{\n    \"extend\": {{\n      \"colors\": {{\n{}\n      }}\n    }}\n  }}\n}}",
-        lines.join(",\n")
-    )
+    format!("@theme {{\n{}\n}}", lines.join("\n"))
 }
 
 fn json(colors: &[String]) -> String {
@@ -354,23 +352,11 @@ mod tests {
         );
         assert_eq!(
             tailwind(&colors),
-            "{\n  \"theme\": {\n    \"extend\": {\n      \"colors\": {\n        \"palette-1\": \"#112233\",\n        \"palette-2\": \"#445566\"\n      }\n    }\n  }\n}"
+            "@theme {\n  --color-palette-1: #112233;\n  --color-palette-2: #445566;\n}"
         );
         assert_eq!(
             json(&colors),
             "{\n  \"colors\": [\n    \"#112233\",\n    \"#445566\"\n  ]\n}"
-        );
-    }
-
-    #[test]
-    fn tailwind_export_parses_as_json() {
-        let colors = vec!["#112233".to_string(), "#445566".to_string()];
-
-        let value: serde_json::Value = serde_json::from_str(&tailwind(&colors)).unwrap();
-
-        assert_eq!(
-            value["theme"]["extend"]["colors"]["palette-2"],
-            serde_json::json!("#445566")
         );
     }
 }

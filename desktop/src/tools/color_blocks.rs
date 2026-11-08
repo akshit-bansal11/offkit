@@ -202,6 +202,24 @@ mod tests {
     }
 
     #[test]
+    fn family_and_lightness_match_the_shared_web_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../src/lib/design-tools/data/color-parity.json"
+        ))
+        .unwrap();
+        let entries = fixture.as_array().unwrap();
+
+        assert!(entries.len() >= 20);
+        for entry in entries {
+            let hex = entry["hex"].as_str().unwrap();
+            let c = rgb(hex);
+            assert_eq!(FAMILIES[family(c)], entry["family"].as_str().unwrap(), "{hex}");
+            let lightness = if light_ink(c) { "dark" } else { "light" };
+            assert_eq!(lightness, entry["lightness"].as_str().unwrap(), "{hex}");
+        }
+    }
+
+    #[test]
     fn no_filter_keeps_every_block() {
         assert_eq!(matching(0, 0).len(), 639);
     }

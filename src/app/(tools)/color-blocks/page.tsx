@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { StatusRegion, useStatus } from "@/components/common/StatusRegion";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/layout/Card";
@@ -39,7 +40,7 @@ export default function ColorBlocksPage() {
 function ColorBlocksTool() {
   const [family, setFamily] = useState<HueFamily | null>(null);
   const [tone, setTone] = useState<Lightness | null>(null);
-  const [status, setStatus] = useState("");
+  const { message, announce } = useStatus();
 
   const visible = blocks.filter(
     (block) =>
@@ -50,9 +51,9 @@ function ColorBlocksTool() {
   async function handleCopy(hex: string) {
     try {
       await navigator.clipboard.writeText(hex);
-      setStatus(`Copied ${hex}`);
+      announce(`Copied ${hex}`);
     } catch {
-      setStatus(`Could not copy ${hex}`);
+      announce(`Could not copy ${hex}`);
     }
   }
 
@@ -105,9 +106,7 @@ function ColorBlocksTool() {
         </CardHeader>
       </Card>
 
-      <p role="status" className="sr-only">
-        {status}
-      </p>
+      <StatusRegion message={message} />
 
       {visible.length === 0 ? (
         <p className="rounded-2xl border border-white/10 bg-background/40 p-8 text-center text-sm text-muted-foreground">
@@ -122,7 +121,9 @@ function ColorBlocksTool() {
                 onClick={() => handleCopy(block.hex)}
                 aria-label={`Copy ${block.hex}`}
                 className={`flex h-24 w-full items-end rounded-xl border border-white/10 p-2 font-mono text-xs outline-none transition-transform hover:scale-[1.03] focus-visible:ring-[3px] focus-visible:ring-ring motion-reduce:transition-none motion-reduce:hover:scale-100 ${
-                  block.lightness === "light" ? "text-black" : "text-white"
+                  block.lightness === "light"
+                    ? "text-swatch-ink-dark"
+                    : "text-swatch-ink-light"
                 }`}
                 style={{ backgroundColor: block.hex }}
               >

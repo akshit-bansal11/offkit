@@ -43,6 +43,8 @@ const config: Config = {
           DEFAULT: token("destructive"),
           foreground: token("destructive-foreground"),
         },
+        "swatch-ink-light": token("swatch-ink-light"),
+        "swatch-ink-dark": token("swatch-ink-dark"),
         success: token("success"),
         warning: token("warning"),
         info: token("info"),

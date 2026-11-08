@@ -107,7 +107,7 @@ export component PaletteMakerView inherits VerticalLayout {
                         accepted(text) => { PaletteMaker.edit(i, text); }
                     }
                     Checkbox {
-                        text: "Lock " + (i + 1);
+                        text: "Lock color " + (i + 1);
                         checked: c.locked;
                         toggled(on) => { PaletteMaker.set-locked(i, on); }
                     }

@@ -371,7 +371,7 @@ export const tools: ToolDefinition[] = [
     name: "Palette Maker",
     shortName: "Make",
     description:
-      "Build a 2 to 10 color palette, lock favorites, randomize the rest, and export CSS variables, Tailwind theme JSON, or plain JSON.",
+      "Build a 2 to 10 color palette, lock favorites, randomize the rest, and export CSS variables, a Tailwind v4 theme, or plain JSON.",
     category: "Colors",
     highlights: ["Export CSS, Tailwind and JSON"],
     icon: Pipette,

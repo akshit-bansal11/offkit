@@ -10,7 +10,8 @@ import {
   Shuffle,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { StatusRegion, useStatus } from "@/components/common/StatusRegion";
 import { ToolPageShell } from "@/components/common/ToolPageShell";
 import { Button } from "@/components/ui/Button";
 import { ColorInput } from "@/components/ui/form/ColorInput";
@@ -53,8 +54,8 @@ const exportFormats = [
     build: toCssVariables,
   },
   {
-    label: "Tailwind theme JSON",
-    file: "palette.tailwind.json",
+    label: "Tailwind v4 @theme",
+    file: "palette.theme.css",
     build: toTailwindTheme,
   },
   { label: "Plain JSON", file: "palette.json", build: toJson },
@@ -76,7 +77,21 @@ function PaletteMakerTool() {
   const [swatches, setSwatches] = useState<Swatch[]>(() =>
     ["#2563eb", "#8b5cf6", "#ec4899", "#f59e0b"].map(createSwatch),
   );
-  const [status, setStatus] = useState("");
+  const { message, announce } = useStatus();
+  const pickerRefs = useRef(new Map<number, HTMLInputElement>());
+  const addRef = useRef<HTMLButtonElement>(null);
+  // Where focus goes once the next render has the new rows.
+  const focusTarget = useRef<number | "add" | null>(null);
+
+  useEffect(() => {
+    const target = focusTarget.current;
+    focusTarget.current = null;
+    if (target === "add") {
+      addRef.current?.focus();
+    } else if (target !== null) {
+      pickerRefs.current.get(target)?.focus();
+    }
+  }, [swatches]);
 
   const colors = swatches.map((swatch) => swatch.hex);
 
@@ -95,17 +110,32 @@ function PaletteMakerTool() {
 
   function move(index: number, delta: number) {
     setSwatches((current) => moveItem(current, index, index + delta));
+    announce(`Moved color ${index + 1} ${delta < 0 ? "up" : "down"}`);
   }
 
-  function remove(id: number) {
-    setSwatches((current) => current.filter((swatch) => swatch.id !== id));
+  function toggleLock(swatch: Swatch, position: number) {
+    update(swatch.id, { locked: !swatch.locked });
+    announce(`${swatch.locked ? "Unlocked" : "Locked"} color ${position}`);
+  }
+
+  function remove(index: number) {
+    const remaining = swatches.filter((_, i) => i !== index);
+    const next = remaining[index] ?? remaining[index - 1];
+    focusTarget.current = next ? next.id : "add";
+    setSwatches(remaining);
+    announce(`Removed color ${index + 1}`);
   }
 
   function add() {
     setSwatches((current) => [...current, createSwatch(randomHex())]);
+    announce(`Added color ${swatches.length + 1}`);
   }
 
   function randomise() {
+    if (swatches.every((swatch) => swatch.locked)) {
+      announce("All colors are locked");
+      return;
+    }
     setSwatches((current) => {
       const next = randomizeColors(
         current.map((swatch) => swatch.hex),
@@ -117,15 +147,15 @@ function PaletteMakerTool() {
         draft: swatch.locked ? swatch.draft : null,
       }));
     });
-    setStatus("Randomised unlocked colors");
+    announce("Randomised unlocked colors");
   }
 
   async function copy(label: string, text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setStatus(`Copied ${label}`);
+      announce(`Copied ${label}`);
     } catch {
-      setStatus(`Could not copy ${label}`);
+      announce(`Could not copy ${label}`);
     }
   }
 
@@ -135,15 +165,13 @@ function PaletteMakerTool() {
     link.href = url;
     link.download = file;
     link.click();
-    URL.revokeObjectURL(url);
-    setStatus(`Downloaded ${file}`);
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    announce(`Downloaded ${file}`);
   }
 
   return (
     <div className="space-y-8">
-      <p role="status" className="sr-only">
-        {status}
-      </p>
+      <StatusRegion message={message} />
 
       <Card className="border-white/10 bg-card/70">
         <CardHeader className="space-y-4">
@@ -156,6 +184,7 @@ function PaletteMakerTool() {
                 <Shuffle /> Randomise
               </Button>
               <Button
+                ref={addRef}
                 type="button"
                 onClick={add}
                 disabled={swatches.length >= MAX_COLORS}
@@ -174,6 +203,13 @@ function PaletteMakerTool() {
                 <li key={swatch.id} className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <ColorInput
+                      ref={(node) => {
+                        if (node) {
+                          pickerRefs.current.set(swatch.id, node);
+                        } else {
+                          pickerRefs.current.delete(swatch.id);
+                        }
+                      }}
                       aria-label={`Color ${position} picker`}
                       value={swatch.hex}
                       onChange={(event) =>
@@ -202,9 +238,7 @@ function PaletteMakerTool() {
                       variant="outline"
                       aria-pressed={swatch.locked}
                       aria-label={`Lock color ${position}`}
-                      onClick={() =>
-                        update(swatch.id, { locked: !swatch.locked })
-                      }
+                      onClick={() => toggleLock(swatch, position)}
                     >
                       {swatch.locked ? <Lock /> : <LockOpen />}
                     </Button>
@@ -234,7 +268,7 @@ function PaletteMakerTool() {
                       variant="outline"
                       aria-label={`Remove color ${position}`}
                       disabled={swatches.length <= MIN_COLORS}
-                      onClick={() => remove(swatch.id)}
+                      onClick={() => remove(index)}
                     >
                       <Trash2 />
                     </Button>
@@ -270,6 +304,8 @@ function PaletteMakerTool() {
               <CardHeader className="space-y-3">
                 <CardTitle className="text-base">{format.label}</CardTitle>
                 <pre
+                  role="region"
+                  tabIndex={0}
                   aria-label={format.label}
                   className="overflow-x-auto rounded-lg bg-background/60 p-3 font-mono text-xs"
                 >

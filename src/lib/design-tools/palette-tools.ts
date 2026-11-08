@@ -97,7 +97,7 @@ export function lightness(hex: string): Lightness {
   return luminance > 0.179 ? "light" : "dark";
 }
 
-function hslToHex(h: number, s: number, l: number): string {
+export function hslToHex(h: number, s: number, l: number): string {
   const a = s * Math.min(l, 1 - l);
   const channel = (n: number) => {
     const k = (n + h / 30) % 12;
@@ -150,11 +150,12 @@ export function toCssVariables(colors: readonly string[]): string {
   return `:root {\n${lines.join("\n")}\n}`;
 }
 
+/** A Tailwind v4 theme block: `--color-palette-1` yields `bg-palette-1`. */
 export function toTailwindTheme(colors: readonly string[]): string {
-  const entries = Object.fromEntries(
-    colors.map((color, i) => [`palette-${i + 1}`, color]),
+  const lines = colors.map(
+    (color, i) => `  --color-palette-${i + 1}: ${color};`,
   );
-  return JSON.stringify({ theme: { extend: { colors: entries } } }, null, 2);
+  return `@theme {\n${lines.join("\n")}\n}`;
 }
 
 export function toJson(colors: readonly string[]): string {
