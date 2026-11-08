@@ -213,7 +213,11 @@ mod tests {
         for entry in entries {
             let hex = entry["hex"].as_str().unwrap();
             let c = rgb(hex);
-            assert_eq!(FAMILIES[family(c)], entry["family"].as_str().unwrap(), "{hex}");
+            assert_eq!(
+                FAMILIES[family(c)],
+                entry["family"].as_str().unwrap(),
+                "{hex}"
+            );
             let lightness = if light_ink(c) { "dark" } else { "light" };
             assert_eq!(lightness, entry["lightness"].as_str().unwrap(), "{hex}");
         }
