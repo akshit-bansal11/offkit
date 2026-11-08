@@ -92,7 +92,8 @@ function linear(value: number): number {
 /** Light when black text reads better on it than white text. */
 export function lightness(hex: string): Lightness {
   const [r, g, b] = channels(hex);
-  const luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+  const luminance =
+    0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
   return luminance > 0.179 ? "light" : "dark";
 }
 

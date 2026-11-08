@@ -65,7 +65,10 @@ function ColorBlocksTool() {
             <legend className="mb-2 text-sm text-muted-foreground">
               Hue family
             </legend>
-            <FilterButton active={family === null} onClick={() => setFamily(null)}>
+            <FilterButton
+              active={family === null}
+              onClick={() => setFamily(null)}
+            >
               All
             </FilterButton>
             {hueFamilies.map((name) => (

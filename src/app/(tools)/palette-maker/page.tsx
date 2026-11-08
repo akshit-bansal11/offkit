@@ -47,8 +47,16 @@ function createSwatch(hex: string): Swatch {
 }
 
 const exportFormats = [
-  { label: "CSS custom properties", file: "palette.css", build: toCssVariables },
-  { label: "Tailwind theme JSON", file: "palette.tailwind.json", build: toTailwindTheme },
+  {
+    label: "CSS custom properties",
+    file: "palette.css",
+    build: toCssVariables,
+  },
+  {
+    label: "Tailwind theme JSON",
+    file: "palette.tailwind.json",
+    build: toTailwindTheme,
+  },
   { label: "Plain JSON", file: "palette.json", build: toJson },
 ] as const;
 
