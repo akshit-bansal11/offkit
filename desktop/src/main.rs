@@ -271,7 +271,7 @@ mod tests {
         let registry = Registry::load().unwrap();
         let all = sidebar_rows(&registry, "");
         assert_eq!(all.iter().filter(|r| r.header).count(), 9);
-        assert_eq!(all.iter().filter(|r| !r.header).count(), 37);
+        assert_eq!(all.iter().filter(|r| !r.header).count(), 39);
 
         let found = sidebar_rows(&registry, "  VIDEO conv ");
         let labels: Vec<_> = found.iter().map(|r| r.label.as_str()).collect();

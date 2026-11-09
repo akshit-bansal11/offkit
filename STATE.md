@@ -1,6 +1,6 @@
 # STATE.md — Offkit
 
-**Updated:** 2026-10-20 · **Branch:** `main` · **Released:** `v0.2.1` (tag on `bbd2404`)
+**Updated:** 2026-11-08 · **Branch:** `feat/color-space-merge` · **Released:** `v0.2.1` (tag on `bbd2404`)
 
 ## Bootstrap record
 
@@ -13,7 +13,7 @@
 
 ## Where the work is right now
 
-- **In flight:** nothing. The `v0.2.1` release run (39306646164) succeeded and the release is published as Latest. It carries the UI/UX sweep of both apps (PR #22).
+- **In flight:** branch `feat/color-space-merge` adds Color Blocks and Palette Maker (absorbed from the retired `color-space` project), taking the registry to 39 tools on web and desktop. Nothing has been built or run: CI is the first check. `v0.2.1` is the last release (run 39306646164, published as Latest).
 - **Blocked on:** the owner, for the Vercel rename and the new domain (`OPEN_ITEMS.md`).
 - **Next action:** the owner items in `OPEN_ITEMS.md`.
 

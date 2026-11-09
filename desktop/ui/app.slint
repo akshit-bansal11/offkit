@@ -36,6 +36,8 @@ import { GradientMaker, GradientMakerView } from "tools/gradient-maker.slint";
 import { GradientLibrary, GradientLibraryView } from "tools/gradient-library.slint";
 import { GradientConverter, GradientConverterView } from "tools/gradient-converter.slint";
 import { PaletteLibrary, PaletteLibraryView } from "tools/palette-library.slint";
+import { ColorBlocks, ColorBlocksView } from "tools/color-blocks.slint";
+import { PaletteMaker, PaletteMakerView } from "tools/palette-maker.slint";
 import { BlobGenerator, BlobGeneratorView } from "tools/blob-generator.slint";
 import { Glassmorphism, GlassmorphismView } from "tools/glassmorphism.slint";
 import { BoxShadow, BoxShadowView } from "tools/box-shadow.slint";
@@ -57,7 +59,7 @@ export {
     ImageConverter, ImageCropper, PaletteExtractor,
     PdfToolkit, PdfConverter, PdfMerger, PdfSplitter, PdfCompressor, ConvertToPdf, ConvertFromPdf,
     SvgOptimizer, SvgPattern, SvgAnimator,
-    ColorConverter, GradientMaker, GradientLibrary, GradientConverter, PaletteLibrary,
+    ColorConverter, GradientMaker, GradientLibrary, GradientConverter, PaletteLibrary, ColorBlocks, PaletteMaker,
     BlobGenerator, Glassmorphism, BoxShadow,
     Base64, LoremGenerator, DiffChecker, JsonFormatter, MdEditor,
     DirectoryScaffold, ArchiveExtractor, Archiver
@@ -183,6 +185,8 @@ export component AppWindow inherits Window {
                         if root.current-slug == "gradient-library": GradientLibraryView { }
                         if root.current-slug == "gradient-converter": GradientConverterView { }
                         if root.current-slug == "palette-library": PaletteLibraryView { }
+                        if root.current-slug == "color-blocks": ColorBlocksView { }
+                        if root.current-slug == "palette-maker": PaletteMakerView { }
                         if root.current-slug == "blob-generator": BlobGeneratorView { }
                         if root.current-slug == "glassmorphism": GlassmorphismView { }
                         if root.current-slug == "box-shadow": BoxShadowView { }

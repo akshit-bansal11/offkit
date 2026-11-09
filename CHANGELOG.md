@@ -4,6 +4,13 @@ All notable changes to Offkit, formerly Open Tools. The format follows [Keep a C
 
 ## [Unreleased]
 
+### Added
+
+- **Color Blocks** (web and desktop): a wall of 639 solid colour swatches, filtered by hue family and by lightness. Click or press Enter to copy a hex.
+- **Palette Maker** (web and desktop): build a palette of 2 to 10 colours with colour and hex inputs, lock, add, remove and reorder with buttons, randomise the unlocked ones, and copy or download it as CSS custom properties, a Tailwind v4 `@theme` block or plain JSON (desktop copies).
+
+Offkit now has 39 tools. Both came from the retired `color-space` project.
+
 ## [0.2.1] - 2026-10-20
 
 A sweep of interface bugs in both apps, plus interaction polish.

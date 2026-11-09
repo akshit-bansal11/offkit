@@ -247,6 +247,24 @@
       "icon": "palette"
     },
     {
+      "slug": "color-blocks",
+      "platforms": ["web", "desktop"],
+      "name": "Color Blocks",
+      "shortName": "Blocks",
+      "description": "Browse 639 solid color swatches, filter by hue family or lightness, and copy any hex value.",
+      "category": "Colors",
+      "icon": "grid-3x3"
+    },
+    {
+      "slug": "palette-maker",
+      "platforms": ["web", "desktop"],
+      "name": "Palette Maker",
+      "shortName": "Make",
+      "description": "Build a 2 to 10 color palette, lock favorites, randomize the rest, and export CSS variables, a Tailwind v4 theme, or plain JSON.",
+      "category": "Colors",
+      "icon": "pipette"
+    },
+    {
       "slug": "palette-extractor",
       "platforms": ["web", "desktop"],
       "name": "Palette Extractor",

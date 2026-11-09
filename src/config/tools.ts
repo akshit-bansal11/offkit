@@ -353,6 +353,30 @@ export const tools: ToolDefinition[] = [
     icon: Palette,
   },
   {
+    slug: "color-blocks",
+    platforms: ["web", "desktop"],
+    href: "/color-blocks",
+    name: "Color Blocks",
+    shortName: "Blocks",
+    description:
+      "Browse 639 solid color swatches, filter by hue family or lightness, and copy any hex value.",
+    category: "Colors",
+    highlights: ["Filter by hue family and lightness"],
+    icon: Grid3X3,
+  },
+  {
+    slug: "palette-maker",
+    platforms: ["web", "desktop"],
+    href: "/palette-maker",
+    name: "Palette Maker",
+    shortName: "Make",
+    description:
+      "Build a 2 to 10 color palette, lock favorites, randomize the rest, and export CSS variables, a Tailwind v4 theme, or plain JSON.",
+    category: "Colors",
+    highlights: ["Export CSS, Tailwind and JSON"],
+    icon: Pipette,
+  },
+  {
     slug: "palette-extractor",
     platforms: ["web", "desktop"],
     href: "/palette-extractor",

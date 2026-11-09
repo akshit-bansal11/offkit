@@ -195,4 +195,384 @@ export const palettePresets: PalettePreset[] = [
     colors: ["#1B1931", "#44174E", "#662249", "#A34054", "#ED9E59", "#E98CB9"],
     category: "6-color",
   },
+  {
+    name: "Soft Lavender & Midnight Navy",
+    colors: ["#E1D2F3", "#12112E"],
+    category: "2-color",
+  },
+  {
+    name: "Mustard & Nude Pink",
+    colors: ["#FBD2C0", "#887114"],
+    category: "2-color",
+  },
+  {
+    name: "Deep Maroon & Mint Green",
+    colors: ["#50071A", "#AAE8CD"],
+    category: "2-color",
+  },
+  {
+    name: "Sky Blue & White",
+    colors: ["#FFFFFF", "#7EAFD0"],
+    category: "2-color",
+  },
+  {
+    name: "Dark Blue & Blush Pink",
+    colors: ["#FFB3C3", "#2A234F"],
+    category: "2-color",
+  },
+  {
+    name: "Lavender & Navy Blue",
+    colors: ["#EBEBEB", "#10367D"],
+    category: "2-color",
+  },
+  {
+    name: "Lime Mist & Forest Pine",
+    colors: ["#D6CBC7", "#084734"],
+    category: "2-color",
+  },
+  {
+    name: "Crimson Red & Yellow",
+    colors: ["#FCF0D6", "#B40023"],
+    category: "2-color",
+  },
+  {
+    name: "Deep Teal & Vibrant Orange",
+    colors: ["#12363B", "#EF761B"],
+    category: "2-color",
+  },
+  {
+    name: "Golden Yellow & Deep Indigo",
+    colors: ["#EEB01D", "#353470"],
+    category: "2-color",
+  },
+  {
+    name: "Pastel Purple & Forest Green",
+    colors: ["#BBBFEC", "#06530B"],
+    category: "2-color",
+  },
+  {
+    name: "Ivory & Olive Green",
+    colors: ["#FEF9DB", "#574C00"],
+    category: "2-color",
+  },
+  {
+    name: "Beige & Orange",
+    colors: ["#F0E7D6", "#EA2E00"],
+    category: "2-color",
+  },
+  {
+    name: "Vanilla & Teal",
+    colors: ["#F3E5C3", "#174E4F"],
+    category: "2-color",
+  },
+  {
+    name: "Lime & Evergreen",
+    colors: ["#8ED968", "#103C1F"],
+    category: "2-color",
+  },
+  {
+    name: "Mint & Mustard",
+    colors: ["#D7EAE2", "#4B421B"],
+    category: "2-color",
+  },
+  {
+    name: "Burgundy & Sand",
+    colors: ["#5C0E14", "#F0E193"],
+    category: "2-color",
+  },
+  {
+    name: "Sage & Olive",
+    colors: ["#ABC8A2", "#1A2417"],
+    category: "2-color",
+  },
+  {
+    name: "Ocean & Sky",
+    colors: ["#2772A0", "#CCDDEA"],
+    category: "2-color",
+  },
+  {
+    name: "Cherry & Peach",
+    colors: ["#E84F5E", "#FCDFC5"],
+    category: "2-color",
+  },
+  {
+    name: "Sunset Adventure",
+    colors: ["#FE7F2D", "#233D4D"],
+    category: "2-color",
+  },
+  {
+    name: "Lavender Magic",
+    colors: ["#F492F0", "#5E429C"],
+    category: "2-color",
+  },
+  {
+    name: "Electric Lemonade",
+    colors: ["#B8FB3C", "#03045E"],
+    category: "2-color",
+  },
+  {
+    name: "Wisteria & Cream",
+    colors: ["#C69FD5", "#FCFDC8"],
+    category: "2-color",
+  },
+  {
+    name: "Crimson Nights",
+    colors: ["#D7263D", "#02182B"],
+    category: "2-color",
+  },
+  {
+    name: "Vanilla & Moonstone",
+    colors: ["#FFEBAF", "#4C9DB0"],
+    category: "2-color",
+  },
+  {
+    name: "Claret & Pink",
+    colors: ["#670626", "#FFBDC5"],
+    category: "2-color",
+  },
+  {
+    name: "Dreamy Ocean",
+    colors: ["#EAEBED", "#006989"],
+    category: "2-color",
+  },
+  {
+    name: "Ash & Eggshell",
+    colors: ["#9D9D8C", "#ECE6D4"],
+    category: "2-color",
+  },
+  {
+    name: "Fiery Sunset",
+    colors: ["#E74C3C", "#F39C12", "#F1C40F"],
+    category: "3-color",
+  },
+  {
+    name: "Neon Jungle",
+    colors: ["#50207A", "#FF48B9", "#12CE6A"],
+    category: "3-color",
+  },
+  {
+    name: "Rustic Earth",
+    colors: ["#414A37", "#99744A", "#DBC2A6"],
+    category: "3-color",
+  },
+  {
+    name: "Amethyst Sky",
+    colors: ["#50207A", "#D6B9FC", "#838CE5"],
+    category: "3-color",
+  },
+  {
+    name: "Nautical Classic",
+    colors: ["#10367D", "#EBEBEB", "#74B4D9"],
+    category: "3-color",
+  },
+  {
+    name: "Bioluminescent Forest",
+    colors: ["#05614B", "#020E0E", "#01DE82"],
+    category: "3-color",
+  },
+  {
+    name: "Autumn Harvest",
+    colors: ["#FD0D02", "#FEA603", "#4D6802"],
+    category: "3-color",
+  },
+  {
+    name: "Crimson Ice",
+    colors: ["#0C0E0B", "#D6E7F3", "#D6303A"],
+    category: "3-color",
+  },
+  {
+    name: "Hot Pink & Charcoal",
+    colors: ["#474747", "#333333", "#FD105E"],
+    category: "3-color",
+  },
+  {
+    name: "Lush Greens",
+    colors: ["#A4CD01", "#E0D205", "#02754B"],
+    category: "3-color",
+  },
+  {
+    name: "Lavender Dreams",
+    colors: ["#EAEFFE", "#9787F3", "#2D274B"],
+    category: "3-color",
+  },
+  {
+    name: "Classic Pink & Black",
+    colors: ["#FFFFFF", "#E281B1", "#050304"],
+    category: "3-color",
+  },
+  {
+    name: "Pastel Punch",
+    colors: ["#F8DCD3", "#82AAF2", "#FB6A4C"],
+    category: "3-color",
+  },
+  {
+    name: "Muted Navy",
+    colors: ["#F6F3ED", "#C2CBD3", "#313851"],
+    category: "3-color",
+  },
+  {
+    name: "Vibrant Orange",
+    colors: ["#FD6500", "#242529", "#FFA300"],
+    category: "3-color",
+  },
+  {
+    name: "Magenta Pop",
+    colors: ["#FF5402", "#9E0059", "#D6D6D6"],
+    category: "3-color",
+  },
+  {
+    name: "Pastel Sky",
+    colors: ["#B796FF", "#121710", "#CBFBFD"],
+    category: "3-color",
+  },
+  {
+    name: "Coral & Mint",
+    colors: ["#FB3F58", "#121619", "#7FD0BD"],
+    category: "3-color",
+  },
+  {
+    name: "Citrus Green",
+    colors: ["#DCE25A", "#90C52D", "#FFEAB5"],
+    category: "3-color",
+  },
+  {
+    name: "Winter Sky",
+    colors: ["#2C3E50", "#3498DB", "#ECF0F1", "#95A5A6"],
+    category: "4-color",
+  },
+  {
+    name: "Evergreen Forest",
+    colors: ["#16A085", "#27AE60", "#2ECC71", "#34495E"],
+    category: "4-color",
+  },
+  {
+    name: "Clay & Steel",
+    colors: ["#D35400", "#C0392B", "#BDC3C7", "#7F8C8D"],
+    category: "4-color",
+  },
+  {
+    name: "Muted Earth",
+    colors: ["#232020", "#626C66", "#918B76", "#ACA885", "#E1CA96"],
+    category: "5-color",
+  },
+  {
+    name: "Warm Taupe",
+    colors: ["#5E3719", "#735238", "#886E58", "#9D8977", "#B2A496"],
+    category: "5-color",
+  },
+  {
+    name: "Autumn Forest",
+    colors: ["#232020", "#553739", "#955E42", "#9C914F", "#748E54"],
+    category: "5-color",
+  },
+  {
+    name: "Golden Shore",
+    colors: ["#017D7D", "#509494", "#98C1C1", "#E0E9E9", "#F6C468"],
+    category: "5-color",
+  },
+  {
+    name: "Bubble Pop",
+    colors: ["#0B585C", "#0B8488", "#DDE8EA", "#DC9EC8", "#E24C4F"],
+    category: "5-color",
+  },
+  {
+    name: "Urban Garden",
+    colors: ["#094648", "#056362", "#4B844B", "#B4B236", "#DCE2C0"],
+    category: "5-color",
+  },
+  {
+    name: "Coral Shore",
+    colors: ["#0F595F", "#347377", "#6C989A", "#E7E0DA", "#F4AD8E"],
+    category: "5-color",
+  },
+  {
+    name: "Retro Romance",
+    colors: ["#2A6F73", "#66908F", "#D6E2E3", "#D3C5C6", "#C3909B"],
+    category: "5-color",
+  },
+  {
+    name: "Mountain Lodge",
+    colors: ["#0D6663", "#519390", "#A6C0BE", "#DAE6E1", "#7C5D4F"],
+    category: "5-color",
+  },
+  {
+    name: "Fresh Joy",
+    colors: ["#115A61", "#0F7476", "#3B9495", "#DFEC95", "#CE8FDB"],
+    category: "5-color",
+  },
+  {
+    name: "Summer Splash (Pink)",
+    colors: ["#126468", "#2B7B83", "#E2896D", "#E6A9B5", "#FDEEAE"],
+    category: "5-color",
+  },
+  {
+    name: "Mint Harmony",
+    colors: ["#007F7D", "#0E9A98", "#1FD0AF", "#85E7C8", "#C5EDE0"],
+    category: "5-color",
+  },
+  {
+    name: "Plum Rose",
+    colors: ["#1A141B", "#513953", "#E4DBDE", "#DF94B2", "#DB1C39"],
+    category: "5-color",
+  },
+  {
+    name: "Teal & Gold",
+    colors: ["#1F2E3B", "#177174", "#A4C9C9", "#E5EBEF", "#B88E22"],
+    category: "5-color",
+  },
+  {
+    name: "Sensual",
+    colors: ["#1A1110", "#6A0019", "#95897E", "#D9B6B0", "#E1DCD5", "#F7F5F2"],
+    category: "6-color",
+  },
+  {
+    name: "Spotify",
+    colors: ["#1EDD60", "#1B1716"],
+    category: "Popular Brands",
+  },
+  {
+    name: "IKEA",
+    colors: ["#0058A3", "#FFDB00"],
+    category: "Popular Brands",
+  },
+  {
+    name: "Amazon",
+    colors: ["#FF6201", "#171D27"],
+    category: "Popular Brands",
+  },
+  {
+    name: "McDonalds",
+    colors: ["#DB0007", "#FFBC0D"],
+    category: "Popular Brands",
+  },
+  {
+    name: "Netflix",
+    colors: ["#B1060F", "#E50914", "#000000"],
+    category: "Popular Brands",
+  },
+  {
+    name: "Starbucks",
+    colors: ["#006341", "#000000", "#FFFFFF"],
+    category: "Popular Brands",
+  },
+  {
+    name: "nVidia",
+    colors: ["#517C00", "#75B600", "#000000"],
+    category: "Popular Brands",
+  },
+  {
+    name: "Meta",
+    colors: ["#0265E0", "#0080F9", "#1C2B33"],
+    category: "Popular Brands",
+  },
+  {
+    name: "Google",
+    colors: ["#4285F4", "#EA4335", "#FBBC05", "#34A853"],
+    category: "Popular Brands",
+  },
+  {
+    name: "Olympics",
+    colors: ["#0081C8", "#000000", "#DF3D59", "#F0BA6A", "#00A651"],
+    category: "Popular Brands",
+  },
 ];

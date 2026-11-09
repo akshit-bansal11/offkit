@@ -51,6 +51,11 @@
   --sidebar-accent-foreground: #1b1f3b;
   --sidebar-border: #e2e4ee;
   --sidebar-ring: #1b1f3b;
+
+  /* Ink on a colour swatch, the same in both themes. Light swatches take black, dark ones white,
+     split at relative luminance 0.179, so each pair reads at 4.58:1 or better. */
+  --swatch-ink-light: #fff;
+  --swatch-ink-dark: #000;
 }
 
 .dark {
