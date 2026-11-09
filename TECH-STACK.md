@@ -55,7 +55,7 @@ Authoritative for this repo; overrides the global stack defaults. Versions come 
 | Service | Use | State |
 | --- | --- | --- |
 | GitHub Releases | Desktop installers, `SHA256SUMS.txt`, provenance | `.github/workflows/release.yml` |
-| Vercel | Website, project `open-tools` (rename to `offkit` pending) | Domain `offkit.akshitbansal.me` not yet added — see `OPEN_ITEMS.md` |
+| Vercel | Website, project `offkit` | Domain `offkit.akshitbansal.dev` |
 | DNS | Namecheap (`registrar-servers.com`) for `akshitbansal.me` | Owner-managed |
 
 ## Environment variables

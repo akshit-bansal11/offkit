@@ -13,7 +13,7 @@ labels: bug
 2.
 
 **Where it happened**
-- Desktop app or web app (offkit.akshitbansal.me):
+- Desktop app or web app (offkit.akshitbansal.dev):
 - Tool:
 - Offkit release (desktop), or browser and version (web):
 - Operating system and version:

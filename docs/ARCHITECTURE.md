@@ -5,7 +5,7 @@ Offkit is two apps in one repository, built from one list of tools.
 | Path | What |
 | --- | --- |
 | `tools.json` | The shared tool registry: `siteUrl`, the categories, and every tool with its `platforms`. |
-| `src/` | The web app. Next.js 16, React 19, TypeScript. Served at https://offkit.akshitbansal.me. |
+| `src/` | The web app. Next.js 16, React 19, TypeScript. Served at https://offkit.akshitbansal.dev. |
 | `desktop/` | The native app. Rust and Slint, for Windows, macOS and Linux. |
 | `e2e/` | Playwright specs for the web app. |
 | `scripts/` | `copy-vendor.mjs` copies the wasm engines into `public/vendor/`. |

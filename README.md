@@ -2,12 +2,12 @@
 
 Offkit is 39 everyday file and developer tools for audio, video, images, PDFs, SVG, colours, CSS, text and dev work, and every one runs on your own machine. It is a native desktop app for Windows, macOS and Linux, and a web app that does the same work in the browser.
 
-[Website](https://offkit.akshitbansal.me) · [Documentation](https://offkit.akshitbansal.me/docs) · [Releases](https://github.com/akshit-bansal11/offkit/releases/latest)
+[Website](https://offkit.akshitbansal.dev) · [Documentation](https://offkit.akshitbansal.dev/docs) · [Releases](https://github.com/akshit-bansal11/offkit/releases/latest)
 
 [![CI](https://github.com/akshit-bansal11/offkit/actions/workflows/ci.yml/badge.svg)](https://github.com/akshit-bansal11/offkit/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/akshit-bansal11/offkit)](https://github.com/akshit-bansal11/offkit/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-offkit.akshitbansal.me-black.svg)](https://offkit.akshitbansal.me/docs)
+[![Documentation](https://img.shields.io/badge/docs-offkit.akshitbansal.dev-black.svg)](https://offkit.akshitbansal.dev/docs)
 
 Offkit was called Open Tools before v0.2.0.
 
@@ -70,7 +70,7 @@ A tool that runs on the web only shows an **Open in Browser** button in the desk
 - **PDF:** PDF Toolkit, PDF ↔ Image Converter, PDF Merger, PDF Splitter, PDF Compressor, Convert to PDF, Convert from PDF.
 - **Text:** Lorem Generator, Diff Checker, JSON Formatter, Base64, Markdown Editor.
 
-The full reference is on the [docs page](https://offkit.akshitbansal.me/docs), which is generated from `src/config/tools.ts`.
+The full reference is on the [docs page](https://offkit.akshitbansal.dev/docs), which is generated from `src/config/tools.ts`.
 
 ### Planned
 

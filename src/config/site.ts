@@ -5,7 +5,7 @@ const REPOSITORY_URL = "https://github.com/akshit-bansal11/offkit";
 
 export const siteConfig = {
   name: "offkit",
-  url: "https://offkit.akshitbansal.me",
+  url: "https://offkit.akshitbansal.dev",
   description:
     "Free tools for images, video, audio, PDFs, SVG, colors and text, in your browser or as a desktop app for Windows, macOS and Linux. Files are processed on your device and never uploaded.",
   repositoryUrl: REPOSITORY_URL,
