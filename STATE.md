@@ -9,7 +9,7 @@
 | Bootstrapped | 2026-10-18 (continuity files added with the 0.2.0 release; the code predates them) |
 | Stack detected as | Rust 2024 + Slint 1.18.1 desktop app (`desktop/`), Next.js 16 web app (`src/`), shared `tools.json` — see `TECH-STACK.md` |
 | Quality gate command | Web `npm run check:ci`; desktop `cargo fmt --check` + `cargo clippy --locked --all-targets -D warnings` — **run in CI only** |
-| Deployed at | Web: `https://open-tools.akshitbansal.me` (resolves). `https://offkit.akshitbansal.me` does **not** resolve yet. Desktop: GitHub Releases `v0.2.1` |
+| Deployed at | Web: `https://offkit.akshitbansal.dev` (Vercel project `offkit`; the old `open-tools.akshitbansal.me` and `use-open-tools.vercel.app` return 404). Desktop: GitHub Releases `v0.2.1` |
 
 ## Where the work is right now
 
